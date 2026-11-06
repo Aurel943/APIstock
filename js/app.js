@@ -33,9 +33,9 @@ const App = {
     setInterval(() => Api.emitUsage(), 5000);
 
     const hash = location.hash.replace('#', '');
-    this.show(['portfolio', 'markets', 'simulation', 'settings'].includes(hash) ? hash : (Api.hasKey() ? 'portfolio' : 'settings'));
+    this.show(['portfolio', 'markets', 'simulation', 'settings'].includes(hash) ? hash : (Api.ready() ? 'portfolio' : 'settings'));
     this.renderAll();
-    this.refresh();
+    Api.detectProxy().finally(() => { this.renderAll(); this.refresh(); });
     this.schedule();
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden && Date.now() - this.lastRefresh > Store.state.settings.refreshSec * 1000) this.refresh();
@@ -71,6 +71,8 @@ const App = {
     history.replaceState(null, '', '#' + view);
     if (view === 'markets' && !this.detailKey && Store.state.watchlist.length) this.selectDetail(Store.state.watchlist[0]);
     if (view === 'simulation') this.renderProjection();
+    // les graphiques créés pendant que l'onglet était caché doivent être redimensionnés
+    requestAnimationFrame(() => Object.values(Charts.instances).forEach(c => c.resize()));
   },
 
   schedule() {
@@ -80,7 +82,8 @@ const App = {
   },
 
   renderAll() {
-    $('#noKeyBanner').classList.toggle('hidden', Api.hasKey());
+    $('#noKeyBanner').classList.toggle('hidden', Api.ready());
+    $('#proxyStatus').textContent = Api.autoProxy && !Store.state.settings.yahooProxy ? 'Relais détecté automatiquement sur ce site ✔' : '';
     $$('.ccy').forEach(s => (s.textContent = this.base()));
     this.renderPortfolio();
     this.renderTransactions();
@@ -94,7 +97,7 @@ const App = {
   /* Rafraîchissement des cotations                                       */
   /* ------------------------------------------------------------------ */
   async refresh(manual = false) {
-    if (!Api.hasKey()) { if (manual) toast('Ajoute d\'abord ta clé API dans Réglages.', 'error'); return; }
+    if (!Api.ready()) { if (manual) toast('Configure d\'abord ta clé Twelve Data ou le relais Yahoo dans Réglages.', 'error'); return; }
     if (this.refreshing) return;
     const keys = Store.trackedKeys();
     if (!keys.length) { if (manual) toast('Rien à rafraîchir : ajoute un ETF à ton portefeuille ou à ta liste de suivi.'); return; }
@@ -299,17 +302,21 @@ const App = {
       try {
         let data = await Api.search(q);
         if (etfOnly.checked) {
-          const etfs = data.filter(d => /etf|fund/i.test(d.instrument_type || ''));
+          const etfs = data.filter(d => /etf|fund/i.test(d.type || ''));
           if (etfs.length) data = etfs;
         }
         const prio = { XPAR: 0, XETR: 1, XAMS: 2, XMIL: 3, XLON: 4, XNYS: 5, ARCX: 5, XNAS: 6, XNGS: 6 };
-        data.sort((a, b) => ((prio[a.mic_code] ?? 9) - (prio[b.mic_code] ?? 9)));
+        data.sort((a, b) => ((prio[a.mic] ?? 9) - (prio[b.mic] ?? 9)));
         results.replaceChildren(...(data.length ? data.map(d => el('div', {
           class: 'picker-item',
           onclick: () => {
             const key = Store.upsertInstrument({
-              symbol: d.symbol, mic: d.mic_code, exchange: d.exchange, name: d.instrument_name, currency: d.currency, type: d.instrument_type,
+              symbol: d.symbol, mic: d.mic, exchange: d.exchange, name: d.name, currency: d.currency, type: d.type,
+              provider: d.provider, ysymbol: d.ysymbol,
             });
+            // on force la source choisie (l'instrument a pu être ajouté avant via l'autre source)
+            const inst = Store.instrument(key);
+            inst.provider = d.provider; inst.ysymbol = d.ysymbol || inst.ysymbol || ''; Store.save();
             results.replaceChildren();
             input.value = '';
             renderKnown();
@@ -317,9 +324,10 @@ const App = {
           },
         },
         el('div', {},
-          el('span', { class: 'sym' }, d.symbol), el('span', { class: 'tag' }, d.instrument_type || ''),
-          el('div', { class: 'meta' }, d.instrument_name)),
-        el('div', { class: 'meta', style: 'text-align:right' }, `${d.exchange} (${d.mic_code})`, el('br'), `${d.country || ''} · ${d.currency}`),
+          el('span', { class: 'sym' }, d.symbol), el('span', { class: 'tag' }, d.type || ''),
+          el('span', { class: 'tag src-' + d.source }, d.source === 'yahoo' ? 'Yahoo' : 'Twelve Data'),
+          el('div', { class: 'meta' }, d.name)),
+        el('div', { class: 'meta', style: 'text-align:right' }, `${d.exchange} (${d.mic})`, el('br'), [d.country, d.currency].filter(Boolean).join(' · ')),
         )) : [el('div', { class: 'empty' }, 'Aucun résultat')]));
       } catch (e) {
         toast(e.message, 'error');
@@ -482,7 +490,7 @@ const App = {
   async loadDetailChart() {
     const k = this.detailKey;
     if (!k) return;
-    if (!Api.hasKey()) return;
+    if (!Api.ready()) return;
     const range = this.range;
     try {
       const values = await Api.chartSeries(k, range);
@@ -747,6 +755,18 @@ const App = {
   bindSettings() {
     const st = Store.state.settings;
     $('#setApiKey').value = st.apiKey;
+    $('#setProxy').value = st.yahooProxy || '';
+    $('#testProxy').addEventListener('click', async () => {
+      const url = $('#setProxy').value.trim() || Api.autoProxy;
+      if (!url) { toast('Saisis l\'URL de ton relais', 'error'); return; }
+      try {
+        const j = await Api.yahoo({ type: 'chart', symbol: 'CW8.PA', range: '1d', interval: '1d' }, url);
+        const m = j.chart.result[0].meta;
+        toast(`Relais OK ✔ CW8 (Paris) : ${fmtMoney(m.regularMarketPrice, m.currency)}`, 'success', 6000);
+      } catch (e) {
+        toast('Relais injoignable : ' + e.message, 'error', 8000);
+      }
+    });
     $('#setCurrency').value = st.baseCurrency;
     $('#setRefresh').value = String(st.refreshSec);
     $('#setCredits').value = st.creditsPerMin;
@@ -762,6 +782,8 @@ const App = {
       const prevCcy = st.baseCurrency;
       const prevKey = st.apiKey;
       st.apiKey = $('#setApiKey').value.trim();
+      const prevProxy = st.yahooProxy;
+      st.yahooProxy = $('#setProxy').value.trim().replace(/\/+$/, '');
       st.baseCurrency = $('#setCurrency').value;
       st.refreshSec = parseInt($('#setRefresh').value, 10);
       st.creditsPerMin = parseInt($('#setCredits').value, 10) || 8;
@@ -770,7 +792,7 @@ const App = {
       Api.emitUsage();
       this.renderAll();
       toast('Réglages enregistrés', 'success', 2000);
-      if (st.apiKey && (prevKey !== st.apiKey || prevCcy !== st.baseCurrency)) this.refresh();
+      if (Api.ready() && (prevKey !== st.apiKey || prevCcy !== st.baseCurrency || prevProxy !== st.yahooProxy)) this.refresh();
     });
 
     $('#testKey').addEventListener('click', async () => {

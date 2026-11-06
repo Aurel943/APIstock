@@ -6,6 +6,7 @@ const STORE_KEY = 'apistock:v1';
 const DEFAULT_STATE = {
   settings: {
     apiKey: '',
+    yahooProxy: '',
     baseCurrency: 'EUR',
     refreshSec: 60,
     creditsPerMin: 8,
@@ -45,6 +46,8 @@ const Store = {
       name: info.name || prev.name || info.symbol,
       currency: info.currency || prev.currency || this.state.settings.baseCurrency,
       type: info.type || prev.type || '',
+      provider: info.provider || prev.provider || 'twelve',
+      ysymbol: info.ysymbol || prev.ysymbol || '',
     });
     this.save();
     return key;

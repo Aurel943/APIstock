@@ -34,8 +34,29 @@ Rafraîchissement automatique réglable (30 s à 15 min), mise en pause quand l'
      ```
      puis va sur <http://localhost:8000>
    - ou en ligne via **GitHub Pages** (Settings → Pages → branche, dossier `/`).
-3. Onglet **Réglages** → colle ta clé → *Tester la clé* → *Enregistrer*.
+3. Onglet **Réglages** → colle ta clé → *Tester la clé* → *Enregistrer*. Pour les ETF européens, configure aussi le relais Yahoo (voir ci-dessous).
 4. Onglet **Portefeuille** → *Ajouter une opération* → cherche ton ETF (ex. `CW8`, `ESE`, `IWDA`, `VWCE`) et choisis la bonne place de cotation.
+
+## ETF européens gratuits : le relais Yahoo Finance
+
+Le forfait gratuit de Twelve Data ne couvre que les marchés US (+ forex/crypto). Pour CW8, ESE, IWDA, VWCE… cotés à Paris, Amsterdam, Xetra, Londres, le site utilise **Yahoo Finance** (gratuit, sans clé, sans limite de crédits). Comme un navigateur ne peut pas appeler Yahoo directement (CORS), il faut un petit **relais** gratuit. Deux possibilités :
+
+### A. Cloudflare Worker (recommandé si le site est sur GitHub Pages)
+1. Crée un compte gratuit sur <https://dash.cloudflare.com>.
+2. **Workers & Pages** → **Create** → **Create Worker** → nomme-le `apistock-yahoo` → **Deploy**.
+3. **Edit code** → remplace tout par le contenu de [`proxy/cloudflare-worker.js`](proxy/cloudflare-worker.js) → **Deploy**.
+4. Copie l'URL du worker (`https://apistock-yahoo.<ton-compte>.workers.dev`).
+5. Sur le site : **Réglages** → *Relais Yahoo Finance* → colle l'URL → **Tester** → **Enregistrer**.
+
+Le worker n'accepte que les requêtes venant de `aurel943.github.io` et de `localhost:8000` (modifiable en haut du fichier).
+
+### B. Héberger tout le site sur Vercel
+Importe le dépôt sur <https://vercel.com/new> : la fonction [`api/yahoo.js`](api/yahoo.js) est déployée automatiquement et le site la détecte tout seul (rien à saisir dans les réglages).
+
+### Comment le site choisit sa source
+- Quand tu cherches un ETF, chaque résultat porte une étiquette **Yahoo** ou **Twelve Data** : choisis la ligne Yahoo pour les places européennes.
+- Si un ETF déjà enregistré renvoie l'erreur « available starting with the Grow or Venture plan », il bascule automatiquement sur Yahoo dès que le relais est configuré (tes opérations sont conservées).
+- Sans clé Twelve Data, tout passe par Yahoo, y compris les taux de change.
 
 ## Bon à savoir
 
@@ -56,4 +77,6 @@ js/api.js         client Twelve Data (limite de crédits, caches)
 js/portfolio.js   calculs : PRU, plus-values, rejeu historique, projection
 js/charts.js      graphiques (Chart.js)
 js/app.js         interface
+api/yahoo.js      relais Yahoo Finance (fonction Vercel)
+proxy/cloudflare-worker.js   relais Yahoo Finance (Cloudflare Workers)
 ```

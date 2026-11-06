@@ -37,7 +37,7 @@
   </header>
 
   <div id="noKeyBanner" class="banner hidden">
-    Aucune clé API configurée. <button class="link" data-goto="settings">Ajoute ta clé Twelve Data</button> pour afficher les cours en direct.
+    Aucune source de cours configurée. <button class="link" data-goto="settings">Ajoute ta clé Twelve Data et/ou ton relais Yahoo</button> pour afficher les cours en direct.
   </div>
 
   <main>
@@ -262,7 +262,7 @@
     <section id="view-settings" class="view">
       <div class="grid-2">
         <div class="card">
-          <div class="card-head"><h2>Connexion Twelve Data</h2></div>
+          <div class="card-head"><h2>Sources de données</h2></div>
           <form id="settingsForm" class="stack">
             <label>Clé API
               <div class="inline">
@@ -270,6 +270,13 @@
                 <button type="button" class="btn small" id="toggleKey">Afficher</button>
               </div>
               <span class="muted small">Gratuite sur <a href="https://twelvedata.com/pricing" target="_blank" rel="noopener">twelvedata.com</a>. Stockée uniquement dans ce navigateur.</span>
+            </label>
+            <label>Relais Yahoo Finance (ETF européens gratuits)
+              <div class="inline">
+                <input type="url" id="setProxy" autocomplete="off" placeholder="https://apistock-yahoo.xxx.workers.dev" spellcheck="false">
+                <button type="button" class="btn small" id="testProxy">Tester</button>
+              </div>
+              <span class="muted small">Le forfait gratuit Twelve Data ne couvre pas Euronext, Xetra, etc. Ces ETF passent alors par Yahoo via ton relais (voir le README). <b id="proxyStatus" class="up"></b></span>
             </label>
             <label>Devise de référence
               <select id="setCurrency">

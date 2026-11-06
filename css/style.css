@@ -251,3 +251,6 @@ dialog::backdrop { background: rgba(10, 14, 22, .55); backdrop-filter: blur(2px)
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 .toast.error { background: var(--down); color: #fff; }
 .toast.success { background: var(--up); color: #fff; }
+
+.picker-item .tag.src-yahoo { color: #7c3aed; background: rgba(124, 58, 237, .12); }
+.picker-item .tag.src-twelve { color: #2563eb; background: rgba(37, 99, 235, .12); }
