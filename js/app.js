@@ -46,6 +46,10 @@ const App = {
     this.show(['portfolio', 'markets', 'compare', 'world', 'invest', 'simulation', 'settings'].includes(hash) ? hash : (Api.ready() ? 'portfolio' : 'settings'));
     this.renderAll();
     Api.detectProxy().finally(() => { this.renderAll(); this.refresh(); });
+    if (sessionStorage.getItem('apistock:reloaded')) {
+      sessionStorage.removeItem('apistock:reloaded');
+      setTimeout(() => toast('Site rechargé et à jour ✔', 'success', 3000), 300);
+    }
     this.schedule();
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden && Date.now() - this.lastRefresh > Store.state.settings.refreshSec * 1000) this.refresh();
@@ -909,6 +913,40 @@ const App = {
       Object.keys(localStorage).filter(k => k.startsWith('apistock:')).forEach(k => localStorage.removeItem(k));
       location.reload();
     });
+
+    $('#hardReload').addEventListener('click', () => this.hardReload());
+  },
+
+  /** Rechargement complet : service worker, caches, fichiers du site et cache des cours (données perso conservées) */
+  async hardReload() {
+    const btn = $('#hardReload');
+    btn.disabled = true;
+    btn.classList.add('spin');
+    btn.querySelector('span').textContent = 'Rechargement…';
+    // 1. service worker (application installée) et ses caches
+    try {
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r => r.unregister()));
+      }
+    } catch (e) { /* ignore */ }
+    try {
+      if (window.caches) await Promise.all((await caches.keys()).map(k => caches.delete(k)));
+    } catch (e) { /* ignore */ }
+    // 2. retéléchargement de chaque fichier du site, en contournant le cache HTTP du navigateur
+    const urls = new Set([location.pathname, 'index.html', 'manifest.webmanifest', 'sw.js']);
+    $$('script[src], link[rel=stylesheet][href], link[rel=manifest][href]').forEach(n => {
+      const u = new URL(n.getAttribute('src') || n.getAttribute('href'), location.href);
+      if (u.origin === location.origin) urls.add(u.pathname);
+    });
+    await Promise.all(Array.from(urls).map(u => fetch(u, { cache: 'reload' }).catch(() => null)));
+    // 3. cache des cours (opérations, comptes, réglages et clé API ne sont pas touchés)
+    Api.pruneSeriesCache();
+    localStorage.removeItem('apistock:quotes');
+    localStorage.removeItem('apistock:fx');
+    // 4. rechargement
+    sessionStorage.setItem('apistock:reloaded', '1');
+    location.reload();
   },
 
   bindSettingsValues() {

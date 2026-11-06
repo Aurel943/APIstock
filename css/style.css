@@ -572,3 +572,9 @@ button, a, .pos-card { -webkit-tap-highlight-color: transparent; }
   .quick-assets .btn { flex: none; }
   .quick-assets > span { flex: none; }
 }
+
+.reload-card { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.reload-card p { max-width: 720px; }
+.reload-card .btn { flex: none; }
+.btn.spin svg { animation: spin 1s linear infinite; }
+@media (max-width: 760px) { .reload-card { flex-direction: column; align-items: stretch; } .reload-card .btn { width: 100%; } }
