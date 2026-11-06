@@ -312,9 +312,9 @@ const App = {
   /* ------------------------------------------------------------------ */
   /* Sélecteur d'instrument (recherche Twelve Data)                       */
   /* ------------------------------------------------------------------ */
-  picker(container, { onPick, placeholder = 'Ex : CW8, IWDA, VWCE, SPY, ESE…', showKnown = true, actionLabel }) {
+  picker(container, { onPick, placeholder = 'Ex : CW8, IWDA, VWCE, SPY, ESE…', showKnown = true, actionLabel, etfDefault = true }) {
     const input = el('input', { type: 'search', placeholder, autocomplete: 'off', spellcheck: 'false' });
-    const etfOnly = el('input', { type: 'checkbox', checked: true });
+    const etfOnly = el('input', { type: 'checkbox', checked: etfDefault });
     const btn = el('button', { type: 'button', class: 'btn' }, 'Rechercher');
     const results = el('div', { class: 'picker-results' });
     const known = el('div', { class: 'actions' });
@@ -336,13 +336,13 @@ const App = {
           if (etfs.length) data = etfs;
         }
         const prio = { XPAR: 0, XETR: 1, XAMS: 2, XMIL: 3, XLON: 4, XNYS: 5, ARCX: 5, XNAS: 6, XNGS: 6 };
-        data.sort((a, b) => ((prio[a.mic] ?? 9) - (prio[b.mic] ?? 9)));
+        data.sort((a, b) => ((b.short ? 1 : 0) - (a.short ? 1 : 0)) || ((prio[a.mic] ?? 9) - (prio[b.mic] ?? 9)));
         results.replaceChildren(...(data.length ? data.map(d => el('div', {
           class: 'picker-item',
           onclick: () => {
             const key = Store.upsertInstrument({
               symbol: d.symbol, mic: d.mic, exchange: d.exchange, name: d.name, currency: d.currency, type: d.type,
-              provider: d.provider, ysymbol: d.ysymbol,
+              provider: d.provider, ysymbol: d.ysymbol, short: d.short,
             });
             // on force la source choisie (l'instrument a pu être ajouté avant via l'autre source)
             const inst = Store.instrument(key);
@@ -357,7 +357,7 @@ const App = {
           el('span', { class: 'sym' }, d.symbol), el('span', { class: 'tag' }, d.type || ''),
           el('span', { class: 'tag src-' + d.source }, d.source === 'yahoo' ? 'Yahoo' : 'Twelve Data'),
           el('div', { class: 'meta' }, d.name)),
-        el('div', { class: 'meta', style: 'text-align:right' }, `${d.exchange} (${d.mic})`, el('br'), [d.country, d.currency].filter(Boolean).join(' · ')),
+        el('div', { class: 'meta', style: 'text-align:right' }, d.mic ? `${d.exchange} (${d.mic})` : d.exchange, el('br'), [d.country, d.currency].filter(Boolean).join(' · ')),
         )) : [el('div', { class: 'empty' }, 'Aucun résultat')]));
       } catch (e) {
         toast(e.message, 'error');
@@ -462,20 +462,32 @@ const App = {
   /* ------------------------------------------------------------------ */
   bindMarkets() {
     this.marketPicker = this.picker($('#marketSearch'), {
-      showKnown: false,
-      onPick: async key => {
-        Store.toggleWatch(key, true);
-        this.renderWatchlist();
-        this.selectDetail(key);
-        try { await Api.quote(key); this.renderWatchlist(); this.renderDetailHeader(); this.renderMarketState(); }
-        catch (e) { toast(e.message, 'error', 6000); }
-      },
+      showKnown: false, etfDefault: false,
+      placeholder: 'Ex : CW8, Brent, or, CAC 40, Apple, Bitcoin…',
+      onPick: key => this.watchAndShow(key),
     });
+    // raccourcis : matières premières, crypto, devises, indices
+    $('#marketSearch').append(el('div', { class: 'quick-assets' },
+      el('span', { class: 'muted small' }, 'Accès rapide :'),
+      ...QUICK_ASSETS.map(a => el('button', { type: 'button', class: 'btn small', title: a.name, onclick: () => {
+        if (!Api.hasProxy()) { toast('Configure d\'abord le relais Yahoo dans Réglages.', 'error'); return; }
+        const key = Store.upsertInstrument({ symbol: a.y, mic: '', name: a.name, currency: a.ccy, type: a.type, provider: 'yahoo', ysymbol: a.y, short: a.short });
+        this.watchAndShow(key);
+        if (window.matchMedia('(max-width: 760px)').matches) setTimeout(() => $('#detailCard').scrollIntoView({ behavior: 'smooth' }), 100);
+      } }, a.short))));
     $$('#rangeSel button').forEach(b => b.addEventListener('click', () => {
       this.range = b.dataset.range;
       $$('#rangeSel button').forEach(x => x.classList.toggle('active', x === b));
       this.loadDetailChart();
     }));
+  },
+
+  async watchAndShow(key) {
+    Store.toggleWatch(key, true);
+    this.renderWatchlist();
+    this.selectDetail(key);
+    try { await Api.quote(key); this.renderWatchlist(); this.renderDetailHeader(); this.renderMarketState(); }
+    catch (e) { toast(e.message, 'error', 6000); }
   },
 
   renderWatchlist() {

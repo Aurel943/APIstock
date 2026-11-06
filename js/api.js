@@ -19,6 +19,28 @@ const MIC_TO_YAHOO_SUFFIX = {
 const US_MICS = new Set(['XNYS', 'XNAS', 'XNGS', 'XNCM', 'XNMS', 'ARCX', 'XASE', 'BATS']);
 const EXCHANGE_CCY = { XPAR: 'EUR', XAMS: 'EUR', XBRU: 'EUR', XLIS: 'EUR', XMIL: 'EUR', XETR: 'EUR', XFRA: 'EUR', XSTU: 'EUR', XMUN: 'EUR', XDUS: 'EUR', XHAM: 'EUR', XBER: 'EUR', XMAD: 'EUR', XHEL: 'EUR', XWBO: 'EUR', XDUB: 'EUR', XSWX: 'CHF', XSTO: 'SEK', XCSE: 'DKK', XOSL: 'NOK', XTSE: 'CAD' };
 
+/* Raccourcis : matières premières, devises, crypto, indices (via Yahoo) */
+const QUICK_ASSETS = [
+  { y: 'BZ=F', short: 'Brent', name: 'Pétrole Brent (contrat à terme)', ccy: 'USD', type: 'Matière première', words: ['petrole', 'brent', 'baril', 'oil'] },
+  { y: 'CL=F', short: 'WTI', name: 'Pétrole WTI (contrat à terme)', ccy: 'USD', type: 'Matière première', words: ['petrole', 'wti', 'baril', 'oil'] },
+  { y: 'GC=F', short: 'Or', name: 'Or (once, contrat à terme)', ccy: 'USD', type: 'Matière première', words: ['or', 'gold'] },
+  { y: 'SI=F', short: 'Argent', name: 'Argent (once, contrat à terme)', ccy: 'USD', type: 'Matière première', words: ['argent', 'silver'] },
+  { y: 'NG=F', short: 'Gaz naturel', name: 'Gaz naturel (contrat à terme)', ccy: 'USD', type: 'Matière première', words: ['gaz', 'gas'] },
+  { y: 'HG=F', short: 'Cuivre', name: 'Cuivre (contrat à terme)', ccy: 'USD', type: 'Matière première', words: ['cuivre', 'copper'] },
+  { y: 'ZW=F', short: 'Blé', name: 'Blé (contrat à terme)', ccy: 'USD', type: 'Matière première', words: ['ble', 'wheat'] },
+  { y: 'BTC-EUR', short: 'Bitcoin', name: 'Bitcoin en euros', ccy: 'EUR', type: 'Crypto', words: ['bitcoin', 'btc', 'crypto'] },
+  { y: 'ETH-EUR', short: 'Ethereum', name: 'Ethereum en euros', ccy: 'EUR', type: 'Crypto', words: ['ethereum', 'eth', 'crypto'] },
+  { y: 'EURUSD=X', short: 'EUR/USD', name: 'Euro / Dollar US', ccy: 'USD', type: 'Devise', words: ['eurusd', 'euro', 'dollar', 'devise'] },
+  { y: '^FCHI', short: 'CAC 40', name: 'Indice CAC 40', ccy: 'EUR', type: 'Indice', words: ['cac', 'cac40'] },
+  { y: '^GSPC', short: 'S&P 500', name: 'Indice S&P 500', ccy: 'USD', type: 'Indice', words: ['sp500', 'snp', 's&p'] },
+  { y: '^IXIC', short: 'Nasdaq', name: 'Indice Nasdaq Composite', ccy: 'USD', type: 'Indice', words: ['nasdaq'] },
+  { y: '^GDAXI', short: 'DAX', name: 'Indice DAX', ccy: 'EUR', type: 'Indice', words: ['dax'] },
+  { y: '^STOXX50E', short: 'Euro Stoxx 50', name: 'Indice Euro Stoxx 50', ccy: 'EUR', type: 'Indice', words: ['stoxx', 'eurostoxx'] },
+];
+const YAHOO_TYPE_FR = { FUTURE: 'Matière première', INDEX: 'Indice', CURRENCY: 'Devise', CRYPTOCURRENCY: 'Crypto', EQUITY: 'Action', ETF: 'ETF', MUTUALFUND: 'Fonds' };
+/* traductions pour la recherche Yahoo (qui attend de l'anglais) */
+const SEARCH_FR = { petrole: 'crude oil', or: 'gold', argent: 'silver', gaz: 'natural gas', cuivre: 'copper', ble: 'wheat', mais: 'corn', cafe: 'coffee', sucre: 'sugar', platine: 'platinum' };
+
 function yahooSymbolFor(inst) {
   if (inst.ysymbol) return inst.ysymbol;
   const suf = MIC_TO_YAHOO_SUFFIX[inst.mic];
@@ -170,17 +192,32 @@ const Api = {
   async search(query) {
     const out = [];
     const errors = [];
+    const norm = query.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9&]/g, '');
     if (this.hasProxy()) {
+      // raccourcis correspondant aux mots tapés (« pétrole », « or », « cac »…)
+      for (const a of QUICK_ASSETS) {
+        if (a.words.some(w => norm === w || (norm.length >= 3 && w.startsWith(norm))) || norm === a.y.toLowerCase().replace(/[^a-z0-9&]/g, '')) {
+          out.push({ source: 'yahoo', provider: 'yahoo', ysymbol: a.y, symbol: a.y, mic: '', exchange: a.type, name: a.name, short: a.short, currency: a.ccy, type: a.type, country: '' });
+        }
+      }
       try {
-        const json = await this.yahoo({ type: 'search', q: query });
+        const json = await this.yahoo({ type: 'search', q: SEARCH_FR[norm] || query });
         for (const q of json.quotes || []) {
-          if (!q.symbol || !q.quoteType || q.quoteType === 'OPTION' || q.quoteType === 'FUTURE') continue;
+          if (!q.symbol || !q.quoteType || q.quoteType === 'OPTION') continue;
+          if (out.some(o => o.ysymbol === q.symbol)) continue;
+          // contrats à terme, indices, devises, crypto : pas de place de cotation au sens MIC
+          const special = ['FUTURE', 'INDEX', 'CURRENCY', 'CRYPTOCURRENCY'].includes(q.quoteType);
+          if (special) {
+            out.push({ source: 'yahoo', provider: 'yahoo', ysymbol: q.symbol, symbol: q.symbol, mic: '', exchange: q.exchDisp || q.exchange,
+              name: q.longname || q.shortname || q.symbol, currency: '', type: YAHOO_TYPE_FR[q.quoteType] || q.quoteType, country: '' });
+            continue;
+          }
           const mic = YAHOO_EX_TO_MIC[q.exchange] || q.exchange;
           const base = q.symbol.includes('.') && MIC_TO_YAHOO_SUFFIX[mic] ? q.symbol.slice(0, q.symbol.lastIndexOf('.')) : q.symbol;
           out.push({
             source: 'yahoo', provider: 'yahoo', ysymbol: q.symbol, symbol: base, mic,
             exchange: q.exchDisp || q.exchange, name: q.longname || q.shortname || q.symbol,
-            currency: EXCHANGE_CCY[mic] || (US_MICS.has(mic) ? 'USD' : ''), type: q.typeDisp || q.quoteType, country: '',
+            currency: EXCHANGE_CCY[mic] || (US_MICS.has(mic) ? 'USD' : ''), type: YAHOO_TYPE_FR[q.quoteType] || q.typeDisp || q.quoteType, country: '',
           });
         }
       } catch (e) { errors.push(e); }

@@ -62,6 +62,7 @@ const Store = {
       type: info.type || prev.type || '',
       provider: info.provider || prev.provider || 'twelve',
       ysymbol: info.ysymbol || prev.ysymbol || '',
+      short: info.short || prev.short || '',
     });
     this.save();
     return key;
@@ -75,6 +76,7 @@ const Store = {
   label(key) {
     const i = this.instrument(key);
     if (!i) return key;
+    if (i.short) return i.short;
     return i.symbol + (i.mic ? ' · ' + i.mic : '');
   },
 

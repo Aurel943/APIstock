@@ -565,3 +565,10 @@ button, a, .pos-card { -webkit-tap-highlight-color: transparent; }
   .acc-new > input[type=text] { grid-column: 1 / -1; }
 }
 @media (max-width: 760px) { .chart-box:has(#historyChart):not(.ready) { display: none; } }
+.quick-assets { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 12px; }
+@media (max-width: 760px) {
+  .quick-assets { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 12px -16px 0; padding: 0 16px 2px; }
+  .quick-assets::-webkit-scrollbar { display: none; }
+  .quick-assets .btn { flex: none; }
+  .quick-assets > span { flex: none; }
+}
