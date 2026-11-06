@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>APIstock — Mon portefeuille</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%2310b981'/><path d='M6 22l7-7 5 5 8-9' stroke='white' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <svg viewBox="0 0 32 32" width="28" height="28" aria-hidden="true"><rect width="32" height="32" rx="7" fill="var(--accent)"/><path d="M6 22l7-7 5 5 8-9" stroke="white" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>APIstock</span>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button class="tab active" data-view="portfolio">Portefeuille</button>
+      <button class="tab" data-view="markets">Marchés</button>
+      <button class="tab" data-view="simulation">Simulation</button>
+      <button class="tab" data-view="settings">Réglages</button>
+    </nav>
+    <div class="status">
+      <span id="marketState" class="pill" title="État du marché">—</span>
+      <span id="lastUpdate" class="muted small">Jamais mis à jour</span>
+      <span id="credits" class="pill mono" title="Crédits API utilisés sur la dernière minute">0/8</span>
+      <button id="refreshBtn" class="btn icon" title="Rafraîchir maintenant" aria-label="Rafraîchir">
+        <svg viewBox="0 0 24 24" width="18" height="18"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v4h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button id="themeBtn" class="btn icon" title="Changer de thème" aria-label="Thème">
+        <svg viewBox="0 0 24 24" width="18" height="18"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div id="noKeyBanner" class="banner hidden">
+    Aucune clé API configurée. <button class="link" data-goto="settings">Ajoute ta clé Twelve Data</button> pour afficher les cours en direct.
+  </div>
+
+  <main>
+    <!-- ============ PORTEFEUILLE ============ -->
+    <section id="view-portfolio" class="view active">
+      <div class="kpis" id="kpis"></div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-head">
+            <h2>Mes positions</h2>
+            <div class="actions">
+              <button class="btn primary" id="addTxBtn">+ Ajouter une opération</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="data" id="positionsTable">
+              <thead>
+                <tr>
+                  <th>ETF</th>
+                  <th class="num">Parts</th>
+                  <th class="num">PRU</th>
+                  <th class="num">Investi</th>
+                  <th class="num">% investi</th>
+                  <th class="num">Cours</th>
+                  <th class="num">Jour</th>
+                  <th class="num">Valeur</th>
+                  <th class="num">% actuel</th>
+                  <th class="num">+/- latente</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+              <tfoot></tfoot>
+            </table>
+          </div>
+          <p class="empty hidden" id="positionsEmpty">Aucune position. Clique sur « Ajouter une opération » pour enregistrer ton premier achat d'ETF.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h2>Répartition</h2>
+            <div class="seg" id="allocMode">
+              <button class="active" data-mode="value">Valeur actuelle</button>
+              <button data-mode="cost">Montant investi</button>
+            </div>
+          </div>
+          <div class="chart-box square"><canvas id="allocChart"></canvas></div>
+          <ul class="legend" id="allocLegend"></ul>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>Évolution du portefeuille</h2>
+          <div class="actions">
+            <span class="muted small" id="historyInfo">Reconstruit à partir de tes opérations (1 crédit par ETF, mis en cache 6 h).</span>
+            <button class="btn" id="loadHistoryBtn">Charger l'historique</button>
+          </div>
+        </div>
+        <div class="chart-box wide"><canvas id="historyChart"></canvas></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>Opérations</h2>
+          <span class="muted small" id="txCount"></span>
+        </div>
+        <div class="table-wrap">
+          <table class="data" id="txTable">
+            <thead>
+              <tr>
+                <th>Date</th><th>Type</th><th>ETF</th>
+                <th class="num">Quantité</th><th class="num">Prix</th><th class="num">Frais</th><th class="num">Montant</th><th></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ MARCHÉS ============ -->
+    <section id="view-markets" class="view">
+      <div class="card">
+        <div class="card-head"><h2>Rechercher un ETF, une action, un indice…</h2></div>
+        <div id="marketSearch"></div>
+      </div>
+
+      <div class="grid-2 markets">
+        <div class="card">
+          <div class="card-head">
+            <h2>Liste de suivi</h2>
+            <span class="muted small">Cliquer sur une ligne pour voir le graphique</span>
+          </div>
+          <div class="table-wrap">
+            <table class="data clickable" id="watchTable">
+              <thead>
+                <tr><th>Symbole</th><th class="num">Cours</th><th class="num">Var.</th><th class="num">Var. %</th><th class="num">Plus bas / haut</th><th></th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <p class="empty hidden" id="watchEmpty">Ta liste de suivi est vide. Recherche un instrument ci-dessus et ajoute-le avec ★.</p>
+        </div>
+
+        <div class="card" id="detailCard">
+          <div class="card-head">
+            <div>
+              <h2 id="detailTitle">Graphique</h2>
+              <div class="muted small" id="detailSub">Sélectionne un instrument</div>
+            </div>
+            <div class="seg" id="rangeSel">
+              <button data-range="1J">1J</button>
+              <button data-range="5J">5J</button>
+              <button data-range="1M">1M</button>
+              <button data-range="6M">6M</button>
+              <button class="active" data-range="1A">1A</button>
+              <button data-range="5A">5A</button>
+              <button data-range="MAX">Max</button>
+            </div>
+          </div>
+          <div class="detail-price" id="detailPrice"></div>
+          <div class="chart-box wide"><canvas id="detailChart"></canvas></div>
+          <div class="stats" id="detailStats"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SIMULATION ============ -->
+    <section id="view-simulation" class="view">
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <h2>Simulation sur données réelles</h2>
+            <p class="muted small">« Et si j'avais investi… » — choisis tes ETF, la répartition en %, les sommes et la date de départ. Les achats sont rejoués au cours de clôture réel.</p>
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <label><span>Montant initial (<span class="ccy"></span>)</span>
+            <input type="number" id="simInitial" min="0" step="100" value="10000">
+          </label>
+          <label><span>Versement mensuel (<span class="ccy"></span>)</span>
+            <input type="number" id="simMonthly" min="0" step="50" value="200">
+          </label>
+          <label>Date de départ
+            <input type="date" id="simStart">
+          </label>
+          <label class="check">
+            <input type="checkbox" id="simFractional" checked> Parts fractionnées
+          </label>
+        </div>
+
+        <h3>Répartition</h3>
+        <div class="alloc-rows" id="simRows"></div>
+        <div class="alloc-foot">
+          <div class="alloc-total" id="simTotal">Total : 0 %</div>
+          <div class="actions">
+            <button class="btn" id="simEqual">Répartir équitablement</button>
+            <button class="btn" id="simFromPortfolio">Reprendre mon portefeuille</button>
+          </div>
+        </div>
+        <div id="simPicker"></div>
+
+        <div class="run-row">
+          <button class="btn primary big" id="simRun">Lancer la simulation</button>
+          <span class="muted small" id="simCost"></span>
+        </div>
+
+        <div id="simResults" class="hidden">
+          <div class="kpis" id="simKpis"></div>
+          <div class="table-wrap">
+            <table class="data" id="simTable">
+              <thead>
+                <tr>
+                  <th>ETF</th><th class="num">% cible</th><th class="num">Somme investie</th><th class="num">Parts</th><th class="num">PRU</th>
+                  <th class="num">Cours</th><th class="num">Valeur</th><th class="num">% actuel</th><th class="num">+/- latente</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+              <tfoot></tfoot>
+            </table>
+          </div>
+          <div class="chart-box wide"><canvas id="simChart"></canvas></div>
+          <p class="muted small" id="simNote"></p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <h2>Projection dans le futur</h2>
+            <p class="muted small">Intérêts composés avec versements mensuels. Hypothèse de rendement, pas une promesse !</p>
+          </div>
+        </div>
+        <div class="form-grid">
+          <label><span>Capital de départ (<span class="ccy"></span>)</span>
+            <div class="inline">
+              <input type="number" id="projInitial" min="0" step="100" value="10000">
+              <button class="btn small" id="projFromPf" title="Utiliser la valeur actuelle du portefeuille">Mon PF</button>
+            </div>
+          </label>
+          <label><span>Versement mensuel (<span class="ccy"></span>)</span>
+            <input type="number" id="projMonthly" min="0" step="50" value="300">
+          </label>
+          <label>Rendement annuel moyen (%)
+            <input type="number" id="projRate" step="0.5" value="7">
+          </label>
+          <label>Frais annuels (%)
+            <input type="number" id="projFees" step="0.05" min="0" value="0.2">
+          </label>
+          <label>Durée (années)
+            <input type="number" id="projYears" min="1" max="60" value="20">
+          </label>
+        </div>
+        <div class="kpis" id="projKpis"></div>
+        <div class="chart-box wide"><canvas id="projChart"></canvas></div>
+      </div>
+    </section>
+
+    <!-- ============ RÉGLAGES ============ -->
+    <section id="view-settings" class="view">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-head"><h2>Connexion Twelve Data</h2></div>
+          <form id="settingsForm" class="stack">
+            <label>Clé API
+              <div class="inline">
+                <input type="password" id="setApiKey" autocomplete="off" placeholder="ta clé API" spellcheck="false">
+                <button type="button" class="btn small" id="toggleKey">Afficher</button>
+              </div>
+              <span class="muted small">Gratuite sur <a href="https://twelvedata.com/pricing" target="_blank" rel="noopener">twelvedata.com</a>. Stockée uniquement dans ce navigateur.</span>
+            </label>
+            <label>Devise de référence
+              <select id="setCurrency">
+                <option>EUR</option><option>USD</option><option>GBP</option><option>CHF</option><option>CAD</option><option>JPY</option>
+              </select>
+            </label>
+            <label>Rafraîchissement automatique
+              <select id="setRefresh">
+                <option value="0">Désactivé</option>
+                <option value="30">Toutes les 30 s</option>
+                <option value="60">Toutes les minutes</option>
+                <option value="120">Toutes les 2 min</option>
+                <option value="300">Toutes les 5 min</option>
+                <option value="900">Toutes les 15 min</option>
+              </select>
+            </label>
+            <label>Crédits API par minute (selon ton forfait)
+              <input type="number" id="setCredits" min="1" max="2000" value="8">
+              <span class="muted small">Forfait gratuit : 8 crédits/min et 800/jour. Chaque cotation coûte 1 crédit.</span>
+            </label>
+            <div class="actions">
+              <button type="submit" class="btn primary">Enregistrer</button>
+              <button type="button" class="btn" id="testKey">Tester la clé</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h2>Sauvegarde</h2></div>
+          <div class="stack">
+            <p class="muted">Tes données (opérations, liste de suivi) sont enregistrées dans le navigateur. Exporte-les régulièrement pour ne rien perdre, ou pour les transférer sur un autre appareil.</p>
+            <div class="actions">
+              <button class="btn" id="exportBtn">Exporter (JSON)</button>
+              <label class="btn">Importer… <input type="file" id="importFile" accept="application/json,.json" hidden></label>
+            </div>
+            <hr>
+            <div class="actions">
+              <button class="btn" id="clearCache">Vider le cache des cours</button>
+              <button class="btn danger" id="resetAll">Tout effacer</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Fenêtre d'opération -->
+  <dialog id="txDialog">
+    <form method="dialog" id="txForm" class="stack">
+      <h2 id="txDialogTitle">Nouvelle opération</h2>
+      <div id="txInstrument"></div>
+      <div class="form-grid compact">
+        <label>Type
+          <select id="txType"><option value="buy">Achat</option><option value="sell">Vente</option></select>
+        </label>
+        <label>Date
+          <input type="date" id="txDate" required>
+        </label>
+        <label>Quantité (parts)
+          <input type="number" id="txQty" step="any" min="0" required>
+        </label>
+        <label>Prix unitaire
+          <input type="number" id="txPrice" step="any" min="0" required>
+        </label>
+        <label>Frais
+          <input type="number" id="txFees" step="any" min="0" value="0">
+        </label>
+        <label>Montant total
+          <input type="text" id="txTotal" readonly tabindex="-1">
+        </label>
+      </div>
+      <div class="actions end">
+        <button type="button" class="btn" id="txCancel">Annuler</button>
+        <button type="submit" class="btn primary" id="txSave">Enregistrer</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/portfolio.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
