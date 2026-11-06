@@ -32,6 +32,7 @@ const App = {
     this.bindGoal();
     this.bindPrivacy();
     this.bindCsv();
+    this.bindMobile();
     if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
     Api.onUsage((used, limit) => {
       const c = $('#credits');
@@ -224,6 +225,7 @@ const App = {
         el('td', { class: 'num ' + trendClass(r.pnl) }, fmtSignedMoney(r.pnlBase, cur), el('div', { class: 'small' }, fmtPct(r.pnlPct))),
       );
     }));
+    this.renderPositionCards(rows);
     tfoot.replaceChildren(rows.length ? el('tr', {},
       el('td', {}, 'Total'), el('td'), el('td'),
       el('td', { class: 'num' }, fmtMoney(totals.cost, cur)),
@@ -296,6 +298,7 @@ const App = {
       const { points } = Portfolio.replay(series, fx, events);
       if (!points.length) throw new Error('Pas de données historiques disponibles.');
       Charts.investedVsValue('historyChart', points.map(p => fmtDate(p.date)), points.map(p => p.invested), points.map(p => p.value), this.base(), { stepped: true });
+      $('#historyChart').parentElement.classList.add('ready');
       this.renderCalendar(Portfolio.twr(points));
       const lastP = points[points.length - 1];
       $('#historyInfo').textContent = `Depuis le ${fmtDate(start)} · dernier point : ${fmtMoney(lastP.value, this.base())}`;

@@ -46,7 +46,7 @@ Site personnel (100 % statique, sans serveur ni compte) pour suivre ses ETF et l
 
 **Indicateurs supplémentaires** : rendement annualisé réel (XIRR, tient compte de la date de chaque versement), plus-value nette d'impôt estimée (PEA / compte-titres / taux personnalisé, dans Réglages).
 
-**Application mobile** : le site est installable (PWA) — sur iPhone : Safari → Partager → « Sur l'écran d'accueil » ; sur Android : Chrome → menu → « Installer l'application ».
+**Application mobile** : interface dédiée sur téléphone (barre de navigation en bas, positions en cartes, bouton « + » flottant, fenêtres en plein écran) et site installable (PWA) — sur iPhone : Safari → Partager → « Sur l'écran d'accueil » ; sur Android : Chrome → menu → « Installer l'application ».
 
 **Simulation**
 - *Simulation sur données réelles* : « et si j'avais investi X € + Y €/mois depuis telle date, réparti en % sur ces ETF ? » → somme investie, nombre de parts, PRU, valeur actuelle, % actuel et plus-value latente par ETF, courbe et pire baisse (drawdown). Parts entières ou fractionnées. Bouton pour reprendre la répartition de ton portefeuille.
@@ -110,6 +110,7 @@ js/markets.js     horaires des bourses, fuseaux, jours fériés
 js/views.js       onglets Monde et Investir (plan, alertes)
 js/compare.js     onglet Comparer
 js/extras.js      comptes, objectif, calendrier, mode discret, CSV
+js/mobile.js      navigation et affichage mobile
 sw.js, manifest.webmanifest, icons/   application installable (PWA)
 js/app.js         interface
 api/yahoo.js      relais Yahoo Finance (fonction Vercel)
