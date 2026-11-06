@@ -24,6 +24,9 @@ const App = {
     this.bindSimulation();
     this.bindSettings();
     this.bindDialog();
+    this.bindWorld();
+    this.bindInvest();
+    if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
     Api.onUsage((used, limit) => {
       const c = $('#credits');
       c.textContent = used + '/' + limit;
@@ -33,7 +36,7 @@ const App = {
     setInterval(() => Api.emitUsage(), 5000);
 
     const hash = location.hash.replace('#', '');
-    this.show(['portfolio', 'markets', 'simulation', 'settings'].includes(hash) ? hash : (Api.ready() ? 'portfolio' : 'settings'));
+    this.show(['portfolio', 'markets', 'world', 'invest', 'simulation', 'settings'].includes(hash) ? hash : (Api.ready() ? 'portfolio' : 'settings'));
     this.renderAll();
     Api.detectProxy().finally(() => { this.renderAll(); this.refresh(); });
     this.schedule();
@@ -71,6 +74,8 @@ const App = {
     history.replaceState(null, '', '#' + view);
     if (view === 'markets' && !this.detailKey && Store.state.watchlist.length) this.selectDetail(Store.state.watchlist[0]);
     if (view === 'simulation') this.renderProjection();
+    if (view === 'world') { this.renderWorld(); this.loadWorldQuotes(); }
+    if (view === 'invest') { this.renderInvest(); this.renderAlerts(); }
     // les graphiques créés pendant que l'onglet était caché doivent être redimensionnés
     requestAnimationFrame(() => Object.values(Charts.instances).forEach(c => c.resize()));
   },
@@ -91,6 +96,10 @@ const App = {
     this.renderDetailHeader();
     this.renderSimRows();
     this.renderProjection();
+    this.renderInvest();
+    this.renderAlerts();
+    this.renderMarketState();
+    if (this.view === 'world') this.renderWorld();
   },
 
   /* ------------------------------------------------------------------ */
@@ -113,6 +122,7 @@ const App = {
         try {
           const q = await Api.quote(k);
           if (q.currency) currencies.add(q.currency);
+          this.checkAlerts(k, q);
           this.renderPortfolio();
           this.renderWatchlist();
           if (k === this.detailKey) this.renderDetailHeader();
@@ -131,19 +141,10 @@ const App = {
       this.renderPortfolio();
       this.renderWatchlist();
       this.renderMarketState();
+      if (this.view === 'invest') { this.renderInvest(); this.renderAlerts(); }
     }
     if (errors && lastErr) toast(lastErr.message, 'error', 6000);
     else if (manual) toast('Cours mis à jour', 'success', 2000);
-  },
-
-  renderMarketState() {
-    const keys = Store.trackedKeys();
-    const quotes = keys.map(k => Api.cachedQuote(k)).filter(Boolean);
-    const pill = $('#marketState');
-    if (!quotes.length) { pill.textContent = '—'; pill.className = 'pill'; return; }
-    const open = quotes.some(q => q.isOpen);
-    pill.textContent = open ? 'Marché ouvert' : 'Marché fermé';
-    pill.className = 'pill' + (open ? ' open' : '');
   },
 
   /* ------------------------------------------------------------------ */
@@ -174,7 +175,13 @@ const App = {
     kpis.replaceChildren(...[
       this.kpi('Valeur actuelle', fmtMoney(totals.value, cur), totals.missing ? totals.missing + ' cours manquant(s)' : rows.length + ' ligne(s)'),
       this.kpi('Montant investi', fmtMoney(totals.cost, cur), 'Frais inclus'),
-      this.kpi('Plus-value latente', fmtSignedMoney(totals.pnl, cur), fmtPct(totals.pnlPct), trendClass(totals.pnl)),
+      this.kpi('Plus-value latente', fmtSignedMoney(totals.pnl, cur),
+        fmtPct(totals.pnlPct) + (Portfolio.taxRate() > 0 && totals.pnl > 0 ? ' · net d\'impôt ≈ ' + fmtSignedMoney(totals.pnl * (1 - Portfolio.taxRate() / 100), cur) : ''), trendClass(totals.pnl)),
+      (() => {
+        const x = rows.length ? Portfolio.portfolioXirr(totals.value) : NaN;
+        const first = Store.state.transactions.reduce((m, t) => (t.date < m ? t.date : m), todayISO());
+        return this.kpi('Rendement annualisé', isFinite(x) ? fmtPct(x) : '—', isFinite(x) ? 'XIRR depuis le ' + fmtDate(first) : 'Pas assez d\'historique', trendClass(x));
+      })(),
       this.kpi('Variation du jour', fmtSignedMoney(totals.day, cur), fmtPct(totals.dayPct), trendClass(totals.day)),
       Math.abs(totals.realized) > 0.005 ? this.kpi('Plus-value réalisée', fmtSignedMoney(totals.realized, cur), 'Sur les ventes', trendClass(totals.realized)) : null,
     ].filter(Boolean));
@@ -190,7 +197,8 @@ const App = {
       return el('tr', { onclick: () => { this.show('markets'); this.selectDetail(r.key); } },
         el('td', {},
           el('span', { class: 'sym' }, el('span', { class: 'dot', style: `display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;background:${PALETTE[i % PALETTE.length]}` }), Store.label(r.key)),
-          el('span', { class: 'name', title: r.inst ? r.inst.name : '' }, r.inst ? r.inst.name : '')),
+          el('span', { class: 'name', title: r.inst ? r.inst.name : '' }, r.inst ? r.inst.name : ''),
+          this.marketBadge(r.key)),
         el('td', { class: 'num' }, fmtQty(r.qty)),
         el('td', { class: 'num' }, fmtMoney(r.pru, r.currency, 3)),
         el('td', { class: 'num' }, fmtMoney(r.costBase, cur), sameCcy ? null : el('div', { class: 'muted small' }, fmtMoney(r.cost, r.currency))),
@@ -660,6 +668,10 @@ const App = {
         this.kpi('Total investi', fmtMoney(lastP.invested, cur), `${nbVersements} versement(s) · ${fmtNum(years, 1)} an(s)`),
         this.kpi('Valeur aujourd\'hui', fmtMoney(lastP.value, cur), 'au ' + fmtDate(lastP.date)),
         this.kpi('Plus-value latente', fmtSignedMoney(pnl, cur), fmtPct(pnlPct), trendClass(pnl)),
+        (() => {
+          const x = Portfolio.xirr([...events.map(e => ({ date: e.date, amount: -e.amount })), { date: lastP.date, amount: lastP.value }]);
+          return this.kpi('Rendement annualisé', fmtPct(x), 'XIRR (tient compte des versements)', trendClass(x));
+        })(),
         this.kpi('Pire baisse', fmtPct(-maxDD * 100), 'Max drawdown de la valeur', maxDD > 0 ? 'down' : ''),
       );
 
@@ -756,6 +768,17 @@ const App = {
     const st = Store.state.settings;
     $('#setApiKey').value = st.apiKey;
     $('#setProxy').value = st.yahooProxy || '';
+    $('#setTaxMode').value = st.taxMode || 'none';
+    $('#setTaxRate').value = st.taxRate || '';
+    const syncTax = () => {
+      const m = $('#setTaxMode').value;
+      if (m === 'pea') $('#setTaxRate').value = 17.2;
+      if (m === 'cto') $('#setTaxRate').value = 30;
+      if (m === 'none') $('#setTaxRate').value = '';
+      $('#setTaxRate').disabled = m === 'none';
+    };
+    $('#setTaxMode').addEventListener('change', syncTax);
+    $('#setTaxRate').disabled = (st.taxMode || 'none') === 'none';
     $('#testProxy').addEventListener('click', async () => {
       const url = $('#setProxy').value.trim() || Api.autoProxy;
       if (!url) { toast('Saisis l\'URL de ton relais', 'error'); return; }
@@ -786,6 +809,8 @@ const App = {
       st.yahooProxy = $('#setProxy').value.trim().replace(/\/+$/, '');
       st.baseCurrency = $('#setCurrency').value;
       st.refreshSec = parseInt($('#setRefresh').value, 10);
+      st.taxMode = $('#setTaxMode').value;
+      st.taxRate = parseNum($('#setTaxRate').value) || 0;
       st.creditsPerMin = parseInt($('#setCredits').value, 10) || 8;
       Store.save();
       this.schedule();

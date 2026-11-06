@@ -1,0 +1,17 @@
+{
+  "name": "APIstock — Mon portefeuille",
+  "short_name": "APIstock",
+  "description": "Suivi de bourse et d'ETF en direct, simulations et plan d'investissement.",
+  "start_url": "./#portfolio",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0b0f17",
+  "theme_color": "#10b981",
+  "lang": "fr",
+  "icons": [
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

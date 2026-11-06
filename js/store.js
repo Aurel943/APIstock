@@ -10,7 +10,11 @@ const DEFAULT_STATE = {
     baseCurrency: 'EUR',
     refreshSec: 60,
     creditsPerMin: 8,
+    taxMode: 'none',   // none | pea | cto | custom
+    taxRate: 0,
   },
+  targets: {},       // key -> % cible
+  alerts: [],        // { id, key, kind: 'above'|'below'|'dayUp'|'dayDown', value, active, triggeredAt }
   instruments: {},   // key -> { symbol, mic, exchange, name, currency, type }
   transactions: [],  // { id, key, type: 'buy'|'sell', date, qty, price, fees }
   watchlist: [],     // [key]
@@ -26,6 +30,8 @@ const Store = {
     try { saved = JSON.parse(localStorage.getItem(STORE_KEY) || 'null'); } catch (e) { saved = null; }
     this.state = Object.assign(structuredClone(DEFAULT_STATE), saved || {});
     this.state.settings = Object.assign({}, DEFAULT_STATE.settings, (saved && saved.settings) || {});
+    this.state.targets = this.state.targets || {};
+    this.state.alerts = this.state.alerts || [];
     return this.state;
   },
 
@@ -90,6 +96,8 @@ const Store = {
   trackedKeys() {
     const set = new Set(this.state.watchlist);
     for (const t of this.state.transactions) set.add(t.key);
+    for (const k of Object.keys(this.state.targets || {})) set.add(k);
+    for (const a of this.state.alerts || []) if (a.active) set.add(a.key);
     return Array.from(set).filter(k => this.state.instruments[k]);
   },
 

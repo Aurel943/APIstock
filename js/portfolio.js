@@ -150,6 +150,95 @@ const Portfolio = {
     return { points, lines };
   },
 
+  /**
+   * Taux de rendement interne annualisé (XIRR) d'une série de flux.
+   * flows: [{ date: 'YYYY-MM-DD' | ms, amount }] — apports négatifs, valeur finale positive.
+   */
+  xirr(flows) {
+    const f = flows.map(x => ({ t: typeof x.date === 'number' ? x.date : Date.parse(x.date + 'T12:00:00Z'), a: x.amount }))
+      .filter(x => isFinite(x.t) && isFinite(x.a) && x.a !== 0);
+    if (f.length < 2 || !f.some(x => x.a > 0) || !f.some(x => x.a < 0)) return NaN;
+    const t0 = Math.min(...f.map(x => x.t));
+    const span = (Math.max(...f.map(x => x.t)) - t0) / (365.25 * 864e5);
+    if (span < 1 / 52) return NaN; // moins d'une semaine : non significatif
+    const npv = r => f.reduce((s, x) => s + x.a / Math.pow(1 + r, (x.t - t0) / (365.25 * 864e5)), 0);
+    let lo = -0.9999, hi = 10, vlo = npv(lo), vhi = npv(hi);
+    if (vlo * vhi > 0) return NaN;
+    for (let i = 0; i < 200; i++) {
+      const mid = (lo + hi) / 2, v = npv(mid);
+      if (Math.abs(v) < 1e-7) return mid * 100;
+      if (v * vlo > 0) { lo = mid; vlo = v; } else { hi = mid; }
+    }
+    return ((lo + hi) / 2) * 100;
+  },
+
+  /** Rendement annualisé du portefeuille réel (flux convertis au taux de change actuel) */
+  portfolioXirr(totalValue) {
+    const flows = [];
+    for (const t of Store.state.transactions) {
+      const inst = Store.instrument(t.key);
+      const fx = Api.fxCached(inst ? inst.currency : Store.state.settings.baseCurrency);
+      if (!isFinite(fx)) return NaN;
+      const gross = parseNum(t.qty) * parseNum(t.price), fees = parseNum(t.fees) || 0;
+      flows.push({ date: t.date, amount: (t.type === 'sell' ? gross - fees : -(gross + fees)) * fx });
+    }
+    if (!(totalValue > 0)) return NaN;
+    flows.push({ date: Date.now(), amount: totalValue });
+    return this.xirr(flows);
+  },
+
+  /** Impôt estimé sur une plus-value latente selon le réglage fiscal */
+  taxRate() {
+    const st = Store.state.settings;
+    return st.taxMode === 'none' ? 0 : (parseNum(st.taxRate) || 0);
+  },
+
+  /**
+   * Plan d'investissement : répartit `amount` (devise de base) entre les lignes pour se rapprocher des cibles.
+   * lines: [{ key, value (base), target (%), unitPrice (base) }]
+   */
+  plan(lines, amount, { allowSell = false, fractional = false } = {}) {
+    const totalNow = lines.reduce((a, l) => a + (l.value || 0), 0);
+    const totalAfter = totalNow + amount;
+    const out = lines.map(l => Object.assign({}, l, { desired: totalAfter * (l.target || 0) / 100 }));
+    if (allowSell) {
+      for (const o of out) o.trade = o.desired - (o.value || 0);
+    } else {
+      for (const o of out) o.need = Math.max(0, o.desired - (o.value || 0));
+      const needSum = out.reduce((a, o) => a + o.need, 0);
+      for (const o of out) {
+        o.trade = needSum > amount ? (needSum ? amount * o.need / needSum : 0) : o.need + (amount - needSum) * (o.target || 0) / 100;
+      }
+    }
+    let cash = amount;
+    const greedy = !fractional && !allowSell;
+    for (const o of out) {
+      o.shares = 0; o.cost = 0;
+      if (!(o.unitPrice > 0) || greedy) continue;
+      // fractionné : montant exact ; ventes autorisées : arrondi vers zéro puis reliquat
+      const raw = o.trade / o.unitPrice;
+      o.shares = fractional ? Math.round(raw * 10000) / 10000 : Math.trunc(raw + (raw < 0 ? -1e-9 : 1e-9));
+      o.cost = o.shares * o.unitPrice;
+      cash -= o.cost;
+    }
+    if (!fractional) {
+      // parts entières : achat part par part, toujours sur la ligne la plus en retard sur sa cible
+      for (let guard = 0; guard < 200000; guard++) {
+        const cand = out.filter(o => o.target > 0 && o.unitPrice > 0 && o.unitPrice <= cash + 1e-9);
+        if (!cand.length) break;
+        cand.sort((a, b) => ((a.value || 0) + a.cost) / a.desired - ((b.value || 0) + b.cost) / b.desired);
+        const o = cand[0];
+        o.shares += 1; o.cost += o.unitPrice; cash -= o.unitPrice;
+      }
+    }
+    const finalTotal = out.reduce((a, o) => a + (o.value || 0) + o.cost, 0);
+    for (const o of out) {
+      o.weightNow = totalNow > 0 ? ((o.value || 0) / totalNow) * 100 : 0;
+      o.weightAfter = finalTotal > 0 ? (((o.value || 0) + o.cost) / finalTotal) * 100 : 0;
+    }
+    return { lines: out, cash, invested: amount - cash };
+  },
+
   /** Projection à intérêts composés mensuels */
   project({ initial, monthly, rate, years, fees }) {
     const r = Math.pow(1 + (rate - (fees || 0)) / 100, 1 / 12) - 1;

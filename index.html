@@ -6,6 +6,11 @@
   <title>APIstock — Mon portefeuille</title>
   <meta name="robots" content="noindex, nofollow">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%2310b981'/><path d='M6 22l7-7 5 5 8-9' stroke='white' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#10b981">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="APIstock">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -20,11 +25,13 @@
     <nav class="tabs" role="tablist">
       <button class="tab active" data-view="portfolio">Portefeuille</button>
       <button class="tab" data-view="markets">Marchés</button>
+      <button class="tab" data-view="world">Monde</button>
+      <button class="tab" data-view="invest">Investir</button>
       <button class="tab" data-view="simulation">Simulation</button>
       <button class="tab" data-view="settings">Réglages</button>
     </nav>
     <div class="status">
-      <span id="marketState" class="pill" title="État du marché">—</span>
+      <button id="marketState" class="pill" title="Horaires des marchés" data-goto="world">—</button>
       <span id="lastUpdate" class="muted small">Jamais mis à jour</span>
       <span id="credits" class="pill mono" title="Crédits API utilisés sur la dernière minute">0/8</span>
       <button id="refreshBtn" class="btn icon" title="Rafraîchir maintenant" aria-label="Rafraîchir">
@@ -166,6 +173,102 @@
       </div>
     </section>
 
+    <!-- ============ MONDE ============ -->
+    <section id="view-world" class="view">
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <h2>Indicateurs mondiaux</h2>
+            <p class="muted small" id="macroNote">Indices, devises et matières premières en direct (via Yahoo Finance).</p>
+          </div>
+        </div>
+        <div class="macro-grid" id="macroGrid"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <h2>Horaires des bourses</h2>
+            <p class="muted small">Séances affichées à ton heure locale — <b id="localClock" class="mono"></b> <span id="localTz"></span></p>
+          </div>
+          <div class="seg" id="regionSel">
+            <button class="active" data-region="all">Toutes</button>
+            <button data-region="mine">Mes marchés</button>
+            <button data-region="Europe">Europe</button>
+            <button data-region="Amériques">Amériques</button>
+            <button data-region="Asie-Pacifique">Asie</button>
+          </div>
+        </div>
+        <div class="timeline" id="timeline"></div>
+      </div>
+
+      <div class="exchange-grid" id="exchangeGrid"></div>
+      <p class="muted small">Jours fériés et clôtures anticipées 2026-2027 gérés pour Euronext, Xetra, Londres et New York. Pour les autres places, seuls les week-ends sont pris en compte : vérifie le calendrier officiel de la bourse.</p>
+    </section>
+
+    <!-- ============ INVESTIR ============ -->
+    <section id="view-invest" class="view">
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <h2>Allocation cible & plan d'investissement</h2>
+            <p class="muted small">Fixe la répartition idéale de ton portefeuille, indique la somme à investir : le site calcule combien de parts acheter de chaque ETF pour te rapprocher de ta cible.</p>
+          </div>
+          <div class="actions">
+            <button class="btn" id="tgtFromPf">Reprendre les poids actuels</button>
+            <button class="btn" id="tgtEqual">Répartir équitablement</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data" id="tgtTable">
+            <thead>
+              <tr><th>ETF</th><th class="num">Cours</th><th class="num">Valeur actuelle</th><th class="num">% actuel</th><th class="num">% cible</th><th class="num">Écart</th><th></th></tr>
+            </thead>
+            <tbody></tbody>
+            <tfoot></tfoot>
+          </table>
+        </div>
+        <div id="tgtPicker" style="margin-top:12px"></div>
+
+        <h3>Ce mois-ci, j'investis…</h3>
+        <div class="form-grid">
+          <label><span>Montant (<span class="ccy"></span>)</span>
+            <input type="number" id="planAmount" min="0" step="50" value="500">
+          </label>
+          <label class="check"><input type="checkbox" id="planFractional"> Parts fractionnées</label>
+          <label class="check"><input type="checkbox" id="planSell"> Autoriser les ventes (rééquilibrage complet)</label>
+        </div>
+        <div id="planResult"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <h2>Alertes de prix</h2>
+            <p class="muted small">Vérifiées à chaque rafraîchissement, tant que le site est ouvert (un onglet en arrière-plan suffit).</p>
+          </div>
+          <button class="btn" id="notifBtn">Activer les notifications</button>
+        </div>
+        <form class="alert-form" id="alertForm">
+          <select id="alertKey" required></select>
+          <select id="alertKind">
+            <option value="above">Cours ≥</option>
+            <option value="below">Cours ≤</option>
+            <option value="dayUp">Hausse du jour ≥ (%)</option>
+            <option value="dayDown">Baisse du jour ≥ (%)</option>
+          </select>
+          <input type="number" id="alertValue" step="any" min="0" required placeholder="Valeur">
+          <button class="btn primary" type="submit">Ajouter l'alerte</button>
+        </form>
+        <div class="table-wrap">
+          <table class="data" id="alertTable">
+            <thead><tr><th>ETF</th><th>Condition</th><th class="num">Cours actuel</th><th>État</th><th></th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
     <!-- ============ SIMULATION ============ -->
     <section id="view-simulation" class="view">
       <div class="card">
@@ -283,6 +386,18 @@
                 <option>EUR</option><option>USD</option><option>GBP</option><option>CHF</option><option>CAD</option><option>JPY</option>
               </select>
             </label>
+            <label>Fiscalité (plus-value nette estimée)
+              <div class="inline">
+                <select id="setTaxMode">
+                  <option value="none">Ne pas estimer</option>
+                  <option value="pea">PEA de plus de 5 ans (prélèvements sociaux)</option>
+                  <option value="cto">Compte-titres (flat tax)</option>
+                  <option value="custom">Taux personnalisé</option>
+                </select>
+                <input type="number" id="setTaxRate" min="0" max="100" step="0.1" style="max-width:110px" title="Taux en %">
+              </div>
+              <span class="muted small">Taux pré-remplis à titre indicatif (17,2 % et 30 %) : vérifie le taux en vigueur, il peut évoluer avec les lois de finances.</span>
+            </label>
             <label>Rafraîchissement automatique
               <select id="setRefresh">
                 <option value="0">Désactivé</option>
@@ -361,8 +476,10 @@
   <script src="js/utils.js"></script>
   <script src="js/store.js"></script>
   <script src="js/api.js"></script>
+  <script src="js/markets.js"></script>
   <script src="js/portfolio.js"></script>
   <script src="js/charts.js"></script>
   <script src="js/app.js"></script>
+  <script src="js/views.js"></script>
 </body>
 </html>

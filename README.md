@@ -18,6 +18,21 @@ Site personnel (100 % statique, sans serveur ni compte) pour suivre ses ETF et l
 - Liste de suivi avec cours en direct, variation, plus bas/haut
 - Graphique 1J, 5J, 1M, 6M, 1A, 5A, Max + statistiques (52 semaines, volume, performance de la période)
 
+**Monde**
+- Horloge des 14 grandes bourses (Paris, Amsterdam, Francfort, Londres, Zurich, Milan, Madrid, New York, Toronto, Tokyo, Hong Kong, Shanghai, Mumbai, Sydney) : ouvert / fermé / pause déjeuner, compte à rebours, horaires convertis à ton heure locale, heure d'été gérée automatiquement
+- Frise 24 h des séances avec repère « maintenant », filtre « Mes marchés »
+- Jours fériés et clôtures anticipées 2026-2027 pour Euronext, Xetra, Londres et New York
+- Indice phare de chaque place en direct avec mini-graphique (CAC 40, DAX, FTSE 100, S&P 500, Nasdaq, Nikkei…) + Euro Stoxx 50, EUR/USD, or, Brent, Bitcoin, VIX
+- L'état du marché de chaque ETF s'affiche aussi dans le portefeuille et dans la barre du haut
+
+**Investir**
+- Allocation cible en % et **plan d'investissement** : « j'investis 500 € ce mois-ci » → nombre de parts à acheter de chaque ETF pour se rapprocher de la cible (parts entières ou fractionnées, rééquilibrage complet avec ventes en option), puis enregistrement des achats en un clic
+- **Alertes de prix** (cours ≥ / ≤, hausse ou baisse du jour en %) avec notifications du navigateur
+
+**Indicateurs supplémentaires** : rendement annualisé réel (XIRR, tient compte de la date de chaque versement), plus-value nette d'impôt estimée (PEA / compte-titres / taux personnalisé, dans Réglages).
+
+**Application mobile** : le site est installable (PWA) — sur iPhone : Safari → Partager → « Sur l'écran d'accueil » ; sur Android : Chrome → menu → « Installer l'application ».
+
 **Simulation**
 - *Simulation sur données réelles* : « et si j'avais investi X € + Y €/mois depuis telle date, réparti en % sur ces ETF ? » → somme investie, nombre de parts, PRU, valeur actuelle, % actuel et plus-value latente par ETF, courbe et pire baisse (drawdown). Parts entières ou fractionnées. Bouton pour reprendre la répartition de ton portefeuille.
 - *Projection dans le futur* : intérêts composés avec versements mensuels, rendement et frais annuels.
@@ -76,6 +91,9 @@ js/store.js       persistance locale
 js/api.js         client Twelve Data (limite de crédits, caches)
 js/portfolio.js   calculs : PRU, plus-values, rejeu historique, projection
 js/charts.js      graphiques (Chart.js)
+js/markets.js     horaires des bourses, fuseaux, jours fériés
+js/views.js       onglets Monde et Investir (plan, alertes)
+sw.js, manifest.webmanifest, icons/   application installable (PWA)
 js/app.js         interface
 api/yahoo.js      relais Yahoo Finance (fonction Vercel)
 proxy/cloudflare-worker.js   relais Yahoo Finance (Cloudflare Workers)

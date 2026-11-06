@@ -242,31 +242,45 @@ const Api = {
     return data;
   },
 
-  async yahooQuote(key) {
-    const r = await this.yahooChart(key, { range: '1d', interval: '5m' });
+  /** Cotation brute d'un symbole Yahoo (indices, devises, matières premières) — mise en cache 30 s */
+  async yahooSymbol(ysym) {
+    const ck = 'Y:' + ysym;
+    const c = this.quotes[ck];
+    if (c && Date.now() - c.ts < 30000) return c.data;
+    const json = await this.yahoo({ type: 'chart', symbol: ysym, range: '1d', interval: '5m' });
+    const r = json.chart && json.chart.result && json.chart.result[0];
+    if (!r) throw new ApiError('Yahoo : aucune donnée pour ' + ysym, 404);
+    const data = this.parseYahoo(r);
+    this.quotes[ck] = { data, ts: Date.now() };
+    return data;
+  },
+
+  parseYahoo(r) {
     const m = r.meta;
     const quote = (r.indicators && r.indicators.quote && r.indicators.quote[0]) || {};
+    const closes = (quote.close || []).filter(v => v !== null && isFinite(v));
     const opens = (quote.open || []).filter(v => v !== null);
     const price = m.regularMarketPrice;
     const prev = m.previousClose ?? m.chartPreviousClose;
     const now = Date.now() / 1000;
     const reg = m.currentTradingPeriod && m.currentTradingPeriod.regular;
     const ts = m.regularMarketTime ? new Date(m.regularMarketTime * 1000) : null;
-    const data = {
-      price,
-      previousClose: prev,
-      change: price - prev,
-      percentChange: prev ? (price / prev - 1) * 100 : NaN,
-      open: opens.length ? opens[0] : NaN,
-      high: m.regularMarketDayHigh, low: m.regularMarketDayLow,
-      volume: m.regularMarketVolume,
+    return {
+      price, previousClose: prev, change: price - prev, percentChange: prev ? (price / prev - 1) * 100 : NaN,
+      open: opens.length ? opens[0] : NaN, high: m.regularMarketDayHigh, low: m.regularMarketDayLow, volume: m.regularMarketVolume,
       isOpen: !!(reg && now >= reg.start && now < reg.end),
       datetime: ts ? ts.toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) : '',
-      currency: m.currency,
-      name: m.longName || m.shortName,
-      exchange: m.fullExchangeName,
+      time: ts ? +ts : 0,
+      currency: m.currency, name: m.longName || m.shortName, exchange: m.fullExchangeName,
       low52: m.fiftyTwoWeekLow, high52: m.fiftyTwoWeekHigh,
+      spark: closes,
     };
+  },
+
+  async yahooQuote(key) {
+    const r = await this.yahooChart(key, { range: '1d', interval: '5m' });
+    const m = r.meta;
+    const data = this.parseYahoo(r);
     this.quotes[key] = { data, ts: Date.now() };
     const inst = Store.instrument(key);
     if (inst && ((m.currency && inst.currency !== m.currency) || !inst.name || inst.name === inst.symbol)) {
@@ -277,7 +291,9 @@ const Api = {
   },
 
   persistQuotes() {
-    try { localStorage.setItem('apistock:quotes', JSON.stringify(this.quotes)); } catch (e) { /* ignore */ }
+    const slim = {};
+    for (const [k, v] of Object.entries(this.quotes)) if (!k.startsWith('Y:')) slim[k] = { ts: v.ts, data: Object.assign({}, v.data, { spark: undefined }) };
+    try { localStorage.setItem('apistock:quotes', JSON.stringify(slim)); } catch (e) { /* ignore */ }
   },
 
   cachedQuote(key) { return this.quotes[key] ? this.quotes[key].data : null; },
