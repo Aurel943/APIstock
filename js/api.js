@@ -351,10 +351,18 @@ const Api = {
 
     const start = cached && cached.start < startDate ? cached.start : startDate;
     let values;
-    if (this.provider(key) === 'yahoo') {
-      const r = await this.yahooChart(key, {
-        interval: '1d', period1: Math.floor(new Date(start + 'T00:00:00Z').getTime() / 1000), period2: Math.floor(Date.now() / 1000) + 86400,
-      });
+    // clé « Y:<symbole> » : symbole Yahoo brut (indice, devise, matière première)
+    const rawY = key.startsWith('Y:') ? key.slice(2) : null;
+    if (rawY || this.provider(key) === 'yahoo') {
+      const params = { interval: '1d', period1: Math.floor(new Date(start + 'T00:00:00Z').getTime() / 1000), period2: Math.floor(Date.now() / 1000) + 86400 };
+      let r;
+      if (rawY) {
+        const json = await this.yahoo(Object.assign({ type: 'chart', symbol: rawY }, params));
+        r = json.chart && json.chart.result && json.chart.result[0];
+        if (!r) throw new ApiError('Yahoo : aucune donnée pour ' + rawY, 404);
+      } else {
+        r = await this.yahooChart(key, params);
+      }
       const closes = (r.indicators.quote[0] || {}).close || [];
       const off = (r.meta.gmtoffset || 0) * 1000;
       values = (r.timestamp || []).map((t, i) => [new Date(t * 1000 + off).toISOString().slice(0, 10), closes[i]])

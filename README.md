@@ -18,6 +18,13 @@ Site personnel (100 % statique, sans serveur ni compte) pour suivre ses ETF et l
 - Liste de suivi avec cours en direct, variation, plus bas/haut
 - Graphique 1J, 5J, 1M, 6M, 1A, 5A, Max + statistiques (52 semaines, volume, performance de la période)
 
+**Comparer**
+- Compare jusqu'à 5 valeurs sur la même base : indices (S&P 500, Nasdaq, Nasdaq 100, Dow Jones, CAC 40, DAX, Euro Stoxx 50, Nikkei…), tes ETF, n'importe quelle action, l'or, le Bitcoin… et **ton propre portefeuille** (performance pondérée dans le temps, pour savoir si tu bats le marché)
+- Comparaisons rapides en un clic (Nasdaq vs S&P 500, CAC 40 vs DAX, USA vs Europe vs Japon, Or vs Bitcoin, Mon portefeuille vs MSCI World)
+- Périodes de 1 mois à 20 ans ou date libre ; affichage en performance %, base 100 ou baisse depuis le plus haut
+- Courbe d'écart de performance par rapport à la valeur de référence
+- Statistiques : performance, rendement annualisé, volatilité, pire baisse, meilleur et pire jour, 1 000 € deviennent, rendement/risque, bêta, matrice de corrélation
+
 **Monde**
 - Horloge des 14 grandes bourses (Paris, Amsterdam, Francfort, Londres, Zurich, Milan, Madrid, New York, Toronto, Tokyo, Hong Kong, Shanghai, Mumbai, Sydney) : ouvert / fermé / pause déjeuner, compte à rebours, horaires convertis à ton heure locale, heure d'été gérée automatiquement
 - Frise 24 h des séances avec repère « maintenant », filtre « Mes marchés »
@@ -93,6 +100,7 @@ js/portfolio.js   calculs : PRU, plus-values, rejeu historique, projection
 js/charts.js      graphiques (Chart.js)
 js/markets.js     horaires des bourses, fuseaux, jours fériés
 js/views.js       onglets Monde et Investir (plan, alertes)
+js/compare.js     onglet Comparer
 sw.js, manifest.webmanifest, icons/   application installable (PWA)
 js/app.js         interface
 api/yahoo.js      relais Yahoo Finance (fonction Vercel)

@@ -26,6 +26,7 @@ const App = {
     this.bindDialog();
     this.bindWorld();
     this.bindInvest();
+    this.bindCompare();
     if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
     Api.onUsage((used, limit) => {
       const c = $('#credits');
@@ -36,7 +37,7 @@ const App = {
     setInterval(() => Api.emitUsage(), 5000);
 
     const hash = location.hash.replace('#', '');
-    this.show(['portfolio', 'markets', 'world', 'invest', 'simulation', 'settings'].includes(hash) ? hash : (Api.ready() ? 'portfolio' : 'settings'));
+    this.show(['portfolio', 'markets', 'compare', 'world', 'invest', 'simulation', 'settings'].includes(hash) ? hash : (Api.ready() ? 'portfolio' : 'settings'));
     this.renderAll();
     Api.detectProxy().finally(() => { this.renderAll(); this.refresh(); });
     this.schedule();
@@ -75,6 +76,7 @@ const App = {
     if (view === 'markets' && !this.detailKey && Store.state.watchlist.length) this.selectDetail(Store.state.watchlist[0]);
     if (view === 'simulation') this.renderProjection();
     if (view === 'world') { this.renderWorld(); this.loadWorldQuotes(); }
+    if (view === 'compare') this.showCompare();
     if (view === 'invest') { this.renderInvest(); this.renderAlerts(); }
     // les graphiques créés pendant que l'onglet était caché doivent être redimensionnés
     requestAnimationFrame(() => Object.values(Charts.instances).forEach(c => c.resize()));

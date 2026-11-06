@@ -318,3 +318,22 @@ button.pill:hover { filter: brightness(.97); }
 .pct-input { width: 90px; text-align: right; padding: 5px 8px; }
 .alert-form { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1.3fr) minmax(0, 1fr) auto; gap: 10px; margin-bottom: 16px; }
 @media (max-width: 760px) { .alert-form { grid-template-columns: 1fr 1fr; } }
+
+/* ---------- Comparer ---------- */
+.cmp-pairs { margin-bottom: 14px; }
+.cmp-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.cmp-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 6px 4px 12px; border-radius: 999px; background: var(--surface-2); font-weight: 500; border: 1px solid color-mix(in srgb, var(--c) 40%, transparent); }
+.cmp-chip .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
+.cmp-add { display: flex; gap: 8px; max-width: 560px; }
+.cmp-search { margin: 10px 0 4px; }
+.cmp-search summary { cursor: pointer; color: var(--muted); font-size: 13px; margin-bottom: 8px; }
+.cmp-controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; margin: 18px 0 12px; }
+.inline-label { flex-direction: row; align-items: center; gap: 8px; white-space: nowrap; }
+.inline-label input { width: auto; padding: 5px 8px; }
+.chart-box.tall { height: 400px; }
+#cmpRelBox .chart-box { height: 220px; }
+#cmpRelBox.hidden { display: none; }
+table.corr td.corr-cell { background: color-mix(in srgb, var(--accent) calc(var(--a) * 55%), transparent); }
+@media (max-width: 640px) { .chart-box.tall { height: 300px; } }
+table.data.corr { width: auto; min-width: 50%; }
+table.data.corr td.corr-cell { min-width: 110px; }

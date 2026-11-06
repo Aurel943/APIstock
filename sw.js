@@ -1,8 +1,8 @@
 /* Service worker : rend le site installable et utilisable hors-ligne (dernières données en cache).
  * Stratégie « réseau d'abord » pour les fichiers du site, afin de toujours récupérer la dernière version. */
-const CACHE = 'apistock-v1';
+const CACHE = 'apistock-v2';
 const ASSETS = ['./', 'index.html', 'css/style.css', 'js/utils.js', 'js/store.js', 'js/api.js', 'js/markets.js',
-  'js/portfolio.js', 'js/charts.js', 'js/app.js', 'js/views.js', 'manifest.webmanifest', 'icons/icon-192.png'];
+  'js/portfolio.js', 'js/charts.js', 'js/app.js', 'js/views.js', 'js/compare.js', 'manifest.webmanifest', 'icons/icon-192.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
