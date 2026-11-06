@@ -27,6 +27,11 @@ const App = {
     this.bindWorld();
     this.bindInvest();
     this.bindCompare();
+    this.bindAccounts();
+    this.renderAccountsSettings();
+    this.bindGoal();
+    this.bindPrivacy();
+    this.bindCsv();
     if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
     Api.onUsage((used, limit) => {
       const c = $('#credits');
@@ -173,20 +178,27 @@ const App = {
     const cur = this.base();
     const { rows, totals } = Portfolio.snapshot();
 
+    this.renderAccountFilter();
+    const net = Portfolio.netPnl();
     const kpis = $('#kpis');
     kpis.replaceChildren(...[
       this.kpi('Valeur actuelle', fmtMoney(totals.value, cur), totals.missing ? totals.missing + ' cours manquant(s)' : rows.length + ' ligne(s)'),
       this.kpi('Montant investi', fmtMoney(totals.cost, cur), 'Frais inclus'),
       this.kpi('Plus-value latente', fmtSignedMoney(totals.pnl, cur),
-        fmtPct(totals.pnlPct) + (Portfolio.taxRate() > 0 && totals.pnl > 0 ? ' · net d\'impôt ≈ ' + fmtSignedMoney(totals.pnl * (1 - Portfolio.taxRate() / 100), cur) : ''), trendClass(totals.pnl)),
+        fmtPct(totals.pnlPct) + (net.taxed && totals.pnl > 0 ? ' · net d\'impôt ≈ ' + fmtSignedMoney(net.net, cur) : ''), trendClass(totals.pnl)),
       (() => {
         const x = rows.length ? Portfolio.portfolioXirr(totals.value) : NaN;
-        const first = Store.state.transactions.reduce((m, t) => (t.date < m ? t.date : m), todayISO());
+        const first = Portfolio.txs().reduce((m, t) => (t.date < m ? t.date : m), todayISO());
         return this.kpi('Rendement annualisé', isFinite(x) ? fmtPct(x) : '—', isFinite(x) ? 'XIRR depuis le ' + fmtDate(first) : 'Pas assez d\'historique', trendClass(x));
       })(),
       this.kpi('Variation du jour', fmtSignedMoney(totals.day, cur), fmtPct(totals.dayPct), trendClass(totals.day)),
-      Math.abs(totals.realized) > 0.005 ? this.kpi('Plus-value réalisée', fmtSignedMoney(totals.realized, cur), 'Sur les ventes', trendClass(totals.realized)) : null,
+      totals.dividends > 0.005 ? this.kpi('Dividendes reçus', fmtMoney(totals.dividends, cur),
+        'Rendement sur investi : ' + fmtPct(totals.cost > 0 ? (totals.dividends / totals.cost) * 100 : NaN, 2, false), 'up') : null,
+      Math.abs(totals.realized) > 0.005 || totals.dividends > 0.005 ? this.kpi('Gain total', fmtSignedMoney(totals.totalGain, cur),
+        ['Latent', Math.abs(totals.realized) > 0.005 ? 'réalisé (' + fmtSignedMoney(totals.realized, cur) + ')' : '', totals.dividends > 0.005 ? 'dividendes' : ''].filter(Boolean).join(' + '), trendClass(totals.totalGain)) : null,
     ].filter(Boolean));
+    this.renderAccountsSummary();
+    this.renderGoal();
 
     const tbody = $('#positionsTable tbody');
     const tfoot = $('#positionsTable tfoot');
@@ -238,18 +250,22 @@ const App = {
   },
 
   renderTransactions() {
-    const txs = Store.state.transactions.slice().sort((a, b) => (a.date < b.date ? 1 : -1));
+    const txs = Portfolio.txs().slice().sort((a, b) => (a.date < b.date ? 1 : -1));
+    const multi = Store.state.accounts.length > 1;
     $('#txCount').textContent = txs.length + ' opération(s)';
+    $('#txAccountCol').classList.toggle('hidden', !multi);
     $('#txTable tbody').replaceChildren(...txs.map(t => {
       const inst = Store.instrument(t.key);
       const ccy = inst ? inst.currency : this.base();
-      const amount = t.qty * t.price + (t.type === 'sell' ? -1 : 1) * (t.fees || 0);
+      const isDiv = t.type === 'div';
+      const amount = t.qty * t.price + (t.type === 'sell' || isDiv ? -1 : 1) * (t.fees || 0);
       return el('tr', {},
         el('td', {}, fmtDate(t.date)),
-        el('td', {}, el('span', { class: 'chip ' + t.type }, t.type === 'sell' ? 'Vente' : 'Achat')),
+        el('td', {}, el('span', { class: 'chip ' + t.type }, { sell: 'Vente', div: 'Dividende' }[t.type] || 'Achat')),
         el('td', {}, el('span', { class: 'sym' }, Store.label(t.key))),
-        el('td', { class: 'num' }, fmtQty(t.qty)),
-        el('td', { class: 'num' }, fmtMoney(t.price, ccy, 3)),
+        multi ? el('td', { class: 'muted' }, Store.account(t.account || Store.defaultAccount()).name) : null,
+        el('td', { class: 'num' }, isDiv ? '—' : fmtQty(t.qty)),
+        el('td', { class: 'num' }, isDiv ? '—' : fmtMoney(t.price, ccy, 3)),
         el('td', { class: 'num' }, fmtMoney(t.fees || 0, ccy)),
         el('td', { class: 'num' }, fmtMoney(amount, ccy)),
         el('td', { class: 'num' },
@@ -259,11 +275,11 @@ const App = {
           } }, '🗑')),
       );
     }));
-    if (!txs.length) $('#txTable tbody').append(el('tr', {}, el('td', { colspan: 8, class: 'empty' }, 'Aucune opération enregistrée.')));
+    if (!txs.length) $('#txTable tbody').append(el('tr', {}, el('td', { colspan: 9, class: 'empty' }, 'Aucune opération enregistrée.')));
   },
 
   async loadHistory() {
-    const txs = Store.state.transactions;
+    const txs = Portfolio.txs();
     if (!txs.length) { toast('Ajoute d\'abord des opérations.'); return; }
     const btn = $('#loadHistoryBtn');
     btn.disabled = true; btn.textContent = 'Chargement…';
@@ -280,6 +296,7 @@ const App = {
       const { points } = Portfolio.replay(series, fx, events);
       if (!points.length) throw new Error('Pas de données historiques disponibles.');
       Charts.investedVsValue('historyChart', points.map(p => fmtDate(p.date)), points.map(p => p.invested), points.map(p => p.value), this.base(), { stepped: true });
+      this.renderCalendar(Portfolio.twr(points));
       const lastP = points[points.length - 1];
       $('#historyInfo').textContent = `Depuis le ${fmtDate(start)} · dernier point : ${fmtMoney(lastP.value, this.base())}`;
     } catch (e) {
@@ -362,6 +379,7 @@ const App = {
     const dlg = $('#txDialog');
     $('#txCancel').addEventListener('click', () => dlg.close());
     ['#txQty', '#txPrice', '#txFees', '#txType'].forEach(s => $(s).addEventListener('input', () => this.updateTxTotal()));
+    $('#txType').addEventListener('change', () => this.syncTxType());
     $('#txForm').addEventListener('submit', e => {
       e.preventDefault();
       if (!this.txInstrument) { toast('Choisis un ETF', 'error'); return; }
@@ -369,11 +387,12 @@ const App = {
         key: this.txInstrument,
         type: $('#txType').value,
         date: $('#txDate').value,
-        qty: parseNum($('#txQty').value),
+        account: $('#txAccount').value || Store.defaultAccount(),
+        qty: $('#txType').value === 'div' ? 1 : parseNum($('#txQty').value),
         price: parseNum($('#txPrice').value),
         fees: parseNum($('#txFees').value) || 0,
       };
-      if (!(tx.qty > 0) || !(tx.price > 0) || !tx.date) { toast('Quantité, prix et date sont obligatoires', 'error'); return; }
+      if (!(tx.qty > 0) || !(tx.price > 0) || !tx.date) { toast(tx.type === 'div' ? 'Montant et date sont obligatoires' : 'Quantité, prix et date sont obligatoires', 'error'); return; }
       if (this.editingTx) Store.updateTransaction(this.editingTx.id, tx);
       else Store.addTransaction(tx);
       dlg.close();
@@ -391,6 +410,12 @@ const App = {
     $('#txQty').value = tx ? tx.qty : '';
     $('#txPrice').value = tx ? tx.price : '';
     $('#txFees').value = tx ? (tx.fees || 0) : 0;
+    const accs = Store.state.accounts;
+    $('#txAccount').replaceChildren(...accs.map(a => el('option', { value: a.id }, a.name)));
+    const filter = Store.state.accountFilter;
+    $('#txAccount').value = tx ? (tx.account || Store.defaultAccount()) : (filter && filter !== 'all' ? filter : Store.defaultAccount());
+    $('#txAccountWrap').classList.toggle('hidden', accs.length < 2);
+    this.syncTxType();
     this.setTxInstrument(tx ? tx.key : null);
     $('#txDialog').showModal();
   },
@@ -407,15 +432,25 @@ const App = {
         el('div', { class: 'grow' }, el('div', { class: 'sym' }, Store.label(key)), el('div', { class: 'name' }, inst.name + ' · ' + inst.currency)),
         el('button', { type: 'button', class: 'btn small', onclick: () => this.setTxInstrument(null) }, 'Changer')));
       const q = Api.cachedQuote(key);
-      if (q && !$('#txPrice').value) $('#txPrice').value = q.price;
+      if (q && !$('#txPrice').value && $('#txType').value !== 'div') $('#txPrice').value = q.price;
     }
     this.updateTxTotal();
   },
 
+  syncTxType() {
+    const div = $('#txType').value === 'div';
+    $('#txQtyWrap').classList.toggle('hidden', div);
+    $('#txQty').required = !div;
+    $('#txPriceLabel').textContent = div ? 'Montant brut reçu' : 'Prix unitaire';
+    $('#txFeesLabel').textContent = div ? 'Retenue / prélèvements' : 'Frais';
+    this.updateTxTotal();
+  },
+
   updateTxTotal() {
-    const qty = parseNum($('#txQty').value), price = parseNum($('#txPrice').value), fees = parseNum($('#txFees').value) || 0;
+    const div = $('#txType').value === 'div';
+    const qty = div ? 1 : parseNum($('#txQty').value), price = parseNum($('#txPrice').value), fees = parseNum($('#txFees').value) || 0;
     const inst = this.txInstrument ? Store.instrument(this.txInstrument) : null;
-    const total = qty * price + ($('#txType').value === 'sell' ? -fees : fees);
+    const total = qty * price + ($('#txType').value === 'sell' || div ? -fees : fees);
     $('#txTotal').value = isFinite(total) ? fmtMoney(total, inst ? inst.currency : this.base()) : '';
   },
 
@@ -770,17 +805,6 @@ const App = {
     const st = Store.state.settings;
     $('#setApiKey').value = st.apiKey;
     $('#setProxy').value = st.yahooProxy || '';
-    $('#setTaxMode').value = st.taxMode || 'none';
-    $('#setTaxRate').value = st.taxRate || '';
-    const syncTax = () => {
-      const m = $('#setTaxMode').value;
-      if (m === 'pea') $('#setTaxRate').value = 17.2;
-      if (m === 'cto') $('#setTaxRate').value = 30;
-      if (m === 'none') $('#setTaxRate').value = '';
-      $('#setTaxRate').disabled = m === 'none';
-    };
-    $('#setTaxMode').addEventListener('change', syncTax);
-    $('#setTaxRate').disabled = (st.taxMode || 'none') === 'none';
     $('#testProxy').addEventListener('click', async () => {
       const url = $('#setProxy').value.trim() || Api.autoProxy;
       if (!url) { toast('Saisis l\'URL de ton relais', 'error'); return; }
@@ -811,8 +835,6 @@ const App = {
       st.yahooProxy = $('#setProxy').value.trim().replace(/\/+$/, '');
       st.baseCurrency = $('#setCurrency').value;
       st.refreshSec = parseInt($('#setRefresh').value, 10);
-      st.taxMode = $('#setTaxMode').value;
-      st.taxRate = parseNum($('#setTaxRate').value) || 0;
       st.creditsPerMin = parseInt($('#setCredits').value, 10) || 8;
       Store.save();
       this.schedule();

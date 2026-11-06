@@ -84,7 +84,7 @@ Object.assign(App, {
       const q = this.idxQuote(m.y);
       return el('div', { class: 'macro' },
         el('div', { class: 'macro-name' }, m.name),
-        el('div', { class: 'macro-val mono' }, q ? (m.ccy ? fmtMoney(q.price, m.ccy, m.kind === 'crypto' ? 0 : 2) : fmtNum(q.price, m.digits || 2)) : '—'),
+        el('div', { class: 'macro-val mono' }, q ? (m.ccy ? fmtMoney(q.price, m.ccy, m.kind === 'crypto' ? 0 : 2, true) : fmtNum(q.price, m.digits || 2)) : '—'),
         q ? el('div', { class: 'macro-chg ' + trendClass(q.percentChange) }, fmtPct(q.percentChange)) : el('div', { class: 'muted small' }, '…'),
         q ? sparkline(q.spark, { ref: q.previousClose }) : null);
     }));
@@ -321,7 +321,8 @@ Object.assign(App, {
   recordPlan(lines) {
     if (!confirm(`Ajouter ${lines.length} opération(s) datée(s) d'aujourd'hui à ton portefeuille ?`)) return;
     for (const o of lines) {
-      Store.addTransaction({ key: o.key, type: o.shares > 0 ? 'buy' : 'sell', date: todayISO(), qty: Math.abs(o.shares), price: o.quote.price, fees: 0 });
+      const f = Store.state.accountFilter;
+      Store.addTransaction({ key: o.key, type: o.shares > 0 ? 'buy' : 'sell', date: todayISO(), account: f && f !== 'all' ? f : Store.defaultAccount(), qty: Math.abs(o.shares), price: o.quote.price, fees: 0 });
     }
     this.renderAll();
     toast('Opérations ajoutées au portefeuille', 'success');

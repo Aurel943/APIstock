@@ -38,6 +38,10 @@
       <button id="refreshBtn" class="btn icon" title="Rafraîchir maintenant" aria-label="Rafraîchir">
         <svg viewBox="0 0 24 24" width="18" height="18"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v4h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
+      <button id="privacyBtn" class="btn icon" title="Masquer les montants (mode discret)" aria-label="Mode discret">
+        <svg viewBox="0 0 24 24" width="18" height="18" class="eye-open"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+        <svg viewBox="0 0 24 24" width="18" height="18" class="eye-closed"><path d="M3 3l18 18M10.6 6.1A10 10 0 0 1 12 6c6.4 0 10 6 10 6a17 17 0 0 1-3.2 3.9M6.6 6.6C3.9 8.3 2 12 2 12s3.6 7 10 7a10 10 0 0 0 5.4-1.6M9.9 9.9a3 3 0 0 0 4.2 4.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
       <button id="themeBtn" class="btn icon" title="Changer de thème" aria-label="Thème">
         <svg viewBox="0 0 24 24" width="18" height="18"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
       </button>
@@ -51,7 +55,18 @@
   <main>
     <!-- ============ PORTEFEUILLE ============ -->
     <section id="view-portfolio" class="view active">
+      <div class="seg acc-filter hidden" id="accFilter"></div>
       <div class="kpis" id="kpis"></div>
+
+      <div class="card hidden" id="accSummary">
+        <div class="card-head"><h2>Mes comptes</h2><span class="muted small">Cliquer sur un compte pour le filtrer</span></div>
+        <div class="table-wrap">
+          <table class="data clickable">
+            <thead><tr><th>Compte</th><th class="num">Valeur</th><th class="num">Part</th><th class="num">Investi</th><th class="num">+/- latente</th><th class="num">Net d'impôt estimé</th></tr></thead>
+            <tbody id="accSummaryBody"></tbody>
+          </table>
+        </div>
+      </div>
 
       <div class="grid-2">
         <div class="card">
@@ -106,18 +121,19 @@
           </div>
         </div>
         <div class="chart-box wide"><canvas id="historyChart"></canvas></div>
+        <div id="calendar"></div>
       </div>
 
       <div class="card">
         <div class="card-head">
           <h2>Opérations</h2>
-          <span class="muted small" id="txCount"></span>
+          <div class="actions"><span class="muted small" id="txCount"></span><button class="btn small" id="txExport">Exporter en CSV</button></div>
         </div>
         <div class="table-wrap">
           <table class="data" id="txTable">
             <thead>
               <tr>
-                <th>Date</th><th>Type</th><th>ETF</th>
+                <th>Date</th><th>Type</th><th>ETF</th><th id="txAccountCol">Compte</th>
                 <th class="num">Quantité</th><th class="num">Prix</th><th class="num">Frais</th><th class="num">Montant</th><th></th>
               </tr>
             </thead>
@@ -256,6 +272,22 @@
 
     <!-- ============ INVESTIR ============ -->
     <section id="view-invest" class="view">
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <h2>Mon objectif</h2>
+            <p class="muted small">Où en es-tu de ton objectif de patrimoine (tous comptes confondus) ? Projection avec tes versements et un rendement moyen supposé.</p>
+          </div>
+        </div>
+        <div class="form-grid">
+          <label><span>Objectif (<span class="ccy"></span>)</span><input type="number" id="goalTarget" min="0" step="1000"></label>
+          <label>Date cible<input type="date" id="goalDate"></label>
+          <label><span>Versement mensuel (<span class="ccy"></span>)</span><input type="number" id="goalMonthly" min="0" step="50"></label>
+          <label>Rendement annuel supposé (%)<input type="number" id="goalRate" step="0.5"></label>
+        </div>
+        <div id="goalResult"></div>
+      </div>
+
       <div class="card">
         <div class="card-head">
           <div>
@@ -411,6 +443,20 @@
 
     <!-- ============ RÉGLAGES ============ -->
     <section id="view-settings" class="view">
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <h2>Mes comptes</h2>
+            <p class="muted small">PEA, compte-titres, assurance-vie… Chaque opération est rattachée à un compte. Le taux sert à estimer la plus-value nette d'impôt (valeurs indicatives, à vérifier : elles évoluent avec les lois de finances).</p>
+          </div>
+        </div>
+        <div class="acc-list" id="accList"></div>
+        <div class="acc-row acc-new">
+          <input type="text" id="accNewName" placeholder="Nom du compte (ex. PEA Boursorama)">
+          <select id="accNewType"><option value="pea">PEA</option><option value="cto">Compte-titres</option><option value="av">Assurance-vie</option><option value="per">PER</option><option value="autre">Autre</option></select>
+          <button class="btn primary" id="accAdd">Ajouter le compte</button>
+        </div>
+      </div>
       <div class="grid-2">
         <div class="card">
           <div class="card-head"><h2>Sources de données</h2></div>
@@ -433,18 +479,6 @@
               <select id="setCurrency">
                 <option>EUR</option><option>USD</option><option>GBP</option><option>CHF</option><option>CAD</option><option>JPY</option>
               </select>
-            </label>
-            <label>Fiscalité (plus-value nette estimée)
-              <div class="inline">
-                <select id="setTaxMode">
-                  <option value="none">Ne pas estimer</option>
-                  <option value="pea">PEA de plus de 5 ans (prélèvements sociaux)</option>
-                  <option value="cto">Compte-titres (flat tax)</option>
-                  <option value="custom">Taux personnalisé</option>
-                </select>
-                <input type="number" id="setTaxRate" min="0" max="100" step="0.1" style="max-width:110px" title="Taux en %">
-              </div>
-              <span class="muted small">Taux pré-remplis à titre indicatif (17,2 % et 30 %) : vérifie le taux en vigueur, il peut évoluer avec les lois de finances.</span>
             </label>
             <label>Rafraîchissement automatique
               <select id="setRefresh">
@@ -476,6 +510,13 @@
               <label class="btn">Importer… <input type="file" id="importFile" accept="application/json,.json" hidden></label>
             </div>
             <hr>
+            <p class="muted">Opérations au format CSV (Excel) : pour les retravailler, ou pour importer l'historique exporté de ton courtier. Colonnes reconnues : date, type (achat / vente / dividende), compte, symbole, place, nom, quantité, prix, frais, devise.</p>
+            <div class="actions">
+              <button class="btn" id="csvExport">Exporter en CSV</button>
+              <label class="btn">Importer un CSV… <input type="file" id="csvImport" accept=".csv,text/csv,text/plain" hidden></label>
+              <button class="btn" id="csvTemplate">Télécharger un modèle</button>
+            </div>
+            <hr>
             <div class="actions">
               <button class="btn" id="clearCache">Vider le cache des cours</button>
               <button class="btn danger" id="resetAll">Tout effacer</button>
@@ -493,18 +534,21 @@
       <div id="txInstrument"></div>
       <div class="form-grid compact">
         <label>Type
-          <select id="txType"><option value="buy">Achat</option><option value="sell">Vente</option></select>
+          <select id="txType"><option value="buy">Achat</option><option value="sell">Vente</option><option value="div">Dividende reçu</option></select>
         </label>
         <label>Date
           <input type="date" id="txDate" required>
         </label>
-        <label>Quantité (parts)
-          <input type="number" id="txQty" step="any" min="0" required>
+        <label id="txAccountWrap">Compte
+          <select id="txAccount"></select>
         </label>
-        <label>Prix unitaire
+        <label id="txQtyWrap">Quantité (parts)
+          <input type="number" id="txQty" step="any" min="0">
+        </label>
+        <label><span id="txPriceLabel">Prix unitaire</span>
           <input type="number" id="txPrice" step="any" min="0" required>
         </label>
-        <label>Frais
+        <label><span id="txFeesLabel">Frais</span>
           <input type="number" id="txFees" step="any" min="0" value="0">
         </label>
         <label>Montant total
@@ -530,5 +574,6 @@
   <script src="js/app.js"></script>
   <script src="js/views.js"></script>
   <script src="js/compare.js"></script>
+  <script src="js/extras.js"></script>
 </body>
 </html>

@@ -119,7 +119,7 @@ Object.assign(App, {
 
   /** Série de performance du portefeuille réel (TWR : neutralise l'effet des versements) */
   async cmpPortfolioSeries(start) {
-    const txs = Store.state.transactions;
+    const txs = Portfolio.txs();
     const first = txs.reduce((m, t) => (t.date < m ? t.date : m), todayISO());
     const keys = Array.from(new Set(txs.map(t => t.key)));
     const series = {}, fx = {};
@@ -129,15 +129,7 @@ Object.assign(App, {
     }
     const events = txs.map(t => ({ date: t.date, key: t.key, type: t.type, qty: parseNum(t.qty), price: parseNum(t.price), fees: parseNum(t.fees) || 0 }));
     const { points } = Portfolio.replay(series, fx, events);
-    const out = [];
-    let idx = 100;
-    for (let i = 0; i < points.length; i++) {
-      if (i > 0 && points[i - 1].value > 0) {
-        const flow = points[i].invested - points[i - 1].invested;
-        idx *= (points[i].value - flow) / points[i - 1].value;
-      }
-      out.push([points[i].date, idx]);
-    }
+    const out = Portfolio.twr(points);
     return out.filter(v => v[0] >= start);
   },
 

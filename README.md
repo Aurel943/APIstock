@@ -18,6 +18,14 @@ Site personnel (100 % statique, sans serveur ni compte) pour suivre ses ETF et l
 - Liste de suivi avec cours en direct, variation, plus bas/haut
 - Graphique 1J, 5J, 1M, 6M, 1A, 5A, Max + statistiques (52 semaines, volume, performance de la période)
 
+**Comptes, dividendes, objectif**
+- Plusieurs comptes (PEA, compte-titres, assurance-vie, PER…) avec filtre, récapitulatif par compte et plus-value nette d'impôt estimée selon le taux de chaque compte
+- Saisie des dividendes reçus, inclus dans le gain total et le rendement annualisé
+- Objectif patrimonial : progression, date estimée d'atteinte, versement mensuel nécessaire
+- Calendrier des performances mois par mois (hors versements)
+- Mode discret 👁 : masque tous les montants en un clic
+- Import / export CSV des opérations (Excel, historique de courtier)
+
 **Comparer**
 - Compare jusqu'à 5 valeurs sur la même base : indices (S&P 500, Nasdaq, Nasdaq 100, Dow Jones, CAC 40, DAX, Euro Stoxx 50, Nikkei…), tes ETF, n'importe quelle action, l'or, le Bitcoin… et **ton propre portefeuille** (performance pondérée dans le temps, pour savoir si tu bats le marché)
 - Comparaisons rapides en un clic (Nasdaq vs S&P 500, CAC 40 vs DAX, USA vs Europe vs Japon, Or vs Bitcoin, Mon portefeuille vs MSCI World)
@@ -101,6 +109,7 @@ js/charts.js      graphiques (Chart.js)
 js/markets.js     horaires des bourses, fuseaux, jours fériés
 js/views.js       onglets Monde et Investir (plan, alertes)
 js/compare.js     onglet Comparer
+js/extras.js      comptes, objectif, calendrier, mode discret, CSV
 sw.js, manifest.webmanifest, icons/   application installable (PWA)
 js/app.js         interface
 api/yahoo.js      relais Yahoo Finance (fonction Vercel)

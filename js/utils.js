@@ -22,8 +22,12 @@ function el(tag, attrs = {}, ...children) {
 }
 
 const nfCache = {};
-function fmtMoney(value, currency = 'EUR', digits = 2) {
+/* Mode discret : les montants (2 décimales ou moins) sont masqués ; les cours (3 décimales) restent visibles */
+function privacyOn() { return document.documentElement.classList.contains('privacy'); }
+
+function fmtMoney(value, currency = 'EUR', digits = 2, noMask = false) {
   if (value === null || value === undefined || !isFinite(value)) return '—';
+  if (!noMask && digits < 3 && privacyOn()) return '•••• ' + ({ EUR: '€', USD: '$', GBP: '£', GBp: '£', CHF: 'CHF', JPY: '¥' }[currency] || currency);
   const cur = currency === 'GBp' ? 'GBP' : currency;
   const key = cur + digits;
   try {
@@ -43,6 +47,7 @@ function fmtNum(value, digits = 2) {
 
 function fmtQty(value) {
   if (!isFinite(value)) return '—';
+  if (privacyOn()) return '••';
   return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 6 }).format(value);
 }
 
@@ -54,6 +59,7 @@ function fmtPct(value, digits = 2, signed = true) {
 
 function fmtSignedMoney(value, currency) {
   if (!isFinite(value)) return '—';
+  if (privacyOn()) return fmtMoney(value, currency);
   const s = fmtMoney(value, currency);
   return value > 0 ? '+' + s : s;
 }

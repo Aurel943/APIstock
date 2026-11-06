@@ -2,14 +2,21 @@
 'use strict';
 
 const Portfolio = {
+  /** Opérations du compte sélectionné (ou de tous les comptes) */
+  txs(account) {
+    const acc = account === undefined ? Store.state.accountFilter || 'all' : account;
+    return Store.state.transactions.filter(t => acc === 'all' || (t.account || Store.defaultAccount()) === acc);
+  },
+
   /** Agrège les transactions en positions (méthode du PRU / coût moyen pondéré) */
-  positions() {
+  positions(account) {
     const byKey = {};
-    const txs = Store.state.transactions.slice().sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+    const txs = this.txs(account).sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
     for (const t of txs) {
-      const p = byKey[t.key] = byKey[t.key] || { key: t.key, qty: 0, cost: 0, realized: 0, fees: 0, firstDate: t.date, txCount: 0, totalBought: 0 };
+      const p = byKey[t.key] = byKey[t.key] || { key: t.key, qty: 0, cost: 0, realized: 0, fees: 0, dividends: 0, firstDate: t.date, txCount: 0, totalBought: 0 };
       const qty = parseNum(t.qty), price = parseNum(t.price), fees = parseNum(t.fees) || 0;
       p.txCount++;
+      if (t.type === 'div') { p.dividends += qty * price - fees; continue; }
       p.fees += fees;
       if (t.type === 'sell') {
         if (p.qty <= 0) continue;
@@ -32,9 +39,9 @@ const Portfolio = {
   },
 
   /** Positions enrichies avec cotations + conversion dans la devise de base */
-  snapshot() {
-    const rows = this.positions();
-    const totals = { value: 0, cost: 0, day: 0, realized: 0, missing: 0 };
+  snapshot(account) {
+    const rows = this.positions(account);
+    const totals = { value: 0, cost: 0, day: 0, realized: 0, dividends: 0, missing: 0 };
     for (const r of rows) {
       const q = Api.cachedQuote(r.key);
       const cur = (r.inst && r.inst.currency) || Store.state.settings.baseCurrency;
@@ -52,6 +59,8 @@ const Portfolio = {
       r.pnlBase = r.pnl * fx;
       r.dayBase = r.dayChange * fx;
       r.realizedBase = r.realized * fx;
+      r.dividendsBase = r.dividends * fx;
+      if (isFinite(r.dividendsBase)) totals.dividends += r.dividendsBase;
       if (r.qty > 0) {
         if (isFinite(r.valueBase)) { totals.value += r.valueBase; totals.cost += r.costBase; }
         else { totals.missing++; if (isFinite(r.costBase)) { totals.cost += r.costBase; totals.value += r.costBase; } }
@@ -66,6 +75,7 @@ const Portfolio = {
     }
     totals.pnl = totals.value - totals.cost;
     totals.pnlPct = totals.cost > 0 ? (totals.pnl / totals.cost) * 100 : NaN;
+    totals.totalGain = totals.pnl + totals.realized + totals.dividends;
     const prevValue = totals.value - totals.day;
     totals.dayPct = prevValue > 0 ? (totals.day / prevValue) * 100 : NaN;
     return { rows: open, closed: rows.filter(r => r.qty <= 0), totals };
@@ -107,6 +117,7 @@ const Portfolio = {
       }
       while (e < evs.length && evs[e].date <= d) {
         const ev = evs[e++];
+        if (ev.type === 'div') continue;
         const L = line(ev.key);
         const fx = fxByKey[ev.key] || 1;
         const px = last[ev.key];
@@ -175,22 +186,62 @@ const Portfolio = {
   /** Rendement annualisé du portefeuille réel (flux convertis au taux de change actuel) */
   portfolioXirr(totalValue) {
     const flows = [];
-    for (const t of Store.state.transactions) {
+    for (const t of this.txs()) {
       const inst = Store.instrument(t.key);
       const fx = Api.fxCached(inst ? inst.currency : Store.state.settings.baseCurrency);
       if (!isFinite(fx)) return NaN;
       const gross = parseNum(t.qty) * parseNum(t.price), fees = parseNum(t.fees) || 0;
-      flows.push({ date: t.date, amount: (t.type === 'sell' ? gross - fees : -(gross + fees)) * fx });
+      flows.push({ date: t.date, amount: (t.type === 'sell' || t.type === 'div' ? gross - fees : -(gross + fees)) * fx });
     }
     if (!(totalValue > 0)) return NaN;
     flows.push({ date: Date.now(), amount: totalValue });
     return this.xirr(flows);
   },
 
-  /** Impôt estimé sur une plus-value latente selon le réglage fiscal */
-  taxRate() {
-    const st = Store.state.settings;
-    return st.taxMode === 'none' ? 0 : (parseNum(st.taxRate) || 0);
+  /** Plus-value latente nette d'impôt estimée, compte par compte (chaque compte a son taux) */
+  netPnl() {
+    const filter = Store.state.accountFilter || 'all';
+    const accounts = Store.state.accounts.filter(a => filter === 'all' || a.id === filter);
+    let net = 0, taxed = false;
+    for (const a of accounts) {
+      const { totals } = this.snapshot(a.id);
+      const rate = parseNum(a.taxRate) || 0;
+      if (rate > 0) taxed = true;
+      net += totals.pnl > 0 ? totals.pnl * (1 - rate / 100) : totals.pnl;
+    }
+    return { net, taxed };
+  },
+
+  /** Indice de performance pondérée dans le temps (TWR, base 100) à partir des points de replay() */
+  twr(points) {
+    const out = [];
+    let idx = 100;
+    for (let i = 0; i < points.length; i++) {
+      if (i > 0 && points[i - 1].value > 0) {
+        const flow = points[i].invested - points[i - 1].invested;
+        idx *= (points[i].value - flow) / points[i - 1].value;
+      }
+      out.push([points[i].date, idx]);
+    }
+    return out;
+  },
+
+  /** Rendements mensuels et annuels (en %) d'une série [[date, indice]] */
+  monthlyReturns(series) {
+    const lastOfMonth = new Map();
+    for (const [d, v] of series) lastOfMonth.set(d.slice(0, 7), v);
+    const months = Array.from(lastOfMonth.keys()).sort();
+    const res = {};
+    let prev = series.length ? series[0][1] : NaN;
+    for (const m of months) {
+      const v = lastOfMonth.get(m);
+      const [y, mm] = m.split('-');
+      (res[y] = res[y] || { months: {}, start: prev }).months[+mm] = (v / prev - 1) * 100;
+      res[y].end = v;
+      prev = v;
+    }
+    for (const y of Object.keys(res)) res[y].year = (res[y].end / res[y].start - 1) * 100;
+    return res;
   },
 
   /**

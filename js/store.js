@@ -32,6 +32,14 @@ const Store = {
     this.state.settings = Object.assign({}, DEFAULT_STATE.settings, (saved && saved.settings) || {});
     this.state.targets = this.state.targets || {};
     this.state.alerts = this.state.alerts || [];
+    // comptes (PEA, CTO…) : migration depuis l'ancien réglage fiscal unique
+    if (!Array.isArray(this.state.accounts) || !this.state.accounts.length) {
+      const st = this.state.settings;
+      const type = st.taxMode === 'pea' ? 'pea' : st.taxMode === 'cto' ? 'cto' : 'autre';
+      this.state.accounts = [{ id: 'main', name: type === 'pea' ? 'PEA' : type === 'cto' ? 'Compte-titres' : 'Compte principal', type,
+        taxRate: st.taxMode && st.taxMode !== 'none' ? parseNum(st.taxRate) || 0 : 0 }];
+    }
+    if (!this.state.accountFilter || (this.state.accountFilter !== 'all' && !this.state.accounts.some(a => a.id === this.state.accountFilter))) this.state.accountFilter = 'all';
     return this.state;
   },
 
@@ -60,6 +68,9 @@ const Store = {
   },
 
   instrument(key) { return this.state.instruments[key]; },
+
+  defaultAccount() { return this.state.accounts[0].id; },
+  account(id) { return this.state.accounts.find(a => a.id === id) || this.state.accounts[0]; },
 
   label(key) {
     const i = this.instrument(key);
