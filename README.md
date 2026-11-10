@@ -52,7 +52,23 @@ Site personnel (100 % statique, sans serveur ni compte) pour suivre ses ETF et l
 - *Simulation sur données réelles* : « et si j'avais investi X € + Y €/mois depuis telle date, réparti en % sur ces ETF ? » → somme investie, nombre de parts, PRU, valeur actuelle, % actuel et plus-value latente par ETF, courbe et pire baisse (drawdown). Parts entières ou fractionnées. Bouton pour reprendre la répartition de ton portefeuille.
 - *Projection dans le futur* : intérêts composés avec versements mensuels, rendement et frais annuels.
 
-Rafraîchissement automatique réglable (30 s à 15 min), mise en pause quand l'onglet est caché.
+**Temps réel**
+- Rafraîchissement automatique réglable de **1 seconde** à 15 min, mis en pause quand l'onglet est caché
+- Prix qui s'allument brièvement en vert ou en rouge quand ils changent
+- Mini-graphique de la séance dans le portefeuille, la liste de suivi et les cartes mobiles
+- Carte **Variations du jour** : plus fortes hausses et baisses de tes positions, en % et en €
+- Compteur des requêtes envoyées aujourd'hui (ce navigateur, et total du relais pour tous les visiteurs)
+
+**Exposition réelle & frais**
+- Répartition de ton portefeuille par **pays**, **secteurs** et **devises**, en regardant à l'intérieur de chaque ETF (MSCI World, S&P 500, Nasdaq-100, All-World, émergents, Europe, CAC 40, Japon, or, crypto, actions en direct)
+- Alertes de concentration (ex. « 73 % dépend des actions américaines ») et de **recoupement** entre ETF (ex. CW8 et ESE ≈ 68 %)
+- **Frais annuels** en € à partir du TER de chaque ETF (valeurs indicatives pré-remplies pour les ETF courants, modifiables)
+
+**Fiscalité** (estimations indicatives)
+- **PEA** : versements estimés face au plafond de 150 000 €, date des 5 ans et compte à rebours ; date d'ouverture et versements réels modifiables
+- **Compte-titres** : plus-values réalisées par année (prix moyen pondéré d'acquisition), imputation des moins-values sur 10 ans, dividendes, cases de la déclaration (3VG / 3VH, 2DC / 2TR) et impôt estimé au prélèvement forfaitaire unique de 30 %
+
+**Synchronisation entre appareils** : opérations, comptes, liste de suivi et réglages identiques sur ton téléphone et ton ordinateur, **chiffrés de bout en bout** avec ton code (voir plus bas).
 
 ## Démarrage
 
@@ -79,6 +95,14 @@ Le forfait gratuit de Twelve Data ne couvre que les marchés US (+ forex/crypto)
 5. Sur le site : **Réglages** → *Relais Yahoo Finance* → colle l'URL → **Tester** → **Enregistrer**.
 
 Le worker n'accepte que les requêtes venant de `aurel943.github.io` et de `localhost:8000` (modifiable en haut du fichier).
+
+#### Synchronisation entre appareils (optionnel)
+Les données sont chiffrées dans le navigateur (AES-256, clé dérivée de ton code) : le worker ne stocke qu'un bloc illisible, identifié par une empreinte du code. Pour l'activer :
+1. Cloudflare → **Storage & Databases** → **Workers KV** → **Create** : nomme l'espace `apistock-sync`.
+2. Worker `apistock-yahoo` → **Settings** → **Bindings** → **Add binding** → **KV namespace** : *Variable name* = `SYNC`, *KV namespace* = `apistock-sync` → **Deploy**.
+3. Sur le site, 1er appareil : **Réglages** → *Synchronisation entre appareils* → **Générer** → note le code → **Activer**. Sur les autres appareils : saisis le même code → **Activer**.
+
+Les modifications sont envoyées quelques secondes après chaque changement, et récupérées au retour sur l'onglet et toutes les 2 minutes. Si deux appareils ont été modifiés en même temps, leurs opérations sont fusionnées. La clé Twelve Data est synchronisée (chiffrée) ; la fréquence de rafraîchissement reste propre à chaque appareil. Le forfait gratuit KV autorise 1 000 écritures par jour, largement suffisant pour un usage personnel. **Garde ton code** : il n'est stocké nulle part ailleurs et ne peut pas être récupéré.
 
 #### Compteur global de requêtes (optionnel)
 Dans **Réglages**, le site affiche le nombre de requêtes envoyées aujourd'hui par ton navigateur et, si le worker est configuré pour, le **total reçu par le worker, tous visiteurs confondus** (quota gratuit : 100 000/jour, remis à zéro à minuit UTC). Pour l'activer :
@@ -120,6 +144,7 @@ js/views.js       onglets Monde et Investir (plan, alertes)
 js/compare.js     onglet Comparer
 js/extras.js      comptes, objectif, calendrier, mode discret, CSV
 js/mobile.js      navigation et affichage mobile
+js/features.js    temps réel, exposition & frais, fiscalité, synchronisation
 sw.js, manifest.webmanifest, icons/   application installable (PWA)
 js/app.js         interface
 api/yahoo.js      relais Yahoo Finance (fonction Vercel)

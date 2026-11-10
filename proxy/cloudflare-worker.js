@@ -20,6 +20,12 @@
  *        CF_API_TOKEN   (Secret) = le jeton créé ci-dessus
  *      → Deploy
  * Le jeton ne quitte jamais le worker : le site ne reçoit que les totaux.
+ *
+ * Synchronisation entre appareils (optionnel) : tes données, chiffrées dans le navigateur
+ * avec ton code de synchronisation, sont stockées ici sans que le worker puisse les lire.
+ *   a. Workers & Pages → KV → Create a namespace (ex. « apistock-sync »)
+ *   b. Worker → Settings → Bindings → Add binding → KV namespace :
+ *        Variable name = SYNC, namespace = celui créé ci-dessus → Deploy
  */
 const ALLOWED_ORIGINS = [
   'https://aurel943.github.io',
@@ -86,6 +92,32 @@ async function dailyStats(env) {
   return data;
 }
 
+/* ---- Synchronisation chiffrée (Workers KV, binding « SYNC ») ---- */
+const SYNC_ID_RE = /^[a-f0-9]{64}$/;
+const SYNC_MAX = 512 * 1024; // 512 Ko de données chiffrées au maximum
+
+async function handleSync(request, q, env, cors) {
+  if (!env || !env.SYNC) return json({ configured: false }, 200, cors);
+  const id = q.get('id') || '';
+  if (!SYNC_ID_RE.test(id)) return json({ error: 'identifiant invalide' }, 400, cors);
+  const kvKey = 'sync:' + id;
+  if (request.method === 'GET') {
+    const cur = await env.SYNC.get(kvKey, 'json');
+    return json(cur ? Object.assign({ configured: true }, cur) : { configured: true, empty: true }, 200, cors);
+  }
+  const text = await request.text();
+  if (text.length > SYNC_MAX) return json({ error: 'données trop volumineuses' }, 413, cors);
+  let body;
+  try { body = JSON.parse(text); } catch (e) { return json({ error: 'JSON invalide' }, 400, cors); }
+  if (typeof body.data !== 'string' || typeof body.iv !== 'string' || !isFinite(body.updatedAt)) return json({ error: 'requête invalide' }, 400, cors);
+  const cur = await env.SYNC.get(kvKey, 'json');
+  // contrôle de version : on refuse d'écraser une version plus récente que celle connue de l'appareil
+  if (cur && !body.force && cur.updatedAt !== body.base) return json({ configured: true, conflict: true, updatedAt: cur.updatedAt }, 409, cors);
+  const rec = { data: body.data, iv: body.iv, updatedAt: Number(body.updatedAt), device: String(body.device || '').slice(0, 60) };
+  await env.SYNC.put(kvKey, JSON.stringify(rec));
+  return json({ configured: true, ok: true, updatedAt: rec.updatedAt }, 200, cors);
+}
+
 function json(data, status, cors) {
   return new Response(JSON.stringify(data), { status, headers: Object.assign({ 'Content-Type': 'application/json; charset=utf-8' }, cors) });
 }
@@ -95,10 +127,15 @@ export default {
     const origin = request.headers.get('Origin');
     if (origin && ALLOWED_ORIGINS.length && !ALLOWED_ORIGINS.includes(origin)) return json({ error: 'origin not allowed' }, 403, {});
     const cors = { 'Access-Control-Allow-Origin': origin || '*', Vary: 'Origin' };
-    if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
+    if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: Object.assign({
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Max-Age': '86400' }, cors) });
+    const q = new URL(request.url).searchParams;
+    if (q.get('type') === 'sync' && (request.method === 'GET' || request.method === 'POST')) {
+      try { return await handleSync(request, q, env, cors); }
+      catch (e) { return json({ error: 'synchronisation indisponible : ' + e.message }, 500, cors); }
+    }
     if (request.method !== 'GET') return json({ error: 'method not allowed' }, 405, cors);
 
-    const q = new URL(request.url).searchParams;
     if (q.get('type') === 'ping') return json({ ok: true }, 200, cors);
     if (q.get('type') === 'stats') {
       try { return json(await dailyStats(env), 200, cors); }
