@@ -35,6 +35,7 @@
       <button id="marketState" class="pill" title="Horaires des marchés" data-goto="world">—</button>
       <span id="lastUpdate" class="muted small">Jamais mis à jour</span>
       <span id="credits" class="pill mono" title="Crédits API utilisés sur la dernière minute">0/8</span>
+      <button id="reqToday" class="pill mono" data-goto="settings" title="Requêtes envoyées aujourd'hui depuis ce navigateur">0 req.</button>
       <button id="refreshBtn" class="btn icon" title="Rafraîchir maintenant" aria-label="Rafraîchir">
         <svg viewBox="0 0 24 24" width="18" height="18"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v4h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
@@ -487,6 +488,11 @@
               </div>
               <span class="muted small">Le forfait gratuit Twelve Data ne couvre pas Euronext, Xetra, etc. Ces ETF passent alors par Yahoo via ton relais (voir le README). <b id="proxyStatus" class="up"></b></span>
             </label>
+            <div class="req-usage">
+              <div class="req-usage-head"><span>Requêtes envoyées aujourd'hui <span class="muted small">(ce navigateur)</span></span><b id="reqTotal" class="mono">0</b></div>
+              <div class="bar"><span id="reqBar" style="width:0%"></span></div>
+              <span class="muted small" id="reqDetail"></span>
+            </div>
             <label>Devise de référence
               <select id="setCurrency">
                 <option>EUR</option><option>USD</option><option>GBP</option><option>CHF</option><option>CAD</option><option>JPY</option>

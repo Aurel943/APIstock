@@ -41,7 +41,10 @@ const App = {
       c.classList.toggle('warn', used >= limit);
     });
     Api.emitUsage();
-    setInterval(() => Api.emitUsage(), 5000);
+    Api.onDaily(d => this.renderDailyCount(d));
+    Api.emitDaily();
+    // toutes les 5 s : crédits de la minute, et compteur du jour (autres onglets, passage à minuit)
+    setInterval(() => { Api.emitUsage(); Api.emitDaily(); }, 5000);
 
     const hash = location.hash.replace('#', '');
     this.show(['portfolio', 'markets', 'compare', 'world', 'invest', 'simulation', 'settings'].includes(hash) ? hash : (Api.ready() ? 'portfolio' : 'settings'));
@@ -137,6 +140,23 @@ const App = {
       this.renderMarketState();
       if (this.view === 'invest') { this.renderInvest(); this.renderAlerts(); }
     });
+  },
+
+  renderDailyCount(d) {
+    const nf = new Intl.NumberFormat('fr-FR');
+    const total = (d.yahoo || 0) + (d.twelve || 0);
+    const QUOTA = 100000; // forfait gratuit Cloudflare Workers, partagé par tous les visiteurs du relais
+    const pct = Math.min(100, ((d.yahoo || 0) / QUOTA) * 100);
+    const pill = $('#reqToday');
+    pill.textContent = nf.format(total) + ' req.';
+    pill.title = `Requêtes envoyées aujourd'hui depuis ce navigateur — relais Yahoo : ${nf.format(d.yahoo || 0)} · Twelve Data : ${nf.format(d.twelve || 0)}`;
+    pill.classList.toggle('warn', pct >= 80);
+    if (!$('#reqTotal')) return;
+    $('#reqTotal').textContent = nf.format(total);
+    $('#reqBar').style.width = pct + '%';
+    $('#reqBar').classList.toggle('warn', pct >= 80);
+    $('#reqDetail').textContent = `Relais Yahoo : ${nf.format(d.yahoo || 0)} (${fmtNum(pct, pct < 1 ? 2 : 1)} % du quota gratuit de 100 000/jour du worker, partagé avec tous les visiteurs)`
+      + ` · Twelve Data : ${nf.format(d.twelve || 0)}${Api.hasKey() ? ' (800/jour sur le forfait gratuit)' : ''}. Remis à zéro à minuit.`;
   },
 
   bindInteractionGuard() {
