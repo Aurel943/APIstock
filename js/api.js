@@ -95,6 +95,25 @@ const Api = {
     } catch (e) { /* pas de relais local */ }
   },
 
+  /* ---- Compteur de requêtes du jour (par navigateur, remis à zéro à minuit) ---- */
+  dailyListeners: new Set(),
+  onDaily(fn) { this.dailyListeners.add(fn); },
+  dailyCount() {
+    let d = null;
+    try { d = JSON.parse(localStorage.getItem('apistock:daily') || 'null'); } catch (e) { d = null; }
+    // relu à chaque fois : plusieurs onglets ouverts partagent le même compteur
+    if (!d || d.date !== todayISO()) d = { date: todayISO(), yahoo: 0, twelve: 0 };
+    return d;
+  },
+  countRequest(kind) {
+    const d = this.dailyCount();
+    d[kind] = (d[kind] || 0) + 1;
+    this._daily = d;
+    try { localStorage.setItem('apistock:daily', JSON.stringify(d)); } catch (e) { /* stockage indisponible */ }
+    this.emitDaily(d);
+  },
+  emitDaily(d = this.dailyCount()) { for (const fn of this.dailyListeners) fn(d); },
+
   /** Appel au relais Yahoo Finance (pas de crédits consommés) */
   async yahoo(params, proxyOverride) {
     const base = proxyOverride || this.proxyUrl();
@@ -102,6 +121,7 @@ const Api = {
     const url = new URL(base, location.href);
     for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, v);
     let json;
+    this.countRequest('yahoo');
     try {
       const res = await fetch(url.toString());
       json = await res.json();
@@ -161,6 +181,7 @@ const Api = {
         for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, v);
         url.searchParams.set('apikey', Store.state.settings.apiKey.trim());
         let res, json;
+        this.countRequest('twelve');
         try {
           res = await fetch(url.toString());
           json = await res.json();
