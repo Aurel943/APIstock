@@ -46,7 +46,7 @@ module.exports = async (req, res) => {
     const r = await fetch(upstream, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; APIstock/1.0)', Accept: 'application/json' } });
     const body = await r.text();
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
-    res.setHeader('Cache-Control', q.type === 'search' ? 's-maxage=86400' : 's-maxage=15');
+    res.setHeader('Cache-Control', q.type === 'search' ? 's-maxage=86400' : 's-maxage=1');
     res.status(r.status).send(body);
   } catch (e) {
     res.status(502).json({ error: 'Yahoo injoignable : ' + e.message });

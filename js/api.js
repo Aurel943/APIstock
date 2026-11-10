@@ -137,6 +137,9 @@ const Api = {
 
   isPlanError(e) { return /plan|upgrad|grow|venture|pro\b|not available|subscription/i.test(e.message || ''); },
 
+  /** Crédits Twelve Data encore disponibles sur la minute glissante */
+  freeSlots() { const now = Date.now(); return this.limit() - this.callLog.filter(t => now - t < 60000).length; },
+
   async waitForSlot() {
     for (;;) {
       const now = Date.now();
@@ -328,7 +331,11 @@ const Api = {
     return data;
   },
 
-  persistQuotes() {
+  persistQuotes(now = false) {
+    // en rafraîchissement rapide, on n'écrit pas dans le stockage local à chaque seconde
+    clearTimeout(this._persistTimer);
+    if (!now && Date.now() - (this._persistedAt || 0) < 10000) { this._persistTimer = setTimeout(() => this.persistQuotes(true), 10000); return; }
+    this._persistedAt = Date.now();
     const slim = {};
     for (const [k, v] of Object.entries(this.quotes)) if (!k.startsWith('Y:')) slim[k] = { ts: v.ts, data: Object.assign({}, v.data, { spark: undefined }) };
     try { localStorage.setItem('apistock:quotes', JSON.stringify(slim)); } catch (e) { /* ignore */ }

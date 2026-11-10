@@ -32,10 +32,20 @@ const Charts = {
   },
 
   doughnut(id, labels, values, colors, currency) {
+    const old = this.instances[id];
+    // même graphique, mêmes lignes : on met juste à jour les valeurs, sans recréer ni ré-animer
+    if (old && old.$apistock && old.$apistock.currency === currency && old.$apistock.border === this.css('--surface')
+      && old.data.labels.join('\u0001') === labels.join('\u0001')) {
+      old.data.datasets[0].data = values;
+      old.data.datasets[0].backgroundColor = colors;
+      old.$apistock.total = values.reduce((a, b) => a + b, 0);
+      old.update('none');
+      return;
+    }
     this.destroy(id);
     const ctx = document.getElementById(id);
     if (!ctx || typeof Chart === 'undefined') return;
-    const total = values.reduce((a, b) => a + b, 0);
+    const meta = { currency, border: this.css('--surface'), total: values.reduce((a, b) => a + b, 0) };
     this.instances[id] = new Chart(ctx, {
       type: 'doughnut',
       data: { labels, datasets: [{ data: values, backgroundColor: colors, borderColor: this.css('--surface'), borderWidth: 2, hoverOffset: 6 }] },
@@ -43,10 +53,11 @@ const Charts = {
         responsive: true, maintainAspectRatio: false, cutout: '64%',
         plugins: {
           legend: { display: false },
-          tooltip: { callbacks: { label: c => ` ${c.label} : ${fmtMoney(c.raw, currency)} (${fmtNum((c.raw / total) * 100, 1)} %)` } },
+          tooltip: { callbacks: { label: c => ` ${c.label} : ${fmtMoney(c.raw, currency)} (${fmtNum((c.raw / meta.total) * 100, 1)} %)` } },
         },
       },
     });
+    this.instances[id].$apistock = meta;
   },
 
   line(id, labels, values, opts = {}) {
