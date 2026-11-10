@@ -20,6 +20,8 @@ const DEFAULT_STATE = {
   cashMoves: [],     // { id, account, type: 'deposit'|'withdraw', date, amount (devise de base), note }
   plans: [],         // versements programmés { id, key, account, amount, day, start, fractional, active, done: { 'AAAA-MM': idOpération | 'skip' } }
   watchlist: [],     // [key]
+  deleted: {},       // id -> horodatage de suppression (synchronisation : un élément supprimé ne réapparaît pas)
+  restored: {},      // id -> horodatage d'annulation d'une suppression (l'emporte sur une suppression plus ancienne)
   sim: null,         // derniers paramètres de simulation
   projection: null,
 };
@@ -36,6 +38,8 @@ const Store = {
     this.state.alerts = this.state.alerts || [];
     if (!Array.isArray(this.state.cashMoves)) this.state.cashMoves = [];
     if (!Array.isArray(this.state.plans)) this.state.plans = [];
+    for (const k of ['deleted', 'restored']) if (!this.state[k] || typeof this.state[k] !== 'object' || Array.isArray(this.state[k])) this.state[k] = {};
+    this.purgeTombstones();
     // comptes (PEA, CTO…) : migration depuis l'ancien réglage fiscal unique
     if (!Array.isArray(this.state.accounts) || !this.state.accounts.length) {
       const st = this.state.settings;
@@ -99,7 +103,26 @@ const Store = {
 
   removeTransaction(id) {
     this.state.transactions = this.state.transactions.filter(t => t.id !== id);
+    this.markDeleted(id);
     this.save();
+  },
+
+  /* ---- Suppressions mémorisées pour la synchronisation (opérations, espèces, versements, alertes, comptes…) ---- */
+  TOMBSTONE_DAYS: 180,
+  markDeleted(id) {
+    if (!id) return;
+    this.state.deleted[id] = Date.now();
+    delete this.state.restored[id];
+  },
+  /** « Annuler » : l'entrée est retirée, et l'annulation est datée pour l'emporter sur la suppression déjà envoyée */
+  unmarkDeleted(id) {
+    if (!id) return;
+    delete this.state.deleted[id];
+    this.state.restored[id] = Date.now();
+  },
+  purgeTombstones(now = Date.now()) {
+    const limit = now - this.TOMBSTONE_DAYS * 864e5;
+    for (const k of ['deleted', 'restored']) for (const [id, ts] of Object.entries(this.state[k] || {})) if (!(ts > limit)) delete this.state[k][id];
   },
 
   toggleWatch(key, on) {

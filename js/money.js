@@ -149,8 +149,8 @@ Object.assign(App, {
           onclick: () => { p.active = !active; Store.save(); this.renderPlans(); this.renderTodo(true); } }, active ? 'Actif' : 'En pause')),
         el('td', { class: 'num' }, el('button', { class: 'iconbtn', title: 'Supprimer', onclick: () => {
           const idx = Store.state.plans.indexOf(p);
-          Store.state.plans.splice(idx, 1); Store.save(); this.renderPlans(); this.renderTodo(true);
-          undoToast('Versement programmé supprimé', () => { Store.state.plans.splice(idx, 0, p); Store.save(); this.renderPlans(); this.renderTodo(true); });
+          Store.state.plans.splice(idx, 1); Store.markDeleted(p.id); Store.save(); this.renderPlans(); this.renderTodo(true);
+          undoToast('Versement programmé supprimé', () => { Store.state.plans.splice(idx, 0, p); Store.unmarkDeleted(p.id); Store.save(); this.renderPlans(); this.renderTodo(true); });
         } }, '🗑')));
     }));
     if (!list.length) $('#plansTable tbody').append(el('tr', {}, el('td', { colspan: 7, class: 'empty' }, 'Aucun versement programmé. Exemple : 200 € sur CW8 le 5 de chaque mois.')));
@@ -274,8 +274,8 @@ Object.assign(App, {
             el('button', { class: 'iconbtn', title: 'Modifier', onclick: () => this.openCash(m) }, '✎'),
             el('button', { class: 'iconbtn', title: 'Supprimer', onclick: () => {
               const idx = Store.state.cashMoves.indexOf(m);
-              Store.state.cashMoves.splice(idx, 1); Store.save(); this.renderAll();
-              undoToast('Mouvement supprimé', () => { Store.state.cashMoves.splice(idx, 0, m); Store.save(); this.renderAll(); });
+              Store.state.cashMoves.splice(idx, 1); Store.markDeleted(m.id); Store.save(); this.renderAll();
+              undoToast('Mouvement supprimé', () => { Store.state.cashMoves.splice(idx, 0, m); Store.unmarkDeleted(m.id); Store.save(); this.renderAll(); });
             } }, '🗑'))))))),
       moves.length > 5 ? el('button', { class: 'btn small', style: 'margin-top:8px', onclick: () => { this.cashShowAll = !showAll; this.renderCash(); } },
         showAll ? 'Réduire' : `Voir les ${moves.length} mouvements`) : null,

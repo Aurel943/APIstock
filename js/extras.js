@@ -82,6 +82,7 @@ Object.assign(App, {
           for (const m of Store.state.cashMoves) if ((m.account || Store.defaultAccount()) === a.id) m.account = target.id;
           for (const pl of Store.state.plans) if (pl.account === a.id) pl.account = target.id;
           Store.state.accounts = accs.filter(x => x !== a);
+          Store.markDeleted(a.id);
           if (Store.state.accountFilter === a.id) Store.state.accountFilter = 'all';
           Store.save(); this.renderAccountsSettings(); this.renderAll();
         } }, '🗑') : el('span'));

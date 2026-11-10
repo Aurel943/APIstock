@@ -420,7 +420,7 @@ const App = {
             const idx = Store.state.transactions.indexOf(t);
             Store.removeTransaction(t.id);
             this.renderAll();
-            undoToast('Opération supprimée', () => { Store.state.transactions.splice(Math.max(0, idx), 0, t); Store.save(); this.renderAll(); });
+            undoToast('Opération supprimée', () => { Store.state.transactions.splice(Math.max(0, idx), 0, t); Store.unmarkDeleted(t.id); Store.save(); this.renderAll(); });
           } }, '🗑')),
       );
     }));

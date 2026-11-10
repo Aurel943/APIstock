@@ -545,17 +545,33 @@ const Sync = {
     if (!res.ok || j.error) throw new Error(j.error || 'erreur ' + res.status);
     return j;
   },
-  /** Fusion sans perte quand les deux appareils ont changé : on additionne les listes, l'appareil courant l'emporte en cas de doublon */
+  /** Listes fusionnées par identifiant (et filtrées des éléments supprimés) */
+  LISTS: ['transactions', 'alerts', 'accounts', 'cashMoves', 'plans'],
+
+  /**
+   * Suppressions des deux appareils : pour chaque identifiant, la date la plus récente l'emporte entre
+   * suppression (`deleted`) et annulation (`restored`). Les entrées de plus de 180 jours sont oubliées.
+   */
+  mergeTombstones(remote, local, now = Date.now()) {
+    const limit = now - Store.TOMBSTONE_DAYS * 864e5;
+    const pick = k => { const o = {}; for (const src of [remote[k], local[k]]) for (const [id, ts] of Object.entries(src || {})) if (ts > limit && !(o[id] >= ts)) o[id] = ts; return o; };
+    const deleted = pick('deleted'), restored = pick('restored');
+    for (const id of Object.keys(deleted)) { if (restored[id] >= deleted[id]) delete deleted[id]; else delete restored[id]; }
+    return { deleted, restored };
+  },
+
+  /** Fusion sans perte quand les deux appareils ont changé : on additionne les listes, l'appareil courant l'emporte en cas de doublon ; une suppression faite sur l'un des deux est conservée */
   merge(remote, local) {
     const byId = (a = [], b = []) => { const m = new Map(); for (const x of [...a, ...b]) m.set(x.id, x); return Array.from(m.values()); };
     const out = Object.assign({}, remote, local);
+    Object.assign(out, this.mergeTombstones(remote, local));
     out.settings = Object.assign({}, remote.settings || {}, local.settings || {});
     out.instruments = Object.assign({}, remote.instruments || {}, local.instruments || {});
-    out.transactions = byId(remote.transactions, local.transactions);
-    out.alerts = byId(remote.alerts, local.alerts);
-    out.accounts = byId(remote.accounts, local.accounts);
-    out.cashMoves = byId(remote.cashMoves, local.cashMoves);
-    out.plans = byId(remote.plans, local.plans);
+    for (const k of this.LISTS) out[k] = byId(remote[k], local[k]).filter(x => !(x && out.deleted[x.id]));
+    if (!out.accounts.length) out.accounts = (local.accounts || remote.accounts || []).slice(0, 1);
+    // éléments rattachés à un compte supprimé sur l'autre appareil : déplacés vers le premier compte restant
+    const accIds = new Set(out.accounts.map(a => a.id)), first = out.accounts[0] && out.accounts[0].id;
+    if (first) for (const k of ['transactions', 'cashMoves', 'plans']) out[k] = out[k].map(x => (x.account && !accIds.has(x.account) ? Object.assign({}, x, { account: first }) : x));
     out.watchlist = Array.from(new Set([...(remote.watchlist || []), ...(local.watchlist || [])]));
     out.targets = Object.assign({}, remote.targets || {}, local.targets || {});
     return out;
