@@ -3,10 +3,11 @@
 
 const RISK_BENCH = { ysym: 'IWDA.AS', name: 'MSCI World (iShares IWDA, en €)' };
 /* Sujets d'actualité par type d'ETF : recherche en français (Google Actualités) et en anglais (Yahoo, en secours) */
-const NEWS_TOPIC = {
-  world: ['MSCI World', 'MSCI World'], allworld: ['ETF monde bourse', 'FTSE All-World'], sp500: ['S&P 500', 'S&P 500'], ndx: ['Nasdaq', 'Nasdaq 100'],
-  em: ['marchés émergents bourse', 'emerging markets stocks'], europe: ['bourses européennes', 'Stoxx 600'], es50: ['Euro Stoxx 50', 'Euro Stoxx 50'],
-  cac: ['CAC 40', 'CAC 40'], japan: ['bourse de Tokyo Nikkei', 'Nikkei'], gold: ['cours de l\'or', 'gold price'], crypto: ['Bitcoin', 'Bitcoin'],
+const NEWS_TOPIC = { // [recherche en français, recherche en anglais, symboles Yahoo pour le flux d'actualités France]
+  world: ['MSCI World', 'MSCI World', '^GSPC,^STOXX,^N225'], allworld: ['ETF monde bourse', 'FTSE All-World', '^GSPC,^STOXX,^N225,EEM'],
+  sp500: ['S&P 500', 'S&P 500', '^GSPC'], ndx: ['Nasdaq', 'Nasdaq 100', '^IXIC,^NDX'], em: ['marchés émergents bourse', 'emerging markets stocks', 'EEM,^HSI'],
+  europe: ['bourses européennes', 'Stoxx 600', '^STOXX'], es50: ['Euro Stoxx 50', 'Euro Stoxx 50', '^STOXX50E'], cac: ['CAC 40', 'CAC 40', '^FCHI'],
+  japan: ['bourse de Tokyo Nikkei', 'Nikkei', '^N225'], gold: ['cours de l\'or', 'gold price', 'GC=F'], crypto: ['Bitcoin', 'Bitcoin', 'BTC-EUR'],
 };
 const NEWS_COLORS = ['#10b981', '#6366f1', '#f59e0b', '#ec4899', '#06b6d4', '#8b5cf6', '#ef4444', '#84cc16', '#f97316', '#3b82f6'];
 
@@ -14,11 +15,11 @@ Object.assign(Api, {
   newsCache: {},
   /** Actualités (en français via Google Actualités, sinon Yahoo en anglais), mises en cache 15 min */
   async news(topic) {
-    const q = topic.fr, ck = q + '|' + topic.en;
+    const q = topic.fr, ck = q + '|' + topic.en + '|' + (topic.s || '');
     const c = this.newsCache[ck];
     if (c && Date.now() - c.ts < 15 * 60000) return c.items;
     let json;
-    try { json = await this.yahoo({ type: 'news', q, en: topic.en }); }
+    try { json = await this.yahoo({ type: 'news', q, en: topic.en, s: topic.s }); }
     catch (e) {
       if (/invalide/.test(e.message)) throw new ApiError('Le relais en ligne ne gère pas encore les actualités : redéploie le worker Cloudflare (voir le README).', 0);
       throw e;
@@ -216,11 +217,12 @@ Object.assign(App, {
     const inst = Store.instrument(key);
     if (!inst) return null;
     const clean = n => (n || '').replace(/\(.*?\)/g, '').replace(/\b(UCITS|ETF|Acc|Dist|EUR|USD|Inc|Corp|Corporation|Ltd|plc|S\.?A|SE|N\.?V|AG|Class [A-C])\b\.?/gi, '').replace(/[,.]+$/, '').replace(/\s+/g, ' ').trim();
-    if (!inst.mic && inst.ysymbol) { const n = clean(inst.name) || inst.ysymbol; return { fr: n, en: inst.ysymbol, label: n }; } // indices, matières premières, crypto
+    if (!inst.mic && inst.ysymbol) { const n = clean(inst.name) || inst.ysymbol; return { fr: n, en: inst.ysymbol, s: inst.ysymbol, label: n }; } // indices, matières premières, crypto
     const prof = typeof Expo !== 'undefined' ? Expo.of(key).profile : 'none';
-    if (NEWS_TOPIC[prof]) return { fr: NEWS_TOPIC[prof][0], en: NEWS_TOPIC[prof][1], label: NEWS_TOPIC[prof][0] };
+    if (NEWS_TOPIC[prof]) return { fr: NEWS_TOPIC[prof][0], en: NEWS_TOPIC[prof][1], s: NEWS_TOPIC[prof][2], label: NEWS_TOPIC[prof][0] };
     const n = clean(inst.name) || inst.symbol;
-    return { fr: n, en: prof === 'stock' ? (yahooSymbolFor(inst) || inst.symbol) : n, label: n };
+    const ysym = yahooSymbolFor(inst) || '';
+    return { fr: n, en: prof === 'stock' ? (ysym || inst.symbol) : n, s: ysym, label: n };
   },
 
   newsItem(n, tag) {
@@ -265,7 +267,7 @@ Object.assign(App, {
     } finally { this._newsLoading = false; this.newsAt = Date.now(); }
     const list = Array.from(all.values()).sort((a, b) => b.time - a.time).slice(0, 10);
     $('#newsCard').classList.toggle('hidden', !list.length && !err);
-    $('#newsSource').textContent = list.some(n => n.lang === 'fr') ? 'Google Actualités' : 'Yahoo Finance (en anglais : redéploie le worker pour les avoir en français)';
+    $('#newsSource').textContent = list.some(n => n.lang === 'fr') ? 'Presse financière française' : 'En anglais : redéploie le worker Cloudflare pour les avoir en français';
     $('#newsList').replaceChildren(...(list.length ? list.map(n => this.newsItem(n, queries.size > 1 ? n.tag : null)) : [el('li', { class: 'muted small' }, err ? err.message : 'Aucune actualité.')]));
   },
 
