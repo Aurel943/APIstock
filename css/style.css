@@ -703,3 +703,10 @@ td.num .day-spark { display: block; margin: 4px 0 0 auto; }
 .push-box { margin-top: 16px; padding-top: 4px; border-top: 1px solid var(--border); }
 .push-box .actions { margin-top: 10px; }
 .vapid-out { margin-top: 10px; padding: 12px; background: var(--surface-2); border-radius: 8px; font-size: 12px; white-space: pre-wrap; word-break: break-all; user-select: all; }
+
+/* Import CSV : choix du symbole des lignes connues par leur ISIN */
+.csv-isins { display: flex; flex-direction: column; gap: 8px; }
+.csv-isin { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.csv-isin .name { display: block; }
+.csv-isin select { width: 100%; min-width: 0; }
+@media (max-width: 640px) { .csv-isin { grid-template-columns: 1fr; } }

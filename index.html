@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=96615542b7">
+  <link rel="stylesheet" href="css/style.css?v=331eb8bf60">
 </head>
 <body>
   <header class="topbar">
@@ -782,6 +782,20 @@
     </form>
   </dialog>
 
+  <dialog id="csvDialog">
+    <form method="dialog" class="stack" id="csvForm">
+      <h2>Importer des opérations</h2>
+      <div id="csvFormat" class="small"></div>
+      <div id="csvSummary"></div>
+      <div id="csvIsins" class="csv-isins"></div>
+      <p class="muted small">Formats reconnus automatiquement : modèle APIstock, Degiro (Transactions.csv), Trade Republic (export des transactions, non vérifié). Les autres relevés (Boursorama, Fortuneo…) sont lus d'après leurs en-têtes : date, sens, ISIN ou symbole, quantité, cours, frais, montant.</p>
+      <div class="actions end">
+        <button type="button" class="btn" id="csvCancel">Annuler</button>
+        <button type="submit" class="btn primary" id="csvOk">Importer</button>
+      </div>
+    </form>
+  </dialog>
+
   <!-- Navigation mobile -->
   <button class="fab" id="fabAdd" aria-label="Ajouter une opération">
     <svg viewBox="0 0 24 24" width="26" height="26"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
@@ -805,20 +819,20 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-  <script src="js/utils.js?v=96615542b7"></script>
-  <script src="js/store.js?v=96615542b7"></script>
-  <script src="js/api.js?v=96615542b7"></script>
-  <script src="js/markets.js?v=96615542b7"></script>
-  <script src="js/portfolio.js?v=96615542b7"></script>
-  <script src="js/charts.js?v=96615542b7"></script>
-  <script src="js/app.js?v=96615542b7"></script>
-  <script src="js/views.js?v=96615542b7"></script>
-  <script src="js/compare.js?v=96615542b7"></script>
-  <script src="js/extras.js?v=96615542b7"></script>
-  <script src="js/mobile.js?v=96615542b7"></script>
-  <script src="js/features.js?v=96615542b7"></script>
-  <script src="js/money.js?v=96615542b7"></script>
-  <script src="js/newsart.js?v=96615542b7"></script>
-  <script src="js/insights.js?v=96615542b7"></script>
+  <script src="js/utils.js?v=331eb8bf60"></script>
+  <script src="js/store.js?v=331eb8bf60"></script>
+  <script src="js/api.js?v=331eb8bf60"></script>
+  <script src="js/markets.js?v=331eb8bf60"></script>
+  <script src="js/portfolio.js?v=331eb8bf60"></script>
+  <script src="js/charts.js?v=331eb8bf60"></script>
+  <script src="js/app.js?v=331eb8bf60"></script>
+  <script src="js/views.js?v=331eb8bf60"></script>
+  <script src="js/compare.js?v=331eb8bf60"></script>
+  <script src="js/extras.js?v=331eb8bf60"></script>
+  <script src="js/mobile.js?v=331eb8bf60"></script>
+  <script src="js/features.js?v=331eb8bf60"></script>
+  <script src="js/money.js?v=331eb8bf60"></script>
+  <script src="js/newsart.js?v=331eb8bf60"></script>
+  <script src="js/insights.js?v=331eb8bf60"></script>
 </body>
 </html>

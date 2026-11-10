@@ -234,15 +234,13 @@ Object.assign(App, {
       try {
         const res = this.parseCsv(await file.text());
         if (!res.txs.length) throw new Error('aucune opération reconnue' + (res.errors.length ? ' (' + res.errors[0] + ')' : ''));
-        const msg = `${res.txs.length} opération(s) à importer` + (res.newInst.length ? `, ${res.newInst.length} nouvel(s) instrument(s)` : '') +
-          (res.newAcc.length ? `, compte(s) créé(s) : ${res.newAcc.join(', ')}` : '') + (res.errors.length ? `\n${res.errors.length} ligne(s) ignorée(s) : ${res.errors.slice(0, 3).join(' ; ')}` : '') + '\n\nContinuer ?';
-        if (!confirm(msg)) return;
-        res.commit();
+        if (!(await this.confirmCsvImport(res))) return;
+        const n = res.commit();
         this.renderAll();
         this.renderAccountsSettings();
         this.refresh();
         this.preloadFx();
-        toast(res.txs.length + ' opération(s) importée(s)', 'success');
+        toast(n + ' opération(s) importée(s)' + (res.format.id !== 'generic' ? ' depuis ' + res.format.label : ''), 'success');
       } catch (err) {
         toast('Import CSV impossible : ' + err.message, 'error', 8000);
       }
@@ -265,11 +263,12 @@ Object.assign(App, {
     return lines.join('\n') + '\n';
   },
 
-  /** Analyse un CSV (séparateur ; ou , — en-têtes flexibles) et prépare l'import */
-  parseCsv(text) {
+  /** Découpe un texte CSV (séparateur ; , ou tabulation détecté sur la première ligne, guillemets gérés) */
+  csvRows(text) {
     text = text.replace(/^﻿/, '').replace(/\r\n?/g, '\n').trim();
     const first = text.split('\n')[0];
-    const sep = (first.match(/;/g) || []).length >= (first.match(/,/g) || []).length ? ';' : (first.includes('\t') ? '\t' : ',');
+    const count = c => first.split(c).length - 1;
+    const sep = first.includes('\t') && count('\t') > Math.max(count(';'), count(',')) ? '\t' : count(';') >= count(',') ? ';' : ',';
     const rows = [];
     let row = [], cell = '', q = false;
     for (let i = 0; i < text.length; i++) {
@@ -281,62 +280,77 @@ Object.assign(App, {
       else cell += ch;
     }
     row.push(cell); rows.push(row);
-    const norm = s => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z]/g, '');
-    const head = rows.shift().map(norm);
-    const col = (...names) => head.findIndex(h => names.includes(h));
-    const C = {
-      date: col('date'), type: col('type', 'operation', 'sens'), account: col('compte', 'account', 'enveloppe'),
-      symbol: col('symbole', 'symbol', 'ticker', 'code', 'mnemo'), mic: col('place', 'mic', 'marche', 'exchange', 'bourse'),
-      name: col('nom', 'name', 'libelle', 'valeur'), qty: col('quantite', 'qty', 'quantity', 'nombre', 'parts'),
-      price: col('prix', 'price', 'cours', 'prixunitaire'), fees: col('frais', 'fees', 'commission'), ccy: col('devise', 'currency', 'monnaie'),
-      note: col('note', 'notes', 'commentaire', 'remarque', 'memo'),
-    };
-    if (C.date < 0 || C.symbol < 0 || C.price < 0) throw new Error('colonnes « date », « symbole » et « prix » obligatoires');
-    const get = (r, k) => (C[k] >= 0 ? (r[C[k]] || '').trim() : '');
-    const num = v => parseNum(String(v).replace(/[^\d,.\-]/g, '').replace(/\.(?=.*[.,])/g, ''));
-    const parseDate = v => {
-      let m = v.match(/^(\d{4})-(\d{2})-(\d{2})/); if (m) return `${m[1]}-${m[2]}-${m[3]}`;
-      m = v.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})/);
-      if (m) { const y = m[3].length === 2 ? '20' + m[3] : m[3]; return `${y}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`; }
-      return null;
-    };
-    const parseType = v => { const s = norm(v); if (!s || /achat|buy|souscription|achats/.test(s)) return 'buy'; if (/vente|sell/.test(s)) return 'sell'; if (/division|split|regroupement/.test(s)) return 'split'; if (/div|coupon/.test(s)) return 'div'; return null; };
+    return rows;
+  },
 
-    const txs = [], errors = [], newInst = [], newAcc = [], accByName = {};
+  /**
+   * Analyse un CSV et prépare l'import : format APIstock (ou en-têtes proches), relevés Degiro et Trade Republic
+   * reconnus d'après leurs en-têtes (voir CSV_BROKERS). Les lignes connues seulement par leur ISIN sont regroupées
+   * dans `unresolved` : le symbole est ensuite choisi (recherche par ISIN) et confirmé avant l'import.
+   */
+  parseCsv(text) {
+    const rows = this.csvRows(text);
+    const rawHead = rows.shift().map(h => h.trim());
+    const head = rawHead.map(csvNorm);
+    const broker = CSV_BROKERS.find(b => b.detect(head)) || null;
+    const ctx = broker ? broker.columns(head, rawHead) : csvGenericColumns(head);
+    if (!broker && (ctx.date < 0 || (ctx.symbol < 0 && ctx.isin < 0) || (ctx.price < 0 && ctx.amount < 0))) {
+      throw new Error('colonnes « date », « symbole » (ou « ISIN ») et « prix » (ou « montant ») obligatoires — format de fichier non reconnu');
+    }
+
+    const txs = [], errors = [], newInst = [], newAcc = [], accByName = {}, pendingAcc = [], pendingInst = {}, unresolved = {};
+    let skipped = 0;
     for (const a of Store.state.accounts) accByName[a.name.toLowerCase()] = a.id;
-    const pendingAcc = [], pendingInst = {};
+    const byIsin = isin => Object.keys(Store.state.instruments).find(k => (Store.state.instruments[k].isin || '').toUpperCase() === isin);
     rows.forEach((r, i) => {
       if (r.every(c => !c.trim())) return;
       const line = i + 2;
-      const date = parseDate(get(r, 'date')), type = parseType(get(r, 'type'));
-      const symbol = get(r, 'symbol').toUpperCase().split('.')[0];
+      const rec = broker ? broker.row(r, ctx) : csvGenericRow(r, ctx);
+      if (!rec) { skipped++; return; } // ligne sans titre (virement, intérêts…) : ignorée
+      if (rec.error) { errors.push(`ligne ${line} : ${rec.error}`); return; }
+      const { date, type } = rec;
       const split = type === 'split';
-      const price = split ? 0 : num(get(r, 'price')), qty = type === 'div' ? 1 : split ? parseSplit(get(r, 'qty')) : num(get(r, 'qty')), fees = split ? 0 : num(get(r, 'fees')) || 0;
       if (!date) { errors.push(`ligne ${line} : date invalide`); return; }
-      if (!type) { errors.push(`ligne ${line} : type inconnu « ${get(r, 'type')} »`); return; }
-      if (!symbol) { errors.push(`ligne ${line} : symbole manquant`); return; }
-      if ((!split && !(price > 0)) || !(qty > 0)) { errors.push(`ligne ${line} : ${split ? 'parité' : 'quantité ou prix'} invalide`); return; }
-      let mic = get(r, 'mic').toUpperCase();
-      if (mic && !MIC_TO_YAHOO_SUFFIX.hasOwnProperty(mic)) mic = YAHOO_EX_TO_MIC[mic] || ({ EURONEXT: 'XPAR', PARIS: 'XPAR', XETRA: 'XETR', NYSE: 'XNYS', NASDAQ: 'XNAS', LSE: 'XLON', LONDON: 'XLON', AMSTERDAM: 'XAMS', MILAN: 'XMIL' }[mic] || mic);
-      // instrument : on réutilise un instrument existant (même symbole + place, ou même symbole si la place est absente)
-      let key = mic ? Store.key(symbol, mic) : Object.keys(Store.state.instruments).find(k => k.split('@')[0] === symbol);
-      if (!key) key = Store.key(symbol, mic);
-      if (!Store.instrument(key) && !pendingInst[key]) {
-        pendingInst[key] = { symbol, mic, name: get(r, 'name') || symbol, currency: get(r, 'ccy').toUpperCase() || EXCHANGE_CCY[mic] || (US_MICS.has(mic) ? 'USD' : Store.state.settings.baseCurrency) };
-        newInst.push(Store.label(key));
+      if (!type) { errors.push(`ligne ${line} : type inconnu « ${rec.rawType || ''} »`); return; }
+      if (!rec.symbol && !rec.isin) { errors.push(`ligne ${line} : symbole ou ISIN manquant`); return; }
+      if ((!split && !(rec.price > 0)) || !(rec.qty > 0)) { errors.push(`ligne ${line} : ${split ? 'parité' : 'quantité ou prix'} invalide`); return; }
+      let mic = (rec.mic || '').toUpperCase();
+      if (mic && !MIC_TO_YAHOO_SUFFIX.hasOwnProperty(mic)) mic = YAHOO_EX_TO_MIC[mic] || CSV_PLACES[mic] || mic;
+      let key = null, isin = (rec.isin || '').toUpperCase();
+      if (rec.symbol) {
+        const symbol = rec.symbol.toUpperCase().split('.')[0];
+        // instrument existant : même symbole + place, ou même symbole si la place est absente
+        key = mic ? Store.key(symbol, mic) : Object.keys(Store.state.instruments).find(k => k.split('@')[0] === symbol);
+        if (!key) key = Store.key(symbol, mic);
+        if (!Store.instrument(key) && !pendingInst[key]) {
+          pendingInst[key] = { symbol, mic, name: rec.name || symbol, isin, currency: (rec.ccy || '').toUpperCase() || EXCHANGE_CCY[mic] || (US_MICS.has(mic) ? 'USD' : Store.state.settings.baseCurrency) };
+          newInst.push(Store.label(key));
+        }
+      } else {
+        key = byIsin(isin) || null;
+        if (!key) {
+          const u = unresolved[isin] = unresolved[isin] || { isin, name: rec.name || '', currency: rec.ccy || '', mic, count: 0, choice: undefined };
+          u.count++;
+        }
       }
-      let accName = get(r, 'account');
       let account = Store.defaultAccount();
+      const accName = rec.account;
       if (accName) {
         const k = accName.toLowerCase();
         if (!accByName[k]) { const id = uid(); accByName[k] = id; pendingAcc.push({ id, name: accName }); newAcc.push(accName); }
         account = accByName[k];
       }
-      const note = get(r, 'note');
-      txs.push(Object.assign({ key, type, date, account, qty, price, fees }, note ? { note } : {}));
+      txs.push(Object.assign({ key, type, date, account, qty: rec.qty, price: split ? 0 : rec.price, fees: split ? 0 : rec.fees || 0 },
+        rec.note ? { note: rec.note } : {}, key ? {} : { isin }));
     });
-    return {
-      txs, errors, newInst, newAcc,
+    const res = {
+      txs, errors, skipped, newInst, newAcc,
+      format: broker ? { id: broker.id, label: broker.label, verified: broker.verified, note: broker.note } : { id: 'generic', label: 'CSV générique (format APIstock ou en-têtes proches)', verified: true },
+      unresolved: Object.values(unresolved),
+      /** Choix du symbole pour un ISIN : résultat de Api.search, ou null pour ignorer ses lignes */
+      resolve(isin, d) { const u = unresolved[isin]; if (u) u.choice = d; },
+      /** Opérations réellement importées (ISIN ignorés ou non résolus exclus) */
+      ready() { return txs.filter(t => t.key || (unresolved[t.isin] && unresolved[t.isin].choice)); },
       commit: () => {
         for (const a of pendingAcc) {
           const t = /pea/i.test(a.name) ? 'pea' : /assurance|av\b/i.test(a.name) ? 'av' : /per\b/i.test(a.name) ? 'per' : /cto|titre/i.test(a.name) ? 'cto' : 'autre';
@@ -346,9 +360,208 @@ Object.assign(App, {
           const useYahoo = Api.hasProxy() && MIC_TO_YAHOO_SUFFIX[info.mic] !== undefined && !(US_MICS.has(info.mic) && Api.hasKey());
           Store.upsertInstrument(Object.assign(info, useYahoo ? { provider: 'yahoo', ysymbol: info.symbol + MIC_TO_YAHOO_SUFFIX[info.mic] } : { provider: 'twelve' }));
         }
-        for (const t of txs) Store.state.transactions.push(Object.assign({ id: uid() }, t));
+        const keyOfIsin = {};
+        for (const u of Object.values(unresolved)) {
+          const d = u.choice;
+          if (!d) continue;
+          keyOfIsin[u.isin] = Store.upsertInstrument({ symbol: d.symbol, mic: d.mic, exchange: d.exchange, name: d.name || u.name, currency: d.currency || u.currency,
+            type: d.type, provider: d.provider, ysymbol: d.ysymbol, short: d.short, isin: u.isin });
+        }
+        let n = 0;
+        for (const t of txs) {
+          const key = t.key || keyOfIsin[t.isin];
+          if (!key) continue;
+          const tx = Object.assign({ id: uid() }, t, { key });
+          delete tx.isin;
+          Store.state.transactions.push(tx);
+          n++;
+        }
         Store.save();
+        return n;
       },
     };
+    return res;
+  },
+
+  /** Recherche par ISIN des lignes sans symbole : candidats classés (même place, même devise, places principales d'abord) */
+  async csvCandidates(u) {
+    let list = [];
+    try { list = await Api.search(u.isin); } catch (e) { return []; }
+    const prio = { XPAR: 0, XETR: 1, XAMS: 2, XMIL: 3, XLON: 4, XNYS: 5, ARCX: 5, XNAS: 6, XNGS: 6 };
+    const score = d => (u.mic && d.mic === u.mic ? -20 : 0) + (u.currency && d.currency === u.currency ? -10 : 0) + (prio[d.mic] ?? 9);
+    return list.filter(d => d.symbol && d.symbol.toUpperCase() !== u.isin).sort((a, b) => score(a) - score(b));
+  },
+
+  /** Fenêtre de confirmation de l'import (résumé, choix du symbole de chaque ISIN) */
+  async confirmCsvImport(res) {
+    const dlg = $('#csvDialog');
+    const f = res.format;
+    $('#csvFormat').replaceChildren(...[el('b', {}, f.label), f.verified ? null : el('span', { class: 'chip sell', style: 'margin-left:6px' }, 'format non vérifié'),
+      f.note ? el('div', { class: 'muted small' }, f.note) : null].filter(Boolean));
+    const list = $('#csvIsins');
+    list.replaceChildren();
+    if (res.unresolved.length) {
+      list.append(el('p', { class: 'small' }, `${res.unresolved.length} titre(s) connu(s) seulement par leur ISIN : recherche du symbole…`));
+      dlg.showModal();
+      const rows = [];
+      for (const u of res.unresolved) {
+        const cands = await this.csvCandidates(u);
+        res.resolve(u.isin, cands[0] || null);
+        const sel = el('select', { 'aria-label': 'Symbole pour ' + u.isin, onchange: e => { res.resolve(u.isin, e.target.value === '' ? null : cands[+e.target.value]); summary(); } },
+          ...cands.map((d, i) => el('option', { value: i }, `${d.symbol} · ${d.mic || d.exchange || ''} · ${d.currency || '?'} — ${d.name || ''}`)),
+          el('option', { value: '' }, 'Ignorer ces lignes'));
+        if (!cands.length) sel.value = '';
+        rows.push(el('div', { class: 'csv-isin' },
+          el('div', {}, el('span', { class: 'sym' }, u.isin), el('span', { class: 'name' }, (u.name || '') + ' · ' + u.count + ' ligne(s)'),
+            cands.length ? null : el('div', { class: 'small down' }, 'Aucun résultat pour cet ISIN : ces lignes seront ignorées.')), sel));
+      }
+      list.replaceChildren(el('p', { class: 'small' }, 'Vérifie le symbole retenu pour chaque ISIN (place de cotation et devise) :'), ...rows);
+    }
+    const summary = () => {
+      const n = res.ready().length;
+      $('#csvSummary').replaceChildren(...[
+        el('p', {}, el('b', {}, n + ' opération(s) à importer'), res.newInst.length ? ` · ${res.newInst.length} nouvel(s) instrument(s)` : '',
+          res.newAcc.length ? ` · compte(s) créé(s) : ${res.newAcc.join(', ')}` : ''),
+        res.skipped ? el('p', { class: 'muted small' }, `${res.skipped} ligne(s) sans titre ignorée(s) (virements, intérêts, frais seuls…).`) : null,
+        res.errors.length ? el('p', { class: 'small down' }, `${res.errors.length} ligne(s) non reconnue(s) : ${res.errors.slice(0, 3).join(' ; ')}`) : null].filter(Boolean));
+      $('#csvOk').disabled = !n;
+    };
+    summary();
+    if (!dlg.open) dlg.showModal();
+    return new Promise(ok => {
+      const done = v => { $('#csvOk').onclick = null; $('#csvCancel').onclick = null; dlg.close(); ok(v); };
+      $('#csvOk').onclick = e => { e.preventDefault(); done(true); };
+      $('#csvCancel').onclick = () => done(false);
+      dlg.onclose = () => ok(false);
+    });
   },
 });
+
+/* ==================================================================== */
+/* Formats CSV des courtiers                                              */
+/* ==================================================================== */
+const csvNorm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z]/g, '');
+const csvNum = v => parseNum(String(v ?? '').replace(/[^\d,.\-]/g, '').replace(/\.(?=.*[.,])/g, ''));
+const csvDate = v => {
+  v = String(v || '').trim();
+  let m = v.match(/^(\d{4})-(\d{2})-(\d{2})/); if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+  m = v.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})/);
+  if (m) { const y = m[3].length === 2 ? '20' + m[3] : m[3]; return `${y}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`; }
+  return null;
+};
+const csvType = v => {
+  const s = csvNorm(v);
+  if (!s) return null;
+  if (/vente|sell|verkauf|cession/.test(s)) return 'sell';
+  if (/division|split|regroupement/.test(s)) return 'split';
+  if (/div|coupon|distribution/.test(s)) return 'div';
+  if (/achat|buy|kauf|souscription|savingsplan|investissement/.test(s)) return 'buy';
+  return undefined;
+};
+/* Noms de places courants → code MIC (Degiro : bourse de référence et lieu d'exécution) */
+const CSV_PLACES = { EURONEXT: 'XPAR', PARIS: 'XPAR', EPA: 'XPAR', XETRA: 'XETR', XET: 'XETR', XETA: 'XETR', FRA: 'XFRA', NYSE: 'XNYS', NSY: 'XNYS', NASDAQ: 'XNAS', NDQ: 'XNAS',
+  LSE: 'XLON', LONDON: 'XLON', AMSTERDAM: 'XAMS', EAM: 'XAMS', MILAN: 'XMIL', MIL: 'XMIL', MTAA: 'XMIL', ETFP: 'XMIL', EBR: 'XBRU', SWX: 'XSWX', MAD: 'XMAD', BME: 'XMAD' };
+
+/** Colonnes du format générique (APIstock ou en-têtes proches) */
+function csvGenericColumns(head) {
+  const col = (...names) => head.findIndex(h => names.includes(h));
+  return {
+    date: col('date', 'dateoperation', 'datedoperation', 'dateexecution', 'datedexecution'), type: col('type', 'operation', 'sens', 'nature', 'typedoperation'),
+    account: col('compte', 'account', 'enveloppe'),
+    symbol: col('symbole', 'symbol', 'ticker', 'code', 'mnemo', 'mnemonique'), isin: col('isin', 'codeisin'),
+    mic: col('place', 'mic', 'marche', 'exchange', 'bourse', 'placedecotation'),
+    name: col('nom', 'name', 'libelle', 'valeur', 'produit', 'product', 'instrument'), qty: col('quantite', 'qty', 'quantity', 'nombre', 'parts', 'qte', 'shares'),
+    price: col('prix', 'price', 'cours', 'prixunitaire', 'coursdexecution', 'prixdexecution', 'prixdexe'), fees: col('frais', 'fees', 'commission', 'courtage'),
+    ccy: col('devise', 'currency', 'monnaie'), amount: col('montant', 'montantnet', 'amount', 'total', 'montanttotal'),
+    note: col('note', 'notes', 'commentaire', 'remarque', 'memo'),
+  };
+}
+
+/** Ligne du format générique : sens donné par la colonne « type », ou à défaut par le signe de la quantité / du montant */
+function csvGenericRow(r, C) {
+  const get = k => (C[k] >= 0 ? (r[C[k]] || '').trim() : '');
+  const rawType = get('type');
+  let type = rawType ? csvType(rawType) : 'buy';
+  const qRaw = csvNum(get('qty')), amount = csvNum(get('amount'));
+  if (!rawType && qRaw < 0) type = 'sell'; // pas de colonne « sens » : quantité négative = vente
+  if (type === undefined) type = qRaw < 0 ? 'sell' : null;
+  const split = type === 'split';
+  const qty = type === 'div' ? 1 : split ? parseSplit(get('qty')) : Math.abs(qRaw);
+  let price = split ? 0 : Math.abs(csvNum(get('price')));
+  const fees = Math.abs(csvNum(get('fees'))) || 0;
+  if (type === 'div' && !(price > 0)) price = Math.abs(amount) + fees;           // dividende : montant net + retenue = brut
+  else if (!split && !(price > 0) && isFinite(amount) && qty > 0) price = Math.max(0, (Math.abs(amount) + (type === 'sell' ? fees : -fees)) / qty);
+  return { date: csvDate(get('date')), type, rawType, account: get('account'), symbol: get('symbol'), isin: get('isin'), mic: get('mic'),
+    name: get('name'), qty, price, fees, ccy: get('ccy'), note: get('note') };
+}
+
+/*
+ * Relevés de courtiers reconnus automatiquement d'après leurs en-têtes.
+ * - Degiro « Transactions.csv » : en-têtes anglais confirmés par un analyseur open source testé sur un export réel
+ *   (Date, Time, Product, ISIN, Reference exchange, Venue, Quantity, Price, <devise>, Local value, …, Exchange rate,
+ *   AutoFX Fee, Transaction and/or third party fees EUR, Total EUR, Order ID) ; quantité négative = vente, dates JJ-MM-AAAA.
+ *   En-têtes français (Produit, Code ISIN, Quantité, Cours, Lieu d'exécution…) d'après des exemples publics, non revérifiés.
+ * - Trade Republic (export « Transactions » de l'application, 2026) : liste des 23 colonnes rapportée par un utilisateur
+ *   (datetime, date, account_type, category, type, asset_class, name, symbol, shares, price, amount, fee, tax, currency, …,
+ *   transaction_id, …) ; aucun exemple de valeurs publié : sens déduit du type s'il est explicite, sinon du signe du montant.
+ * - Boursorama, Fortuneo : aucun exemple d'export CSV d'opérations de bourse trouvé ; pas de format dédié inventé.
+ *   Leurs fichiers passent par le format générique (colonnes date, sens, ISIN ou symbole, quantité, cours, frais, montant).
+ */
+const CSV_BROKERS = [
+  {
+    id: 'degiro', label: 'Degiro (Transactions.csv)', verified: true,
+    note: 'Frais Degiro convertis dans la devise du titre avec le taux de change du relevé.',
+    detect: h => h.includes('isin') || h.includes('codeisin') ? ['venue', 'referenceexchange', 'lieudexecution', 'boursedereference'].some(x => h.includes(x)) && ['quantity', 'quantite'].some(x => h.includes(x)) : false,
+    columns(h) {
+      const col = (...names) => h.findIndex(x => names.includes(x));
+      const pref = (...names) => h.map((x, i) => (names.some(n => x.startsWith(n)) ? i : -1)).filter(i => i >= 0);
+      const price = col('price', 'cours');
+      return {
+        date: col('date'), name: col('product', 'produit'), isin: col('isin', 'codeisin'), ref: col('referenceexchange', 'boursedereference'),
+        venue: col('venue', 'lieudexecution'), qty: col('quantity', 'quantite'), price, ccy: h[price + 1] === '' ? price + 1 : -1,
+        rate: col('exchangerate', 'tauxdechange'), fees: pref('transactionandorthirdpartyfees', 'transactioncosts', 'fraisdecourtage', 'fraisdetransaction', 'autofxfee', 'fraisautofx'),
+        order: col('orderid', 'idordre'),
+      };
+    },
+    row(r, C) {
+      const get = i => (i >= 0 ? (r[i] || '').trim() : '');
+      const q = csvNum(get(C.qty));
+      if (!get(C.isin) || !isFinite(q) || q === 0) return null;
+      const ccy = get(C.ccy).toUpperCase();
+      const rate = csvNum(get(C.rate));
+      const feeBase = C.fees.reduce((s, i) => s + (Math.abs(csvNum(get(i))) || 0), 0);
+      const fees = feeBase * (rate > 0 ? rate : 1); // frais en euros → devise du titre (taux = unités de devise pour 1 €)
+      const place = get(C.ref).toUpperCase(), venue = get(C.venue).toUpperCase();
+      const mic = CSV_PLACES[place] || (MIC_TO_YAHOO_SUFFIX[venue] !== undefined ? venue : CSV_PLACES[venue]) || '';
+      return { date: csvDate(get(C.date)), type: q < 0 ? 'sell' : 'buy', isin: get(C.isin), mic, name: get(C.name), qty: Math.abs(q), price: Math.abs(csvNum(get(C.price))),
+        fees: Math.round(fees * 100) / 100, ccy: ccy === 'GBX' ? 'GBp' : ccy, note: get(C.order) ? 'Degiro ' + get(C.order) : '' };
+    },
+  },
+  {
+    id: 'traderepublic', label: 'Trade Republic (export des transactions)', verified: false,
+    note: 'Colonnes connues d\'après un export rapporté publiquement, sans exemple de valeurs : contrôle les opérations après l\'import.',
+    detect: h => h.includes('transactionid') && h.includes('shares') && (h.includes('assetclass') || h.includes('category')),
+    columns(h) {
+      const col = n => h.indexOf(n);
+      return { date: col('date') >= 0 ? col('date') : col('datetime'), category: col('category'), type: col('type'), name: col('name'), symbol: col('symbol'), isin: col('isin'),
+        shares: col('shares'), price: col('price'), amount: col('amount'), fee: col('fee'), tax: col('tax'), ccy: col('currency') };
+    },
+    row(r, C) {
+      const get = i => (i >= 0 ? (r[i] || '').trim() : '');
+      const id = get(C.isin) || get(C.symbol);
+      const raw = get(C.type) + ' ' + get(C.category);
+      const shares = csvNum(get(C.shares)), amount = csvNum(get(C.amount)), fee = Math.abs(csvNum(get(C.fee))) || 0, tax = Math.abs(csvNum(get(C.tax))) || 0;
+      let type = csvType(get(C.type)) || csvType(get(C.category));
+      if (type === 'div') {
+        if (!id || !isFinite(amount)) return null;
+        return { date: csvDate(get(C.date)), type, isin: ISIN_RE.test(id) ? id : '', symbol: ISIN_RE.test(id) ? '' : id, name: get(C.name), qty: 1, price: Math.abs(amount) + tax, fees: tax, ccy: get(C.ccy) };
+      }
+      if (!id || !isFinite(shares) || shares === 0) return null; // virements, intérêts, carte…
+      if (!type || type === 'split') type = shares < 0 || amount > 0 ? 'sell' : 'buy';
+      const qty = Math.abs(shares);
+      let price = Math.abs(csvNum(get(C.price)));
+      if (!(price > 0) && isFinite(amount)) price = Math.max(0, (Math.abs(amount) + (type === 'sell' ? fee + tax : -fee)) / qty);
+      return { date: csvDate(get(C.date)), type, rawType: raw, isin: ISIN_RE.test(id) ? id : '', symbol: ISIN_RE.test(id) ? '' : id, name: get(C.name), qty, price, fees: fee, ccy: get(C.ccy) };
+    },
+  },
+];
