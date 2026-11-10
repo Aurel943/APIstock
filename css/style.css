@@ -723,3 +723,4 @@ td.num .day-spark { display: block; margin: 4px 0 0 auto; }
 .wealth-legend b { margin-left: auto; }
 .inline.wrap { flex-wrap: wrap; }
 .inline.wrap input { flex: 1 1 110px; min-width: 0; }
+.fees-long { margin-top: 16px; }

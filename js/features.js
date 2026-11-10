@@ -339,6 +339,11 @@ const ETF_DB = {
   GOLD: ['gold', 0.12], IGLN: ['gold', 0.12], SGLD: ['gold', 0.12], GLD: ['gold', 0.40],
 };
 
+/* ETF éligibles au PEA parmi ETF_DB (liste indicative, à vérifier sur la fiche de l'ETF) */
+const PEA_ELIGIBLE = new Set(['CW8', 'EWLD', 'DCAM', 'WPEA', 'ESE', 'PSP5', 'PANX', 'PUST', 'PAEEM', 'PCEU', 'PTPXE', 'C50', 'C40', 'CAC', 'MEUD']);
+/* Fonds cotés aux États-Unis : en général non proposés aux particuliers européens (pas de document d'informations clés) */
+const US_FUNDS = new Set(['SPY', 'VOO', 'IVV', 'QQQ', 'QQQM', 'ACWI', 'URTH', 'GLD']);
+
 /* Recoupement approximatif des titres (en poids) entre deux indices */
 const OVERLAP = { 'sp500|world': 68, 'ndx|world': 30, 'ndx|sp500': 45, 'allworld|world': 87, 'allworld|sp500': 60, 'allworld|ndx': 27,
   'allworld|em': 10, 'europe|world': 15, 'allworld|europe': 14, 'es50|europe': 45, 'cac|europe': 20, 'cac|es50': 35, 'japan|world': 5.5, 'allworld|japan': 5.5 };
@@ -366,6 +371,53 @@ const Expo = {
     const ter = inst && inst.ter !== undefined && inst.ter !== '' && isFinite(parseNum(inst.ter)) ? parseNum(inst.ter) : g.ter;
     return { profile: (inst && inst.expo) || g.profile, ter, terAuto: !(inst && inst.ter !== undefined && inst.ter !== ''), guess: g, inst };
   },
+  /** Symbole d'un instrument tel qu'il figure dans ETF_DB */
+  dbSymbol(inst) {
+    if (!inst) return '';
+    const sym = (inst.symbol || '').toUpperCase(), ysym = (inst.ysymbol || '').toUpperCase().split('.')[0];
+    return ETF_DB[sym] ? sym : ETF_DB[ysym] ? ysym : sym;
+  },
+
+  /**
+   * Coût des frais courants (TER) sur `years` ans, intérêts composés perdus compris :
+   * valeur sans frais − valeur avec frais, pour un rendement brut supposé `rate` (%).
+   */
+  feeDrag(value, ter, rate, years) {
+    if (!(value > 0) || !isFinite(ter)) return NaN;
+    const r = rate / 100;
+    return value * Math.pow(1 + r, years) - value * Math.pow((1 + r) * (1 - ter / 100), years);
+  },
+
+  /** Frais de courtage déjà payés (devise de base, au taux de chaque opération) et leur coût en ajoutant les intérêts composés perdus jusqu'à l'horizon */
+  brokerage(txs, rate, years, today = todayISO()) {
+    let paid = 0, cost = 0;
+    for (const t of txs) {
+      const f = parseNum(t.fees) || 0;
+      if (!(f > 0) || t.type === 'div' || t.type === 'split') continue;
+      const inst = Store.instrument(t.key);
+      const fx = Api.fxAt((inst && inst.currency) || Store.state.settings.baseCurrency, t.date);
+      if (!isFinite(fx)) continue;
+      const since = Math.max(0, (Date.parse(today) - Date.parse(t.date)) / (365.25 * 864e5));
+      paid += f * fx;
+      cost += f * fx * Math.pow(1 + rate / 100, since + years);
+    }
+    return { paid, cost };
+  },
+
+  /**
+   * ETF de ETF_DB au même profil d'exposition et au TER plus bas (au plus 3, du moins cher au plus cher).
+   * `pea` : seulement les ETF éligibles au PEA. Les fonds américains sont exclus.
+   */
+  cheaper(key, { pea = false } = {}) {
+    const e = this.of(key);
+    const own = this.dbSymbol(e.inst);
+    if (!isFinite(e.ter) || !EXPO_PROFILES[e.profile] || !EXPO_PROFILES[e.profile].country && !EXPO_PROFILES[e.profile].special) return [];
+    return Object.entries(ETF_DB)
+      .filter(([s, [p, ter]]) => p === e.profile && s !== own && ter < e.ter - 0.005 && !US_FUNDS.has(s) && (!pea || PEA_ELIGIBLE.has(s)))
+      .map(([s, [p, ter]]) => ({ symbol: s, ter, pea: PEA_ELIGIBLE.has(s) }))
+      .sort((a, b) => a.ter - b.ter || a.symbol.localeCompare(b.symbol)).slice(0, 3);
+  },
+
   /** Répartition d'un instrument : { country, sector, ccy } en % */
   split(key) {
     const { profile, inst } = this.of(key);
@@ -456,7 +508,49 @@ Object.assign(App, {
       el('div', { class: 'table-wrap' }, el('table', { class: 'data' },
         el('thead', {}, el('tr', {}, el('th', {}, 'Ligne · exposition'), el('th', { class: 'num' }, 'TER %'), el('th', { class: 'num' }, 'Poids'), el('th', { class: 'num' }, 'Frais / an'))),
         el('tbody', {}, ...rowsUi))),
+      this.feesLongTerm(items),
       el('p', { class: 'muted small' }, 'Répartitions approximatives des indices (ordre de grandeur 2025-2026) et TER indicatifs : vérifie-les sur la fiche de chaque ETF. Le recoupement est estimé à partir du poids des titres communs aux deux indices.'));
+  },
+});
+
+Object.assign(App, {
+  /** Coût des frais sur 10 et 20 ans (TER et courtage, intérêts composés perdus compris) et ETF équivalents moins chers */
+  feesLongTerm(items) {
+    const cur = this.base();
+    const rate = isFinite(parseNum(Store.state.feeReturn)) ? parseNum(Store.state.feeReturn) : 6;
+    const input = el('input', { type: 'number', class: 'pct-input', min: -10, max: 20, step: 0.5, value: rate, 'aria-label': 'Rendement annuel supposé' });
+    input.addEventListener('change', () => { Store.state.feeReturn = parseNum(input.value); Store.save(); this.renderExposure(); });
+    const ter10 = items.reduce((s, { r, w }) => s + (Expo.feeDrag(w, Expo.of(r.key).ter, rate, 10) || 0), 0);
+    const ter20 = items.reduce((s, { r, w }) => s + (Expo.feeDrag(w, Expo.of(r.key).ter, rate, 20) || 0), 0);
+    const txs = Portfolio.txs();
+    const b10 = Expo.brokerage(txs, rate, 10), b20 = Expo.brokerage(txs, rate, 20);
+    const accType = id => Store.account(id || Store.defaultAccount()).type;
+    const swaps = [];
+    for (const { r, w } of items) {
+      const pea = txs.some(t => t.key === r.key && accType(t.account) === 'pea');
+      const alts = Expo.cheaper(r.key, { pea });
+      if (!alts.length) continue;
+      const ter = Expo.of(r.key).ter, best = alts[0];
+      const gain = n => Expo.feeDrag(w, ter, rate, n) - Expo.feeDrag(w, best.ter, rate, n);
+      swaps.push(el('tr', {},
+        el('td', {}, el('span', { class: 'sym' }, Store.label(r.key)), el('span', { class: 'name' }, 'TER ' + fmtNum(ter, 2) + ' %' + (pea ? ' · dans un PEA' : ''))),
+        el('td', {}, ...alts.map((a, i) => el('div', { class: i ? 'small muted' : '' }, el('b', {}, a.symbol), ` · ${fmtNum(a.ter, 2)} %` + (a.pea && !pea ? ' · éligible PEA' : '')))),
+        el('td', { class: 'num up' }, fmtMoney(gain(10), cur, 0)),
+        el('td', { class: 'num up' }, fmtMoney(gain(20), cur, 0))));
+    }
+    return el('div', { class: 'fees-long' },
+      el('div', { class: 'rebal-head' }, el('h3', {}, 'Coût des frais sur le long terme'),
+        el('label', { class: 'inline small' }, 'Rendement annuel supposé', input, '%')),
+      el('div', { class: 'kpis' },
+        this.kpi('Frais des ETF sur 10 ans', fmtMoney(ter10, cur, 0), 'TER + intérêts composés perdus, à valeur actuelle'),
+        this.kpi('Frais des ETF sur 20 ans', fmtMoney(ter20, cur, 0), 'même hypothèse, sans nouveaux versements'),
+        this.kpi('Courtage déjà payé', fmtMoney(b10.paid, cur), b10.paid > 0 ? `≈ ${fmtMoney(b10.cost, cur, 0)} dans 10 ans, ${fmtMoney(b20.cost, cur, 0)} dans 20 ans s'il avait été investi` : 'aucun frais de courtage saisi')),
+      swaps.length ? el('div', {},
+        el('p', { class: 'small' }, 'ETF connus qui suivent le même type d\'indice avec des frais courants plus bas :'),
+        el('div', { class: 'table-wrap' }, el('table', { class: 'data' },
+          el('thead', {}, el('tr', {}, el('th', {}, 'Ta ligne'), el('th', {}, 'Équivalents moins chers (TER)'), el('th', { class: 'num' }, 'Écart sur 10 ans'), el('th', { class: 'num' }, 'Écart sur 20 ans'))),
+          el('tbody', {}, ...swaps)))) : el('p', { class: 'muted small' }, 'Aucun équivalent moins cher parmi les ETF connus du site pour tes lignes.'),
+      el('p', { class: 'muted small' }, 'Information, pas un conseil d\'investissement : deux ETF d\'une même catégorie peuvent suivre des indices différents (méthode de réplication, distribution, devise, encours). L\'écart ne compte ni les frais de courtage ni l\'impôt d\'une vente sur un compte-titres, et suppose des TER inchangés : vérifie-les dans le DIC.'));
   },
 });
 
