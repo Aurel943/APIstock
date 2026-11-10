@@ -127,8 +127,7 @@ Object.assign(App, {
       series[k] = await Api.daily(k, first);
       fx[k] = await Api.fxRate((Store.instrument(k) || {}).currency);
     }
-    const events = txs.map(t => ({ date: t.date, key: t.key, type: t.type, qty: parseNum(t.qty), price: parseNum(t.price), fees: parseNum(t.fees) || 0 }));
-    const { points } = Portfolio.replay(series, fx, events);
+    const { points } = Portfolio.replay(series, fx, Portfolio.historyEvents(txs));
     const out = Portfolio.twr(points);
     return out.filter(v => v[0] >= start);
   },

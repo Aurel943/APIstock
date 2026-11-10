@@ -59,6 +59,11 @@
       <div class="seg acc-filter hidden" id="accFilter"></div>
       <div class="kpis" id="kpis"></div>
 
+      <div class="card hidden todo-card" id="todoCard">
+        <div class="card-head"><h2>À faire</h2><span class="muted small" id="todoInfo"></span></div>
+        <ul class="todo-list" id="todoList"></ul>
+      </div>
+
       <div class="card hidden" id="moversCard">
         <div class="card-head"><h2>Variations du jour</h2><span class="muted small" id="moversInfo"></span></div>
         <div class="movers">
@@ -134,6 +139,38 @@
         <div id="calendar"></div>
       </div>
 
+      <div class="card hidden" id="riskCard">
+        <div class="card-head">
+          <h2>Risque du portefeuille</h2>
+          <span class="muted small" id="riskInfo">Calculé sur la performance pondérée dans le temps (TWR), depuis ta première opération</span>
+        </div>
+        <div id="riskBody"></div>
+      </div>
+
+      <div class="card hidden" id="cashCard">
+        <div class="card-head">
+          <h2>Liquidités</h2>
+          <div class="actions"><span class="muted small">Espèces disponibles sur tes comptes</span><button class="btn small" id="cashAdd2">+ Versement / retrait</button></div>
+        </div>
+        <div id="cashBody"></div>
+      </div>
+
+      <div class="card hidden" id="divCard">
+        <div class="card-head">
+          <h2>Dividendes à venir</h2>
+          <span class="muted small" id="divInfo">Estimation d'après les détachements des 12 derniers mois</span>
+        </div>
+        <div id="divBody"></div>
+      </div>
+
+      <div class="card hidden" id="newsCard">
+        <div class="card-head">
+          <h2>Actualités de mes placements</h2>
+          <span class="muted small">Yahoo Finance (souvent en anglais)</span>
+        </div>
+        <ul class="news-list" id="newsList"></ul>
+      </div>
+
       <div class="card hidden" id="exposureCard">
         <div class="card-head">
           <h2>Exposition réelle &amp; frais</h2>
@@ -153,7 +190,10 @@
       <div class="card">
         <div class="card-head">
           <h2>Opérations</h2>
-          <div class="actions"><span class="muted small" id="txCount"></span><button class="btn small" id="txExport">Exporter en CSV</button></div>
+          <div class="actions"><span class="muted small" id="txCount"></span>
+            <button class="btn small" id="cashAdd">+ Versement / retrait</button>
+            <button class="btn small" id="reportBtn">Rapport annuel (PDF)</button>
+            <button class="btn small" id="txExport">Exporter en CSV</button></div>
         </div>
         <div class="table-wrap">
           <table class="data" id="txTable">
@@ -212,6 +252,7 @@
           <div class="detail-price" id="detailPrice"></div>
           <div class="chart-box wide"><canvas id="detailChart"></canvas></div>
           <div class="stats" id="detailStats"></div>
+          <div id="detailNews"></div>
         </div>
       </div>
     </section>
@@ -336,6 +377,8 @@
         </div>
         <div id="tgtPicker" style="margin-top:12px"></div>
 
+        <div id="rebalBox" class="rebal-box"></div>
+
         <h3>Ce mois-ci, j'investis…</h3>
         <div class="form-grid">
           <label><span>Montant (<span class="ccy"></span>)</span>
@@ -347,11 +390,36 @@
         <div id="planResult"></div>
       </div>
 
+      <div class="card" id="plansCard">
+        <div class="card-head">
+          <div>
+            <h2>Versements programmés</h2>
+            <p class="muted small">Ton investissement mensuel automatique (DCA) : à chaque échéance, l'achat apparaît dans « À faire » sur le portefeuille, pré-rempli avec le cours du jour, et s'enregistre en un clic.</p>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data" id="plansTable">
+            <thead><tr><th>ETF</th><th>Compte</th><th class="num">Montant</th><th class="num">Jour</th><th>Prochaine échéance</th><th>État</th><th></th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <form class="plan-form" id="planForm">
+          <label>ETF<select id="planKey" required></select></label>
+          <label id="planAccWrap">Compte<select id="planAcc"></select></label>
+          <label><span>Montant (<span class="ccy"></span>)</span><input type="number" id="planAmt" min="1" step="any" required placeholder="200"></label>
+          <label>Jour du mois<input type="number" id="planDay" min="1" max="31" value="5" required></label>
+          <label>À partir du<input type="date" id="planStart" required></label>
+          <label class="check"><input type="checkbox" id="planFrac"> Parts fractionnées</label>
+          <button class="btn primary" type="submit">Ajouter</button>
+        </form>
+        <p class="muted small">Astuce : l'ETF doit déjà être suivi (portefeuille, liste de suivi ou allocation cible) pour apparaître dans la liste.</p>
+      </div>
+
       <div class="card">
         <div class="card-head">
           <div>
             <h2>Alertes de prix</h2>
-            <p class="muted small">Vérifiées à chaque rafraîchissement, tant que le site est ouvert (un onglet en arrière-plan suffit).</p>
+            <p class="muted small">Vérifiées à chaque rafraîchissement tant que le site est ouvert, et <b>même site fermé</b> si les notifications push sont activées ci-dessous.</p>
           </div>
           <button class="btn" id="notifBtn">Activer les notifications</button>
         </div>
@@ -371,6 +439,17 @@
             <thead><tr><th>ETF</th><th>Condition</th><th class="num">Cours actuel</th><th>État</th><th></th></tr></thead>
             <tbody></tbody>
           </table>
+        </div>
+        <div class="push-box" id="pushBox">
+          <h3>Alertes même site fermé</h3>
+          <p class="muted small" id="pushInfo">Ton relais Cloudflare vérifie tes alertes toutes les 5 minutes et t'envoie une notification push, même téléphone verrouillé et site fermé. Sur iPhone : ajoute d'abord le site à l'écran d'accueil (iOS 16.4 ou plus).</p>
+          <div class="actions">
+            <button type="button" class="btn primary" id="pushOn">Activer sur cet appareil</button>
+            <button type="button" class="btn hidden" id="pushTest">Envoyer une notification de test</button>
+            <button type="button" class="btn danger hidden" id="pushOff">Désactiver</button>
+            <button type="button" class="btn small" id="vapidGen" title="Une seule fois, pour configurer le worker">Générer les clés du worker…</button>
+          </div>
+          <pre class="vapid-out hidden" id="vapidOut"></pre>
         </div>
       </div>
     </section>
@@ -461,9 +540,15 @@
           <label>Durée (années)
             <input type="number" id="projYears" min="1" max="60" value="20">
           </label>
+          <label>Volatilité annuelle (%)
+            <input type="number" id="projVol" min="0" max="80" step="1" value="15" title="Amplitude des variations : ~15 % pour un ETF Monde, ~20 % pour le Nasdaq, ~5 % pour un fonds obligataire">
+          </label>
         </div>
         <div class="kpis" id="projKpis"></div>
+        <h3>Scénarios (Monte-Carlo, 2 000 trajectoires)</h3>
+        <div class="kpis" id="projMcKpis"></div>
         <div class="chart-box wide"><canvas id="projChart"></canvas></div>
+        <p class="muted small">La zone colorée contient 80 % des scénarios simulés (entre le 10<sup>e</sup> et le 90<sup>e</sup> centile) : les marchés ne montent pas en ligne droite. Le rendement saisi est le rendement médian ; la volatilité mesure l'ampleur des variations d'une année à l'autre.</p>
       </div>
     </section>
 
@@ -542,6 +627,10 @@
               <input type="number" id="setCredits" min="1" max="2000" value="8">
               <span class="muted small">Forfait gratuit : 8 crédits/min et 800/jour. Chaque cotation coûte 1 crédit.</span>
             </label>
+            <label>Taux sans risque (%)
+              <input type="number" id="setRiskFree" min="0" max="20" step="0.1" value="2">
+              <span class="muted small">Rendement d'un placement sans risque (livret, monétaire), utilisé pour le ratio de Sharpe.</span>
+            </label>
             <div class="actions">
               <button type="submit" class="btn primary">Enregistrer</button>
               <button type="button" class="btn" id="testKey">Tester la clé</button>
@@ -583,7 +672,7 @@
               <label class="btn">Importer… <input type="file" id="importFile" accept="application/json,.json" hidden></label>
             </div>
             <hr>
-            <p class="muted">Opérations au format CSV (Excel) : pour les retravailler, ou pour importer l'historique exporté de ton courtier. Colonnes reconnues : date, type (achat / vente / dividende), compte, symbole, place, nom, quantité, prix, frais, devise.</p>
+            <p class="muted">Opérations au format CSV (Excel) : pour les retravailler, ou pour importer l'historique exporté de ton courtier. Colonnes reconnues : date, type (achat / vente / dividende / division), compte, symbole, place, nom, quantité (ou parité pour une division), prix, frais, devise, note.</p>
             <div class="actions">
               <button class="btn" id="csvExport">Exporter en CSV</button>
               <label class="btn">Importer un CSV… <input type="file" id="csvImport" accept=".csv,text/csv,text/plain" hidden></label>
@@ -607,7 +696,7 @@
       <div id="txInstrument"></div>
       <div class="form-grid compact">
         <label>Type
-          <select id="txType"><option value="buy">Achat</option><option value="sell">Vente</option><option value="div">Dividende reçu</option></select>
+          <select id="txType"><option value="buy">Achat</option><option value="sell">Vente</option><option value="div">Dividende reçu</option><option value="split">Division / regroupement</option></select>
         </label>
         <label>Date
           <input type="date" id="txDate" required>
@@ -615,7 +704,7 @@
         <label id="txAccountWrap">Compte
           <select id="txAccount"></select>
         </label>
-        <label id="txQtyWrap">Quantité (parts)
+        <label id="txQtyWrap"><span id="txQtyLabel">Quantité (parts)</span>
           <input type="number" id="txQty" step="any" min="0">
         </label>
         <label><span id="txPriceLabel">Prix unitaire</span>
@@ -624,13 +713,53 @@
         <label><span id="txFeesLabel">Frais</span>
           <input type="number" id="txFees" step="any" min="0" value="0">
         </label>
-        <label>Montant total
+        <label><span id="txTotalLabel">Montant total</span>
           <input type="text" id="txTotal" readonly tabindex="-1">
+        </label>
+        <label class="span-2">Note (facultatif)
+          <input type="text" id="txNote" maxlength="200" placeholder="Ex. : achat après la baisse de 10 %, renforcement mensuel…">
         </label>
       </div>
       <div class="actions end">
         <button type="button" class="btn" id="txCancel">Annuler</button>
         <button type="submit" class="btn primary" id="txSave">Enregistrer</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Fenêtre de versement / retrait d'espèces -->
+  <dialog id="cashDialog">
+    <form method="dialog" id="cashForm" class="stack">
+      <h2 id="cashDialogTitle">Versement / retrait</h2>
+      <p class="muted small">Enregistre l'argent que tu verses sur un compte (ou que tu en retires) : l'appli calcule alors les espèces disponibles et, pour un PEA, les versements réels face au plafond.</p>
+      <div class="form-grid compact">
+        <label>Type
+          <select id="cashType"><option value="deposit">Versement</option><option value="withdraw">Retrait</option></select>
+        </label>
+        <label>Date<input type="date" id="cashDate" required></label>
+        <label id="cashAccWrap">Compte<select id="cashAcc"></select></label>
+        <label><span>Montant (<span class="ccy"></span>)</span><input type="number" id="cashAmount" step="any" min="0" required></label>
+        <label class="span-2">Note (facultatif)<input type="text" id="cashNote" maxlength="200"></label>
+      </div>
+      <div class="actions end">
+        <button type="button" class="btn" id="cashCancel">Annuler</button>
+        <button type="submit" class="btn primary">Enregistrer</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Rapport annuel -->
+  <dialog id="reportDialog">
+    <form method="dialog" id="reportForm" class="stack">
+      <h2>Rapport annuel</h2>
+      <p class="muted small">Un récapitulatif imprimable de l'année : versements, achats et ventes, dividendes, frais, plus-values réalisées, cases fiscales du compte-titres et performance. Choisis « Enregistrer au format PDF » dans la fenêtre d'impression.</p>
+      <div class="form-grid compact">
+        <label>Année<select id="reportYear"></select></label>
+        <label>Comptes<select id="reportAcc"></select></label>
+      </div>
+      <div class="actions end">
+        <button type="button" class="btn" id="reportCancel">Annuler</button>
+        <button type="submit" class="btn primary">Générer</button>
       </div>
     </form>
   </dialog>
@@ -670,5 +799,7 @@
   <script src="js/extras.js"></script>
   <script src="js/mobile.js"></script>
   <script src="js/features.js"></script>
+  <script src="js/money.js"></script>
+  <script src="js/insights.js"></script>
 </body>
 </html>

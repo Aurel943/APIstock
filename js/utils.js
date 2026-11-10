@@ -111,11 +111,40 @@ function parseNum(v) {
   return parseFloat(String(v).replace(/\s/g, '').replace(',', '.'));
 }
 
+/** Parité d'une division : « 10 », « 1:10 » ou « 1/10 » (1 ancienne → 10 nouvelles), « 10:1 » pour un regroupement */
+function parseSplit(v) {
+  const s = String(v ?? '').trim().replace(/\s/g, '');
+  const m = s.match(/^(\d+(?:[.,]\d+)?)[:/](\d+(?:[.,]\d+)?)$/);
+  if (m) { const a = parseNum(m[1]), b = parseNum(m[2]); return a > 0 && b > 0 ? b / a : NaN; }
+  return parseNum(s);
+}
+
+/** « 1 → 10 » pour une division, « 10 → 1 » pour un regroupement */
+function fmtSplit(r) {
+  r = parseNum(r);
+  if (!(r > 0)) return '—';
+  return r >= 1 ? '1 → ' + fmtNum(r, Number.isInteger(r) ? 0 : 2) : fmtNum(1 / r, Number.isInteger(1 / r) ? 0 : 2) + ' → 1';
+}
+
 let toastTimer = null;
-function toast(message, kind = 'info', ms = 4000) {
+/** Message temporaire ; `action` ({ label, fn }) ajoute un bouton (ex. « Annuler ») */
+function toast(message, kind = 'info', ms = 4000, action = null) {
   const t = $('#toast');
-  t.textContent = message;
-  t.className = 'toast show ' + kind;
+  t.replaceChildren(document.createTextNode(message));
+  if (action) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'toast-action';
+    b.textContent = action.label;
+    b.addEventListener('click', () => { clearTimeout(toastTimer); t.className = 'toast'; action.fn(); });
+    t.append(b);
+  }
+  t.className = 'toast show ' + kind + (action ? ' has-action' : '');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => (t.className = 'toast'), ms);
+}
+
+/** Suppression annulable : le bandeau propose « Annuler » pendant quelques secondes */
+function undoToast(message, restore, ms = 7000) {
+  toast(message, 'info', ms, { label: 'Annuler', fn: () => { restore(); toast('Suppression annulée', 'success', 2000); } });
 }

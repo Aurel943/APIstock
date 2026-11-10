@@ -107,15 +107,23 @@ const Tax = {
     const txs = this.sortedTxs(acc.id);
     let cash = 0, deposits = 0;
     for (const t of txs) {
+      if (t.type === 'split') continue;
       const fx = this.fxOf(t.key);
       const qty = parseNum(t.qty), price = parseNum(t.price), fees = parseNum(t.fees) || 0;
       if (!isFinite(fx) || !isFinite(qty) || !isFinite(price)) continue;
       if (t.type === 'buy') { const cost = (qty * price + fees) * fx; const use = Math.min(cash, cost); cash -= use; deposits += cost - use; }
       else cash += (qty * price - fees) * fx;
     }
-    const open = acc.openDate || (txs[0] && txs[0].date) || '';
     const manual = parseNum(acc.peaDeposits);
-    return { open, five: open ? addYearsISO(open, 5) : '', estimated: deposits, deposits: isFinite(manual) && manual > 0 ? manual : deposits, manual: isFinite(manual) && manual > 0, cash };
+    // versements réellement enregistrés (liquidités suivies) : plus fiables que l'estimation
+    const tracked = Portfolio.cashTracked(acc.id);
+    const real = tracked ? Portfolio.cashBalance(acc.id) : null;
+    const realDeposits = real ? Math.max(0, real.deposits - real.withdrawals) : NaN;
+    const firstMove = tracked ? Store.state.cashMoves.filter(m => (m.account || Store.defaultAccount()) === acc.id).reduce((m, x) => (!m || x.date < m ? x.date : m), '') : '';
+    const open2 = acc.openDate || [firstMove, txs[0] && txs[0].date].filter(Boolean).sort()[0] || '';
+    const isManual = isFinite(manual) && manual > 0;
+    return { open: open2, five: open2 ? addYearsISO(open2, 5) : '', estimated: tracked ? realDeposits : deposits, deposits: isManual ? manual : tracked ? realDeposits : deposits,
+      manual: isManual, tracked: tracked && !isManual, cash: tracked ? real.cash : cash };
   },
 
   /** Cessions (prix moyen pondéré d'acquisition, frais inclus) et dividendes d'un compte */
@@ -125,6 +133,7 @@ const Tax = {
       const p = pos[t.key] = pos[t.key] || { qty: 0, cost: 0 };
       const qty = parseNum(t.qty), price = parseNum(t.price), fees = parseNum(t.fees) || 0, fx = this.fxOf(t.key);
       if (t.type === 'div') { divs.push({ date: t.date, key: t.key, amount: (qty * price) * fx, acc }); continue; }
+      if (t.type === 'split') { if (qty > 0) p.qty *= qty; continue; }
       if (t.type === 'sell') {
         if (p.qty <= 0) continue;
         const q = Math.min(qty, p.qty), costOut = p.cost * (q / p.qty);
@@ -184,7 +193,7 @@ Object.assign(App, {
         el('h3', {}, a.name, /pea/i.test(a.name) ? null : el('span', { class: 'muted small' }, ' · PEA')),
         el('div', { class: 'tax-grid' },
           el('div', { class: 'tax-stat' },
-            el('span', { class: 'muted small' }, 'Versements ' + (p.manual ? '(saisis)' : '(estimés)')),
+            el('span', { class: 'muted small' }, 'Versements ' + (p.manual ? '(saisis)' : p.tracked ? '(liquidités suivies)' : '(estimés)')),
             el('b', { class: 'mono' }, fmtMoney(p.deposits, cur, 0) + ' / ' + fmtMoney(PEA_CAP, cur, 0)),
             el('div', { class: 'bar' }, el('span', { class: pct >= 90 ? 'warn' : '', style: `width:${pct}%` })),
             el('span', { class: 'muted small' }, p.deposits >= PEA_CAP ? 'Plafond atteint : plus de versement possible.' : 'Encore ' + fmtMoney(PEA_CAP - p.deposits, cur, 0) + ' de versements possibles.')),
@@ -539,6 +548,8 @@ const Sync = {
     out.transactions = byId(remote.transactions, local.transactions);
     out.alerts = byId(remote.alerts, local.alerts);
     out.accounts = byId(remote.accounts, local.accounts);
+    out.cashMoves = byId(remote.cashMoves, local.cashMoves);
+    out.plans = byId(remote.plans, local.plans);
     out.watchlist = Array.from(new Set([...(remote.watchlist || []), ...(local.watchlist || [])]));
     out.targets = Object.assign({}, remote.targets || {}, local.targets || {});
     return out;

@@ -40,7 +40,7 @@ Object.assign(App, {
     const tot = rows.reduce((s, r) => s + r.t.value, 0);
     $('#accSummaryBody').replaceChildren(...rows.map(r => el('tr', { onclick: () => { Store.state.accountFilter = r.a.id; Store.save(); this.renderAll(); } },
       el('td', {}, el('span', { class: 'sym' }, r.a.name), el('span', { class: 'name' }, ACCOUNT_TYPES[r.a.type] ? ACCOUNT_TYPES[r.a.type].label : '')),
-      el('td', { class: 'num' }, fmtMoney(r.t.value, cur)),
+      el('td', { class: 'num' }, fmtMoney(r.t.value, cur), Portfolio.cashTracked(r.a.id) ? el('div', { class: 'small muted' }, '+ ' + fmtMoney(Portfolio.cashBalance(r.a.id).cash, cur) + ' espèces') : null),
       el('td', { class: 'num' }, fmtPct(tot > 0 ? (r.t.value / tot) * 100 : NaN, 1, false)),
       el('td', { class: 'num' }, fmtMoney(r.t.cost, cur)),
       el('td', { class: 'num ' + trendClass(r.t.pnl) }, fmtSignedMoney(r.t.pnl, cur), el('div', { class: 'small' }, fmtPct(r.t.pnlPct))),
@@ -79,6 +79,8 @@ Object.assign(App, {
           const target = accs.find(x => x !== a);
           if (!confirm(`Supprimer « ${a.name} » ?` + (n ? ` Ses ${n} opération(s) seront déplacées vers « ${target.name} ».` : ''))) return;
           for (const t of Store.state.transactions) if ((t.account || Store.defaultAccount()) === a.id) t.account = target.id;
+          for (const m of Store.state.cashMoves) if ((m.account || Store.defaultAccount()) === a.id) m.account = target.id;
+          for (const pl of Store.state.plans) if (pl.account === a.id) pl.account = target.id;
           Store.state.accounts = accs.filter(x => x !== a);
           if (Store.state.accountFilter === a.id) Store.state.accountFilter = 'all';
           Store.save(); this.renderAccountsSettings(); this.renderAll();
@@ -104,7 +106,7 @@ Object.assign(App, {
     const cur = this.base();
     // l'objectif porte sur l'ensemble des comptes
     const { totals } = Portfolio.snapshot('all');
-    const V = totals.value || 0;
+    const V = (totals.value || 0) + Portfolio.cashTotal('all').cash; // titres + espèces suivies
     const T = g.target || 0;
     const r = Math.pow(1 + (g.rate || 0) / 100, 1 / 12) - 1;
     const m = g.monthly || 0;
@@ -187,8 +189,8 @@ Object.assign(App, {
     $('#csvExport').addEventListener('click', exportCsv);
     $('#txExport').addEventListener('click', exportCsv);
     $('#csvTemplate').addEventListener('click', () => dl('apistock-modele.csv',
-      'date;type;compte;symbole;place;nom;quantite;prix;frais;devise\n' +
-      '2024-03-15;achat;PEA;CW8;XPAR;Amundi MSCI World;10;470,50;2;EUR\n' +
+      'date;type;compte;symbole;place;nom;quantite;prix;frais;devise;note\n' +
+      '2024-03-15;achat;PEA;CW8;XPAR;Amundi MSCI World;10;470,50;2;EUR;Premier achat\n' +
       '2025-01-10;achat;PEA;ESE;XPAR;BNP Paribas Easy S&P 500;100;28,01;1;EUR\n' +
       '2025-06-20;dividende;Compte-titres;SPY;ARCX;SPDR S&P 500 ETF;;12,40;1,86;USD\n'));
     $('#csvImport').addEventListener('change', async e => {
@@ -215,13 +217,15 @@ Object.assign(App, {
   toCsv() {
     const esc = v => { const s = String(v ?? ''); return /[;"\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
     const num = v => (isFinite(v) ? String(v).replace('.', ',') : '');
-    const lines = ['date;type;compte;symbole;place;nom;quantite;prix;frais;devise;montant'];
+    const lines = ['date;type;compte;symbole;place;nom;quantite;prix;frais;devise;montant;note'];
     const txs = Store.state.transactions.slice().sort((a, b) => (a.date < b.date ? -1 : 1));
     for (const t of txs) {
       const i = Store.instrument(t.key) || { symbol: t.key, mic: '', name: '', currency: '' };
+      const split = t.type === 'split';
       const amount = t.qty * t.price + (t.type === 'buy' ? 1 : -1) * (t.fees || 0);
-      lines.push([t.date, { buy: 'achat', sell: 'vente', div: 'dividende' }[t.type], Store.account(t.account || Store.defaultAccount()).name,
-        i.symbol, i.mic, i.name, t.type === 'div' ? '' : num(t.qty), num(t.price), num(t.fees || 0), i.currency, num(Math.round(amount * 100) / 100)].map(esc).join(';'));
+      lines.push([t.date, { buy: 'achat', sell: 'vente', div: 'dividende', split: 'division' }[t.type], Store.account(t.account || Store.defaultAccount()).name,
+        i.symbol, i.mic, i.name, t.type === 'div' ? '' : num(t.qty), split ? '' : num(t.price), split ? '' : num(t.fees || 0), i.currency,
+        split ? '' : num(Math.round(amount * 100) / 100), t.note || ''].map(esc).join(';'));
     }
     return lines.join('\n') + '\n';
   },
@@ -250,6 +254,7 @@ Object.assign(App, {
       symbol: col('symbole', 'symbol', 'ticker', 'code', 'mnemo'), mic: col('place', 'mic', 'marche', 'exchange', 'bourse'),
       name: col('nom', 'name', 'libelle', 'valeur'), qty: col('quantite', 'qty', 'quantity', 'nombre', 'parts'),
       price: col('prix', 'price', 'cours', 'prixunitaire'), fees: col('frais', 'fees', 'commission'), ccy: col('devise', 'currency', 'monnaie'),
+      note: col('note', 'notes', 'commentaire', 'remarque', 'memo'),
     };
     if (C.date < 0 || C.symbol < 0 || C.price < 0) throw new Error('colonnes « date », « symbole » et « prix » obligatoires');
     const get = (r, k) => (C[k] >= 0 ? (r[C[k]] || '').trim() : '');
@@ -260,7 +265,7 @@ Object.assign(App, {
       if (m) { const y = m[3].length === 2 ? '20' + m[3] : m[3]; return `${y}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`; }
       return null;
     };
-    const parseType = v => { const s = norm(v); if (!s || /achat|buy|souscription|achats/.test(s)) return 'buy'; if (/vente|sell/.test(s)) return 'sell'; if (/div|coupon/.test(s)) return 'div'; return null; };
+    const parseType = v => { const s = norm(v); if (!s || /achat|buy|souscription|achats/.test(s)) return 'buy'; if (/vente|sell/.test(s)) return 'sell'; if (/division|split|regroupement/.test(s)) return 'split'; if (/div|coupon/.test(s)) return 'div'; return null; };
 
     const txs = [], errors = [], newInst = [], newAcc = [], accByName = {};
     for (const a of Store.state.accounts) accByName[a.name.toLowerCase()] = a.id;
@@ -270,11 +275,12 @@ Object.assign(App, {
       const line = i + 2;
       const date = parseDate(get(r, 'date')), type = parseType(get(r, 'type'));
       const symbol = get(r, 'symbol').toUpperCase().split('.')[0];
-      const price = num(get(r, 'price')), qty = type === 'div' ? 1 : num(get(r, 'qty')), fees = num(get(r, 'fees')) || 0;
+      const split = type === 'split';
+      const price = split ? 0 : num(get(r, 'price')), qty = type === 'div' ? 1 : split ? parseSplit(get(r, 'qty')) : num(get(r, 'qty')), fees = split ? 0 : num(get(r, 'fees')) || 0;
       if (!date) { errors.push(`ligne ${line} : date invalide`); return; }
       if (!type) { errors.push(`ligne ${line} : type inconnu « ${get(r, 'type')} »`); return; }
       if (!symbol) { errors.push(`ligne ${line} : symbole manquant`); return; }
-      if (!(price > 0) || !(qty > 0)) { errors.push(`ligne ${line} : quantité ou prix invalide`); return; }
+      if ((!split && !(price > 0)) || !(qty > 0)) { errors.push(`ligne ${line} : ${split ? 'parité' : 'quantité ou prix'} invalide`); return; }
       let mic = get(r, 'mic').toUpperCase();
       if (mic && !MIC_TO_YAHOO_SUFFIX.hasOwnProperty(mic)) mic = YAHOO_EX_TO_MIC[mic] || ({ EURONEXT: 'XPAR', PARIS: 'XPAR', XETRA: 'XETR', NYSE: 'XNYS', NASDAQ: 'XNAS', LSE: 'XLON', LONDON: 'XLON', AMSTERDAM: 'XAMS', MILAN: 'XMIL' }[mic] || mic);
       // instrument : on réutilise un instrument existant (même symbole + place, ou même symbole si la place est absente)
@@ -291,7 +297,8 @@ Object.assign(App, {
         if (!accByName[k]) { const id = uid(); accByName[k] = id; pendingAcc.push({ id, name: accName }); newAcc.push(accName); }
         account = accByName[k];
       }
-      txs.push({ key, type, date, account, qty, price, fees });
+      const note = get(r, 'note');
+      txs.push(Object.assign({ key, type, date, account, qty, price, fees }, note ? { note } : {}));
     });
     return {
       txs, errors, newInst, newAcc,

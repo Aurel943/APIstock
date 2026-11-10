@@ -312,8 +312,10 @@ const App = {
     this.renderAccountFilter();
     const net = Portfolio.netPnl();
     const kpis = $('#kpis');
+    const cash = Portfolio.cashTotal();
     kpis.replaceChildren(...[
       this.kpi('Valeur actuelle', fmtMoney(totals.value, cur), totals.missing ? totals.missing + ' cours manquant(s)' : rows.length + ' ligne(s)'),
+      cash.tracked ? this.kpi('Liquidités', fmtMoney(cash.cash, cur), 'Total avec espèces : ' + fmtMoney(totals.value + cash.cash, cur), cash.cash < -0.005 ? 'down' : '') : null,
       this.kpi('Montant investi', fmtMoney(totals.cost, cur), 'Frais inclus'),
       this.kpi('Plus-value latente', fmtSignedMoney(totals.pnl, cur),
         fmtPct(totals.pnlPct) + (net.taxed && totals.pnl > 0 ? ' · net d\'impôt ≈ ' + fmtSignedMoney(net.net, cur) : ''), trendClass(totals.pnl)),
@@ -389,21 +391,25 @@ const App = {
     $('#txTable tbody').replaceChildren(...txs.map(t => {
       const inst = Store.instrument(t.key);
       const ccy = inst ? inst.currency : this.base();
-      const isDiv = t.type === 'div';
+      const isDiv = t.type === 'div', isSplit = t.type === 'split';
       const amount = t.qty * t.price + (t.type === 'sell' || isDiv ? -1 : 1) * (t.fees || 0);
       return el('tr', {},
         el('td', {}, fmtDate(t.date)),
-        el('td', {}, el('span', { class: 'chip ' + t.type }, { sell: 'Vente', div: 'Dividende' }[t.type] || 'Achat')),
-        el('td', {}, el('span', { class: 'sym' }, Store.label(t.key))),
+        el('td', {}, el('span', { class: 'chip ' + t.type }, { sell: 'Vente', div: 'Dividende', split: parseNum(t.qty) >= 1 ? 'Division' : 'Regroupement' }[t.type] || 'Achat')),
+        el('td', {}, el('span', { class: 'sym' }, Store.label(t.key)),
+          t.note ? el('div', { class: 'tx-note', title: t.note }, '📝 ' + t.note) : null),
         multi ? el('td', { class: 'muted' }, Store.account(t.account || Store.defaultAccount()).name) : null,
-        el('td', { class: 'num' }, isDiv ? '—' : fmtQty(t.qty)),
-        el('td', { class: 'num' }, isDiv ? '—' : fmtMoney(t.price, ccy, 3)),
-        el('td', { class: 'num' }, fmtMoney(t.fees || 0, ccy)),
-        el('td', { class: 'num' }, fmtMoney(amount, ccy)),
+        el('td', { class: 'num' }, isDiv ? '—' : isSplit ? fmtSplit(t.qty) : fmtQty(t.qty)),
+        el('td', { class: 'num' }, isDiv || isSplit ? '—' : fmtMoney(t.price, ccy, 3)),
+        el('td', { class: 'num' }, isSplit ? '—' : fmtMoney(t.fees || 0, ccy)),
+        el('td', { class: 'num' }, isSplit ? '—' : fmtMoney(amount, ccy)),
         el('td', { class: 'num' },
           el('button', { class: 'iconbtn', title: 'Modifier', onclick: () => this.openTx(t) }, '✎'),
           el('button', { class: 'iconbtn', title: 'Supprimer', onclick: () => {
-            if (confirm('Supprimer cette opération ?')) { Store.removeTransaction(t.id); this.renderAll(); }
+            const idx = Store.state.transactions.indexOf(t);
+            Store.removeTransaction(t.id);
+            this.renderAll();
+            undoToast('Opération supprimée', () => { Store.state.transactions.splice(Math.max(0, idx), 0, t); Store.save(); this.renderAll(); });
           } }, '🗑')),
       );
     }));
@@ -424,16 +430,19 @@ const App = {
         const inst = Store.instrument(k);
         fx[k] = await Api.fxRate(inst ? inst.currency : this.base());
       }
-      const events = txs.map(t => ({ date: t.date, key: t.key, type: t.type, qty: parseNum(t.qty), price: parseNum(t.price), fees: parseNum(t.fees) || 0 }));
-      const { points } = Portfolio.replay(series, fx, events);
+      const { points } = Portfolio.replay(series, fx, Portfolio.historyEvents(txs));
       if (!points.length) throw new Error('Pas de données historiques disponibles.');
+      this.historyPoints = points;
       Charts.investedVsValue('historyChart', points.map(p => fmtDate(p.date)), points.map(p => p.invested), points.map(p => p.value), this.base(), { stepped: true });
       $('#historyChart').parentElement.classList.add('ready');
       this.renderCalendar(Portfolio.twr(points));
+      if (this.renderRisk) this.renderRisk(Portfolio.twr(points), start);
       const lastP = points[points.length - 1];
       $('#historyInfo').textContent = `Depuis le ${fmtDate(start)} · dernier point : ${fmtMoney(lastP.value, this.base())}`;
+      return points;
     } catch (e) {
       toast(e.message, 'error', 6000);
+      return null;
     } finally {
       btn.disabled = false; btn.textContent = 'Recharger';
     }
@@ -442,7 +451,7 @@ const App = {
   /* ------------------------------------------------------------------ */
   /* Sélecteur d'instrument (recherche Twelve Data)                       */
   /* ------------------------------------------------------------------ */
-  picker(container, { onPick, placeholder = 'Ex : CW8, IWDA, VWCE, SPY, ESE…', showKnown = true, actionLabel, etfDefault = true }) {
+  picker(container, { onPick, placeholder = 'Ex : CW8, IWDA, VWCE, ESE ou un ISIN (FR0010315770)…', showKnown = true, actionLabel, etfDefault = true }) {
     const input = el('input', { type: 'search', placeholder, autocomplete: 'off', spellcheck: 'false' });
     const etfOnly = el('input', { type: 'checkbox', checked: etfDefault });
     const btn = el('button', { type: 'button', class: 'btn' }, 'Rechercher');
@@ -472,7 +481,7 @@ const App = {
           onclick: () => {
             const key = Store.upsertInstrument({
               symbol: d.symbol, mic: d.mic, exchange: d.exchange, name: d.name, currency: d.currency, type: d.type,
-              provider: d.provider, ysymbol: d.ysymbol, short: d.short,
+              provider: d.provider, ysymbol: d.ysymbol, short: d.short, isin: d.isin,
             });
             // on force la source choisie (l'instrument a pu être ajouté avant via l'autre source)
             const inst = Store.instrument(key);
@@ -487,7 +496,7 @@ const App = {
           el('span', { class: 'sym' }, d.symbol), el('span', { class: 'tag' }, d.type || ''),
           el('span', { class: 'tag src-' + d.source }, d.source === 'yahoo' ? 'Yahoo' : 'Twelve Data'),
           el('div', { class: 'meta' }, d.name)),
-        el('div', { class: 'meta', style: 'text-align:right' }, d.mic ? `${d.exchange} (${d.mic})` : d.exchange, el('br'), [d.country, d.currency].filter(Boolean).join(' · ')),
+        el('div', { class: 'meta', style: 'text-align:right' }, d.mic ? `${d.exchange} (${d.mic})` : d.exchange, el('br'), [d.isin, d.country, d.currency].filter(Boolean).join(' · ')),
         )) : [el('div', { class: 'empty' }, 'Aucun résultat')]));
       } catch (e) {
         toast(e.message, 'error');
@@ -511,23 +520,36 @@ const App = {
   bindDialog() {
     const dlg = $('#txDialog');
     $('#txCancel').addEventListener('click', () => dlg.close());
-    ['#txQty', '#txPrice', '#txFees', '#txType'].forEach(s => $(s).addEventListener('input', () => this.updateTxTotal()));
+    dlg.addEventListener('close', () => { this.txPlanRef = null; });
+    ['#txQty', '#txPrice', '#txFees', '#txType', '#txAccount'].forEach(s => $(s).addEventListener('input', () => this.updateTxTotal()));
     $('#txType').addEventListener('change', () => this.syncTxType());
     $('#txForm').addEventListener('submit', e => {
       e.preventDefault();
       if (!this.txInstrument) { toast('Choisis un ETF', 'error'); return; }
+      const type = $('#txType').value;
       const tx = {
         key: this.txInstrument,
-        type: $('#txType').value,
+        type,
         date: $('#txDate').value,
         account: $('#txAccount').value || Store.defaultAccount(),
-        qty: $('#txType').value === 'div' ? 1 : parseNum($('#txQty').value),
-        price: parseNum($('#txPrice').value),
-        fees: parseNum($('#txFees').value) || 0,
+        qty: type === 'div' ? 1 : type === 'split' ? parseSplit($('#txQty').value) : parseNum($('#txQty').value),
+        price: type === 'split' ? 0 : parseNum($('#txPrice').value),
+        fees: type === 'split' ? 0 : parseNum($('#txFees').value) || 0,
+        note: $('#txNote').value.trim(),
       };
-      if (!(tx.qty > 0) || !(tx.price > 0) || !tx.date) { toast(tx.type === 'div' ? 'Montant et date sont obligatoires' : 'Quantité, prix et date sont obligatoires', 'error'); return; }
-      if (this.editingTx) Store.updateTransaction(this.editingTx.id, tx);
-      else Store.addTransaction(tx);
+      if (!tx.note) delete tx.note;
+      if (type === 'split') {
+        if (!(tx.qty > 0) || tx.qty === 1 || !tx.date) { toast('Indique la parité (ex. 10 pour 1 part qui devient 10, ou 1:10) et la date', 'error'); return; }
+      } else if (!(tx.qty > 0) || !(tx.price > 0) || !tx.date) { toast(type === 'div' ? 'Montant et date sont obligatoires' : 'Quantité, prix et date sont obligatoires', 'error'); return; }
+      if (this.editingTx) {
+        if (!tx.note) delete this.editingTx.note;
+        Store.updateTransaction(this.editingTx.id, tx);
+      } else Store.addTransaction(tx);
+      if (this.txPlanRef) {
+        const plan = Store.state.plans.find(p => p.id === this.txPlanRef.planId);
+        if (plan) { plan.done = plan.done || {}; plan.done[this.txPlanRef.month] = tx.id || (this.editingTx && this.editingTx.id); Store.save(); }
+        this.txPlanRef = null;
+      }
       dlg.close();
       this.renderAll();
       if (!Api.cachedQuote(tx.key)) Api.quote(tx.key).then(() => Api.fxRate(Store.instrument(tx.key).currency)).then(() => this.renderPortfolio()).catch(err => toast(err.message, 'error'));
@@ -543,6 +565,7 @@ const App = {
     $('#txQty').value = tx ? tx.qty : '';
     $('#txPrice').value = tx ? tx.price : '';
     $('#txFees').value = tx ? (tx.fees || 0) : 0;
+    $('#txNote').value = tx ? (tx.note || '') : '';
     const accs = Store.state.accounts;
     $('#txAccount').replaceChildren(...accs.map(a => el('option', { value: a.id }, a.name)));
     const filter = Store.state.accountFilter;
@@ -565,21 +588,35 @@ const App = {
         el('div', { class: 'grow' }, el('div', { class: 'sym' }, Store.label(key)), el('div', { class: 'name' }, inst.name + ' · ' + inst.currency)),
         el('button', { type: 'button', class: 'btn small', onclick: () => this.setTxInstrument(null) }, 'Changer')));
       const q = Api.cachedQuote(key);
-      if (q && !$('#txPrice').value && $('#txType').value !== 'div') $('#txPrice').value = q.price;
+      if (q && !$('#txPrice').value && $('#txType').value !== 'div' && $('#txType').value !== 'split') $('#txPrice').value = q.price;
     }
     this.updateTxTotal();
   },
 
   syncTxType() {
-    const div = $('#txType').value === 'div';
+    const div = $('#txType').value === 'div', split = $('#txType').value === 'split';
     $('#txQtyWrap').classList.toggle('hidden', div);
     $('#txQty').required = !div;
+    $('#txQty').type = split ? 'text' : 'number';
+    $('#txQty').placeholder = split ? 'ex. 10 ou 1:10' : '';
+    $('#txQtyLabel').textContent = split ? 'Parité (nouvelles parts pour 1 ancienne)' : 'Quantité (parts)';
+    $('#txPrice').closest('label').classList.toggle('hidden', split);
+    $('#txFees').closest('label').classList.toggle('hidden', split);
+    $('#txPrice').required = !split;
     $('#txPriceLabel').textContent = div ? 'Montant brut reçu' : 'Prix unitaire';
     $('#txFeesLabel').textContent = div ? 'Retenue / prélèvements' : 'Frais';
     this.updateTxTotal();
   },
 
   updateTxTotal() {
+    if ($('#txType').value === 'split') {
+      const r = parseSplit($('#txQty').value);
+      const pos = this.txInstrument ? Portfolio.positions($('#txAccount').value || Store.defaultAccount()).find(p => p.key === this.txInstrument) : null;
+      $('#txTotalLabel').textContent = 'Effet sur la position';
+      $('#txTotal').value = r > 0 && pos && pos.qty > 0 ? `${fmtQty(pos.qty)} → ${fmtQty(pos.qty * r)} parts` : r > 0 ? '× ' + fmtNum(r, r < 1 ? 4 : 0) : '';
+      return;
+    }
+    $('#txTotalLabel').textContent = 'Montant total';
     const div = $('#txType').value === 'div';
     const qty = div ? 1 : parseNum($('#txQty').value), price = parseNum($('#txPrice').value), fees = parseNum($('#txFees').value) || 0;
     const inst = this.txInstrument ? Store.instrument(this.txInstrument) : null;
@@ -593,7 +630,7 @@ const App = {
   bindMarkets() {
     this.marketPicker = this.picker($('#marketSearch'), {
       showKnown: false, etfDefault: false,
-      placeholder: 'Ex : CW8, Brent, or, CAC 40, Apple, Bitcoin…',
+      placeholder: 'Ex : CW8, Brent, or, CAC 40, Apple, Bitcoin, ISIN…',
       onPick: key => this.watchAndShow(key),
     });
     // raccourcis : matières premières, crypto, devises, indices
@@ -907,7 +944,7 @@ const App = {
   /* Projection */
   renderProjection() {
     const p = Store.state.projection || {};
-    const ids = { initial: '#projInitial', monthly: '#projMonthly', rate: '#projRate', fees: '#projFees', years: '#projYears' };
+    const ids = { initial: '#projInitial', monthly: '#projMonthly', rate: '#projRate', fees: '#projFees', years: '#projYears', vol: '#projVol' };
     if (!this.projBound) {
       this.projBound = true;
       for (const [k, id] of Object.entries(ids)) {
@@ -938,8 +975,22 @@ const App = {
       this.kpi('Revenu annuel à 4 %', fmtMoney(last.value * 0.04, cur, 0), 'Règle des 4 % (retrait)'),
     );
     const yearly = pts.filter(x => x.month % 12 === 0);
+    // scénarios aléatoires autour de l'hypothèse de rendement
+    const goal = Store.state.goal && Store.state.goal.target;
+    const mc = Portfolio.monteCarlo({ initial: v.initial, monthly: v.monthly, rate: v.rate, fees: v.fees, vol: Math.max(0, v.vol), years, target: goal || 0 });
+    const end = mc.years[mc.years.length - 1];
+    $('#projMcKpis').replaceChildren(...[
+      this.kpi('Scénario défavorable', fmtMoney(end.p10, cur, 0), '1 chance sur 10 de faire moins bien', 'down'),
+      this.kpi('Scénario médian', fmtMoney(end.p50, cur, 0), '1 chance sur 2 de faire mieux'),
+      this.kpi('Scénario favorable', fmtMoney(end.p90, cur, 0), '1 chance sur 10 de faire mieux', 'up'),
+      this.kpi('Risque de perte', fmtPct(mc.probLoss * 100, 0, false), 'Capital final inférieur au total versé', mc.probLoss > 0.1 ? 'down' : ''),
+      goal > 0 ? this.kpi('Objectif atteint', fmtPct(mc.probTarget * 100, 0, false), 'Chance d\'avoir ' + fmtMoney(goal, cur, 0) + ' (onglet Investir) dans ' + years + ' an(s)', mc.probTarget >= 0.5 ? 'up' : 'down') : null,
+    ].filter(Boolean));
     if (this.view === 'simulation') {
-      Charts.investedVsValue('projChart', yearly.map(x => 'An ' + x.month / 12), yearly.map(x => x.invested), yearly.map(x => x.value), cur, { valueLabel: 'Capital projeté', investedLabel: 'Total versé' });
+      Charts.fan('projChart', yearly.map(x => 'An ' + x.month / 12), {
+        invested: yearly.map(x => x.invested), expected: yearly.map(x => x.value),
+        p10: mc.years.map(y => y.p10), p50: mc.years.map(y => y.p50), p90: mc.years.map(y => y.p90),
+      }, cur);
     }
   },
 
@@ -964,6 +1015,7 @@ const App = {
     $('#setCurrency').value = st.baseCurrency;
     $('#setRefresh').value = String(st.refreshSec);
     $('#setCredits').value = st.creditsPerMin;
+    $('#setRiskFree').value = st.riskFree ?? 2;
 
     $('#toggleKey').addEventListener('click', () => {
       const i = $('#setApiKey');
@@ -981,6 +1033,7 @@ const App = {
       st.baseCurrency = $('#setCurrency').value;
       st.refreshSec = parseInt($('#setRefresh').value, 10);
       st.creditsPerMin = parseInt($('#setCredits').value, 10) || 8;
+      st.riskFree = isFinite(parseNum($('#setRiskFree').value)) ? parseNum($('#setRiskFree').value) : 2;
       Store.save();
       this.schedule();
       Api.emitUsage();
@@ -1080,6 +1133,7 @@ const App = {
     $('#setCurrency').value = st.baseCurrency;
     $('#setRefresh').value = String(st.refreshSec);
     $('#setCredits').value = st.creditsPerMin;
+    $('#setRiskFree').value = st.riskFree ?? 2;
   },
 };
 
