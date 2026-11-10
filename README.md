@@ -87,6 +87,7 @@ Importe le dépôt sur <https://vercel.com/new> : la fonction [`api/yahoo.js`](a
 - Quand tu cherches un ETF, chaque résultat porte une étiquette **Yahoo** ou **Twelve Data** : choisis la ligne Yahoo pour les places européennes.
 - Si un ETF déjà enregistré renvoie l'erreur « available starting with the Grow or Venture plan », il bascule automatiquement sur Yahoo dès que le relais est configuré (tes opérations sont conservées).
 - Sans clé Twelve Data, tout passe par Yahoo, y compris les taux de change.
+- Un relais public par défaut (`https://apistock-yahoo.aurelien-potot.workers.dev`) est utilisé si aucun relais n'est saisi ni détecté : le site fonctionne donc directement, sans aucune configuration. Un relais saisi dans les réglages reste prioritaire.
 
 ## Bon à savoir
 

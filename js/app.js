@@ -100,7 +100,8 @@ const App = {
 
   renderAll() {
     $('#noKeyBanner').classList.toggle('hidden', Api.ready());
-    $('#proxyStatus').textContent = Api.autoProxy && !Store.state.settings.yahooProxy ? 'Relais détecté automatiquement sur ce site ✔' : '';
+    $('#proxyStatus').textContent = Store.state.settings.yahooProxy ? ''
+      : Api.autoProxy ? 'Relais détecté automatiquement sur ce site ✔' : 'Relais par défaut utilisé ✔';
     $$('.ccy').forEach(s => (s.textContent = this.base()));
     this.renderPortfolio();
     this.renderTransactions();
@@ -825,7 +826,7 @@ const App = {
     $('#setApiKey').value = st.apiKey;
     $('#setProxy').value = st.yahooProxy || '';
     $('#testProxy').addEventListener('click', async () => {
-      const url = $('#setProxy').value.trim() || Api.autoProxy;
+      const url = $('#setProxy').value.trim() || Api.autoProxy || Api.defaultProxy;
       if (!url) { toast('Saisis l\'URL de ton relais', 'error'); return; }
       try {
         const j = await Api.yahoo({ type: 'chart', symbol: 'CW8.PA', range: '1d', interval: '1d' }, url);

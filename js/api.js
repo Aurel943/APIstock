@@ -75,7 +75,8 @@ const Api = {
 
   hasKey() { return !!(Store.state.settings.apiKey || '').trim(); },
   autoProxy: '',       // relais détecté automatiquement (site hébergé avec /api/yahoo)
-  proxyUrl() { return (Store.state.settings.yahooProxy || '').trim() || this.autoProxy; },
+  defaultProxy: 'https://apistock-yahoo.aurelien-potot.workers.dev', // relais public utilisé si rien d'autre n'est configuré
+  proxyUrl() { return (Store.state.settings.yahooProxy || '').trim() || this.autoProxy || this.defaultProxy; },
   hasProxy() { return !!this.proxyUrl(); },
   ready() { return this.hasKey() || this.hasProxy(); },
   provider(key) {
