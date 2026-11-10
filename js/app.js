@@ -87,6 +87,11 @@ const App = {
     $$('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === view));
     $$('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + view));
     history.replaceState(null, '', '#' + view);
+    clearInterval(this._globalTimer);
+    if (view === 'settings') {
+      this.loadGlobalCount();
+      this._globalTimer = setInterval(() => { if (!document.hidden) this.loadGlobalCount(); }, 60000);
+    }
     if (view === 'portfolio' && this._portfolioStale) { this._portfolioStale = false; this.renderPortfolio(); }
     if (view === 'markets' && !this.detailKey && Store.state.watchlist.length) this.selectDetail(Store.state.watchlist[0]);
     if (view === 'simulation') this.renderProjection();
@@ -157,6 +162,35 @@ const App = {
     $('#reqBar').classList.toggle('warn', pct >= 80);
     $('#reqDetail').textContent = `Relais Yahoo : ${nf.format(d.yahoo || 0)} (${fmtNum(pct, pct < 1 ? 2 : 1)} % du quota gratuit de 100 000/jour du worker, partagé avec tous les visiteurs)`
       + ` · Twelve Data : ${nf.format(d.twelve || 0)}${Api.hasKey() ? ' (800/jour sur le forfait gratuit)' : ''}. Remis à zéro à minuit.`;
+  },
+
+  /** Total des requêtes reçues aujourd'hui par le worker Cloudflare (tous visiteurs), via son point « stats » */
+  async loadGlobalCount() {
+    if (!$('#reqGlobal') || !Api.hasProxy()) return;
+    const nf = new Intl.NumberFormat('fr-FR');
+    const show = (val, pct, detail) => {
+      $('#reqGlobal').textContent = val;
+      $('#reqGlobalBar').style.width = (pct || 0) + '%';
+      $('#reqGlobalBar').classList.toggle('warn', pct >= 80);
+      $('#reqGlobalDetail').textContent = detail;
+    };
+    let s;
+    try { s = await Api.yahoo({ type: 'stats' }); }
+    catch (e) {
+      show('—', 0, /invalide/.test(e.message)
+        ? 'Le worker en ligne ne connaît pas encore ce compteur : redéploie-le avec le nouveau proxy/cloudflare-worker.js (voir le README).'
+        : 'Total indisponible : ' + e.message);
+      return;
+    }
+    if (s.unsupported) { show('—', 0, 'Compteur global disponible uniquement avec le relais Cloudflare.'); return; }
+    if (!s.configured) { show('—', 0, 'Pour l\'activer, ajoute CF_ACCOUNT_ID et CF_API_TOKEN dans les réglages du worker Cloudflare (voir le README).'); return; }
+    if (s.error) { show('—', 0, 'Total indisponible : ' + s.error); return; }
+    const pct = Math.min(100, (s.account / s.quota) * 100);
+    show(nf.format(s.worker), pct,
+      `${fmtNum(pct, pct < 1 ? 2 : 1)} % du quota de ${nf.format(s.quota)}/jour`
+      + (s.account !== s.worker ? ` (${nf.format(s.account)} pour l'ensemble de tes workers, quota commun)` : '')
+      + ` · remis à zéro à minuit UTC (${new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate())).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} heure locale)`
+      + ` · statistiques Cloudflare, avec ~1 min de décalage.`);
   },
 
   bindInteractionGuard() {

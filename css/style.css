@@ -584,3 +584,4 @@ button, a, .pos-card { -webkit-tap-highlight-color: transparent; }
 .req-usage-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
 .req-usage .bar { height: 6px; }
 .req-usage .bar span.warn { background: var(--down); }
+.req-global { margin-top: 8px; padding-top: 10px; border-top: 1px solid var(--border); }

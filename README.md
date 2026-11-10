@@ -80,6 +80,14 @@ Le forfait gratuit de Twelve Data ne couvre que les marchés US (+ forex/crypto)
 
 Le worker n'accepte que les requêtes venant de `aurel943.github.io` et de `localhost:8000` (modifiable en haut du fichier).
 
+#### Compteur global de requêtes (optionnel)
+Dans **Réglages**, le site affiche le nombre de requêtes envoyées aujourd'hui par ton navigateur et, si le worker est configuré pour, le **total reçu par le worker, tous visiteurs confondus** (quota gratuit : 100 000/jour, remis à zéro à minuit UTC). Pour l'activer :
+1. Cloudflare → **My Profile** → **API Tokens** → **Create Token** → **Create Custom Token** : permission *Account* · *Account Analytics* · *Read* → **Create Token**, et copie le jeton.
+2. Worker `apistock-yahoo` → **Settings** → **Variables and Secrets** → **Add** :
+   - `CF_ACCOUNT_ID` (type *Text*) : ton Account ID (visible sur la page *Workers & Pages*, colonne de droite) ;
+   - `CF_API_TOKEN` (type *Secret*) : le jeton créé à l'étape 1.
+3. **Deploy**. Le jeton reste dans le worker : le site ne reçoit que les totaux, rafraîchis au plus une fois par minute.
+
 ### B. Héberger tout le site sur Vercel
 Importe le dépôt sur <https://vercel.com/new> : la fonction [`api/yahoo.js`](api/yahoo.js) est déployée automatiquement et le site la détecte tout seul (rien à saisir dans les réglages).
 
