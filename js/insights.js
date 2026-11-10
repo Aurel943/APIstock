@@ -610,48 +610,21 @@ ${snap.rows.map(r => row(esc(Store.label(r.key)) + `<small>${esc(r.inst ? r.inst
 /* ==================================================================== */
 /* Branchements                                                           */
 /* ==================================================================== */
-(() => {
-  const origAll = App.renderAll;
-  App.renderAll = function () {
-    origAll.apply(this, arguments);
-    this.renderRiskCard();
-    this.renderDividends();
-    this.renderRebalance();
-  };
-  const origInvest = App.renderInvest;
-  App.renderInvest = function () {
-    origInvest.apply(this, arguments);
-    if (!$('#rebalBox').contains(document.activeElement)) this.renderRebalance();
-  };
-  const origAlerts = App.renderAlerts;
-  App.renderAlerts = function () {
-    origAlerts.apply(this, arguments);
-    this.schedulePushSync();
-  };
-  const origDetail = App.selectDetail;
-  App.selectDetail = function (key) {
-    const changed = key !== this.detailKey || !$('#detailNews').childElementCount;
-    origDetail.apply(this, arguments);
-    if (changed) this.loadDetailNews(key);
-  };
-  const origRefresh = App.refresh;
-  App.refresh = async function () {
-    const res = await origRefresh.apply(this, arguments);
-    if (this.view === 'portfolio') this.loadNews().catch(() => {});
-    return res;
-  };
-  const origShow = App.show;
-  App.show = function (view) {
-    origShow.apply(this, arguments);
-    if (view === 'portfolio') this.loadNews().catch(() => {});
-  };
-  // un changement de compte invalide le calcul de risque
-  const origFilter = App.renderAccountFilter;
-  App.renderAccountFilter = function () {
-    origFilter.apply(this, arguments);
-    if (this._riskShown && this._riskShown !== (Store.state.accountFilter || 'all')) { this._riskShown = null; this.renderRiskCard(); }
-  };
-})();
+App.on('rendered:all', function () {
+  this.renderRiskCard();
+  this.renderDividends();
+  this.renderRebalance();
+});
+App.on('rendered:invest', function () { if (!$('#rebalBox').contains(document.activeElement)) this.renderRebalance(); });
+App.on('rendered:alerts', function () { this.schedulePushSync(); });
+// actualités de l'instrument affiché (la liste est vide tant qu'elles n'ont pas été chargées)
+App.on('detail:selected', function (key, previous) { if (key !== previous || !$('#detailNews').childElementCount) this.loadDetailNews(key); });
+App.on('refreshed', function () { if (this.view === 'portfolio') this.loadNews().catch(() => {}); });
+App.on('view:shown', function (view) { if (view === 'portfolio') this.loadNews().catch(() => {}); });
+// un changement de compte invalide le calcul de risque
+App.on('rendered:accountFilter', function () {
+  if (this._riskShown && this._riskShown !== (Store.state.accountFilter || 'all')) { this._riskShown = null; this.renderRiskCard(); }
+});
 
 document.addEventListener('DOMContentLoaded', () => {
   App.bindReport();

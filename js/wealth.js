@@ -210,13 +210,8 @@ Object.assign(App, {
 });
 
 // rendu avec le reste de l'écran et à chaque mise à jour des cours du portefeuille
-(() => {
-  const origAll = App.renderAll;
-  App.renderAll = function () { origAll.apply(this, arguments); this.renderWealth(); };
-  const origPf = App.renderPortfolio;
-  App.renderPortfolio = function () { origPf.apply(this, arguments); this.renderWealth(); };
-  const origShow = App.show;
-  App.show = function (view) { origShow.apply(this, arguments); if (view === 'simulation') this.renderRetirement(); };
-})();
+App.on('rendered:all', function () { this.renderWealth(); });
+App.on('rendered:portfolio', function () { this.renderWealth(); });
+App.on('view:shown', function (view) { if (view === 'simulation') this.renderRetirement(); });
 
 document.addEventListener('DOMContentLoaded', () => { App.bindWealth(); App.renderWealth(); App.bindRetirement(); App.renderRetirement(); });

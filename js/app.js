@@ -1,7 +1,34 @@
 /* Application : navigation, rendu des vues, rafraîchissement temps réel */
 'use strict';
 
+/*
+ * Événements de l'application : les modules (features, money, insights, mobile, wealth…) s'y abonnent avec
+ * App.on(nom, fn) au lieu d'envelopper les fonctions d'App. Chaque événement est émis APRÈS l'action ; les
+ * écouteurs sont appelés dans l'ordre d'inscription (ordre de chargement des scripts), avec this = App.
+ *
+ *   'rendered:all'                     renderAll() : tout l'écran vient d'être redessiné
+ *   'rendered:portfolio'               renderPortfolio() : indicateurs, positions, répartition (à chaque cotation)
+ *   'rendered:invest'                  renderInvest() : allocation cible et plan d'investissement
+ *   'rendered:alerts'                  renderAlerts() : liste des alertes
+ *   'rendered:accountFilter'           renderAccountFilter() : sélecteur de compte
+ *   'view:shown'        (vue)          show(vue) : changement d'onglet
+ *   'detail:selected'   (clé, avant)   selectDetail(clé) : instrument affiché dans Marchés (et clé précédente)
+ *   'refreshed'         (manuel)       refresh(manuel) terminé, y compris quand il n'y avait rien à rafraîchir
+ *   'data:saved'                       Store.save() : données enregistrées dans ce navigateur
+ */
 const App = {
+  _listeners: {},
+
+  /** Abonnement à un événement ; renvoie une fonction de désabonnement */
+  on(name, fn) {
+    (this._listeners[name] = this._listeners[name] || []).push(fn);
+    return () => { this._listeners[name] = (this._listeners[name] || []).filter(f => f !== fn); };
+  },
+
+  emit(name, ...args) {
+    for (const fn of (this._listeners[name] || []).slice()) fn.apply(this, args);
+  },
+
   view: 'portfolio',
   allocMode: 'value',
   detailKey: null,
@@ -100,6 +127,7 @@ const App = {
     if (view === 'invest') { this.renderInvest(); this.renderAlerts(); }
     // les graphiques créés pendant que l'onglet était caché doivent être redimensionnés
     requestAnimationFrame(() => Object.values(Charts.instances).forEach(c => c.resize()));
+    this.emit('view:shown', view);
   },
 
   schedule() {
@@ -230,12 +258,19 @@ const App = {
     this.renderAlerts();
     this.renderMarketState();
     if (this.view === 'world') this.renderWorld();
+    this.emit('rendered:all');
   },
 
   /* ------------------------------------------------------------------ */
   /* Rafraîchissement des cotations                                       */
   /* ------------------------------------------------------------------ */
   async refresh(manual = false) {
+    const res = await this._refresh(manual);
+    this.emit('refreshed', manual);
+    return res;
+  },
+
+  async _refresh(manual = false) {
     if (!Api.ready()) { if (manual) toast('Configure d\'abord ta clé Twelve Data ou le relais Yahoo dans Réglages.', 'error'); return; }
     if (this.refreshing) return;
     const keys = Store.trackedKeys();
@@ -392,6 +427,7 @@ const App = {
       el('span', { class: 'dot', style: 'background:' + x.color }),
       el('span', { class: 'lname', title: x.name }, x.label, el('span', { class: 'muted' }, ' ' + x.name)),
       el('b', { class: 'mono' }, fmtNum((x.v / sum) * 100, 1) + ' %'))));
+    this.emit('rendered:portfolio');
   },
 
   renderTransactions() {
@@ -694,10 +730,12 @@ const App = {
   },
 
   selectDetail(key) {
+    const previous = this.detailKey;
     this.detailKey = key;
     this.renderWatchlist();
     this.renderDetailHeader();
     this.loadDetailChart();
+    this.emit('detail:selected', key, previous);
   },
 
   renderDetailHeader() {

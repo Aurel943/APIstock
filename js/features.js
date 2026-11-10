@@ -62,13 +62,7 @@ Object.assign(App, {
 });
 
 // les variations du jour suivent chaque rendu du portefeuille
-(() => {
-  const orig = App.renderPortfolio;
-  App.renderPortfolio = function () {
-    orig.apply(this, arguments);
-    this.renderMovers(Portfolio.snapshot().rows);
-  };
-})();
+App.on('rendered:portfolio', function () { this.renderMovers(Portfolio.snapshot().rows); });
 
 /* ==================================================================== */
 /* FISCALITÉ                                                              */
@@ -257,14 +251,10 @@ Object.assign(App, {
 });
 
 // cartes « lentes » (fiscalité, exposition) : recalculées avec le reste de l'écran, pas à chaque cotation
-(() => {
-  const orig = App.renderAll;
-  App.renderAll = function () {
-    orig.apply(this, arguments);
-    this.renderTax();
-    if (this.renderExposure) this.renderExposure();
-  };
-})();
+App.on('rendered:all', function () {
+  this.renderTax();
+  if (this.renderExposure) this.renderExposure();
+});
 
 /* ==================================================================== */
 /* EXPOSITION RÉELLE & FRAIS                                              */
@@ -556,19 +546,14 @@ Object.assign(App, {
 
 // après un rafraîchissement des cours : mise à jour des cartes « lentes » (poids, taux de change),
 // au plus toutes les 30 s et jamais pendant une saisie dans l'une d'elles
-(() => {
-  const orig = App.refresh;
-  App.refresh = async function () {
-    const res = await orig.apply(this, arguments);
-    const busy = ['#exposureCard', '#taxCard'].some(s => { const c = $(s); return c && c.contains(document.activeElement) && document.activeElement !== document.body; });
-    if (!busy && (arguments[0] || Date.now() - (this._slowAt || 0) > 30000)) {
-      this._slowAt = Date.now();
-      this.renderExposure();
-      this.renderTax();
-    }
-    return res;
-  };
-})();
+App.on('refreshed', function (manual) {
+  const busy = ['#exposureCard', '#taxCard'].some(s => { const c = $(s); return c && c.contains(document.activeElement) && document.activeElement !== document.body; });
+  if (!busy && (manual || Date.now() - (this._slowAt || 0) > 30000)) {
+    this._slowAt = Date.now();
+    this.renderExposure();
+    this.renderTax();
+  }
+});
 
 /* ==================================================================== */
 /* SYNCHRONISATION ENTRE APPAREILS (chiffrée de bout en bout)             */
@@ -713,8 +698,7 @@ Object.assign(App, {
       Sync.setConf(null); this._syncKeys = null; this._syncErr = null; this.renderSync();
     });
     // chaque enregistrement local déclenche un envoi (regroupé, et seulement si quelque chose a changé)
-    const origSave = Store.save.bind(Store);
-    Store.save = () => { origSave(); if (!this._syncApplying && Sync.conf()) { clearTimeout(this._syncT); this._syncT = setTimeout(() => this.syncRun(), 3000); } };
+    this.on('data:saved', () => { if (!this._syncApplying && Sync.conf()) { clearTimeout(this._syncT); this._syncT = setTimeout(() => this.syncRun(), 3000); } });
     // récupération des changements des autres appareils : au retour sur l'onglet et toutes les 2 min
     document.addEventListener('visibilitychange', () => { if (!document.hidden && Date.now() - (this._syncAt || 0) > 20000) this.syncRun(); });
     setInterval(() => { if (!document.hidden) this.syncRun(); }, 120000);

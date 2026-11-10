@@ -16,6 +16,11 @@ Object.assign(App, {
   /* COMPTES                                                              */
   /* ================================================================== */
   renderAccountFilter() {
+    this._renderAccountFilter();
+    this.emit('rendered:accountFilter');
+  },
+
+  _renderAccountFilter() {
     const box = $('#accFilter');
     const accs = Store.state.accounts;
     box.classList.toggle('hidden', accs.length < 2);

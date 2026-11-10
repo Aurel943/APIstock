@@ -426,27 +426,14 @@ Object.assign(App, {
 /* ==================================================================== */
 /* Branchements                                                           */
 /* ==================================================================== */
-(() => {
-  const origAll = App.renderAll;
-  App.renderAll = function () {
-    origAll.apply(this, arguments);
-    this.renderCash();
-    this.renderPlans();
-    this.renderTodo(true);
-  };
-  const origPf = App.renderPortfolio;
-  App.renderPortfolio = function () {
-    origPf.apply(this, arguments);
-    this.renderTodo(); // seulement si la liste a changé
-  };
-  // après chaque rafraîchissement : dividendes et divisions des positions (au plus toutes les 6 h)
-  const origRefresh = App.refresh;
-  App.refresh = async function () {
-    const res = await origRefresh.apply(this, arguments);
-    this.loadEvents().catch(() => {});
-    return res;
-  };
-})();
+App.on('rendered:all', function () {
+  this.renderCash();
+  this.renderPlans();
+  this.renderTodo(true);
+});
+App.on('rendered:portfolio', function () { this.renderTodo(); }); // seulement si la liste a changé
+// après chaque rafraîchissement : dividendes et divisions des positions (au plus toutes les 6 h)
+App.on('refreshed', function () { this.loadEvents().catch(() => {}); });
 
 document.addEventListener('DOMContentLoaded', () => {
   App.bindPlans();

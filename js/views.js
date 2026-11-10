@@ -282,6 +282,7 @@ Object.assign(App, {
       el('td', {}, 'Total'), el('td'), el('td', { class: 'num' }, fmtMoney(total, cur)), el('td', { class: 'num' }, '100 %'),
       el('td', { class: 'num ' + (ok ? 'up' : 'down') }, fmtNum(tgtSum, 1) + ' %'), el('td', { colspan: 2, class: 'small ' + (ok ? 'muted' : 'down') }, ok ? '' : 'la cible doit faire 100 %')) : '');
     this.renderPlan(lines);
+    this.emit('rendered:invest');
   },
 
   renderPlan(lines) {
@@ -391,6 +392,7 @@ Object.assign(App, {
           } }, '🗑')));
     }));
     if (!list.length) $('#alertTable tbody').append(el('tr', {}, el('td', { colspan: 5, class: 'empty' }, 'Aucune alerte. Exemple : « CW8 · Cours ≤ 650 € » pour être prévenu d\'un point d\'entrée.')));
+    this.emit('rendered:alerts');
   },
 
   checkAlerts(key, q) {

@@ -111,6 +111,7 @@ const Store = {
     if (typeof Portfolio !== 'undefined') Portfolio.invalidate(); // données modifiées : instantanés à recalculer
     try { localStorage.setItem(STORE_KEY, JSON.stringify(this.state)); }
     catch (e) { toast('Impossible de sauvegarder localement : ' + e.message, 'error'); }
+    if (typeof App !== 'undefined' && App.emit) App.emit('data:saved');
   },
 
   key(symbol, mic) { return symbol.toUpperCase() + '@' + (mic || '').toUpperCase(); },
