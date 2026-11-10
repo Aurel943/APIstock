@@ -405,6 +405,7 @@ Object.assign(App, {
     const taxY = ctos.length ? Tax.yearly(ctos).out[year] : null;
     const peas = accs.filter(a => a.type === 'pea');
     const snap = Portfolio.snapshot(accId);
+    const T = taxConf();
     const m = (v, d = 2) => esc(fmtMoney(v, cur, d));
     const sm = v => esc(fmtSignedMoney(v, cur));
     const cls = v => (v > 0.005 ? 'up' : v < -0.005 ? 'down' : '');
@@ -454,12 +455,12 @@ ${row('Plus-values de cession de l\'année', sm(taxY.gross))}
 ${taxY.used > 0.005 ? row('Moins-values antérieures imputées', '−' + m(taxY.used)) : ''}
 ${row(taxY.loss ? 'Moins-value (case 3VH de la 2042 C)' : 'Plus-value imposable (case 3VG de la 2042 C)', m(taxY.loss || taxY.taxable))}
 ${row('Dividendes bruts (case 2DC ou 2TR)', m(taxY.dividends))}
-${row('Impôt estimé au prélèvement forfaitaire unique de 30 %', m((taxY.taxable + taxY.dividends) * 0.30))}
+${row(`Impôt estimé au prélèvement forfaitaire unique de ${fmtNum(T.pfu, 1)} % (${fmtNum(T.ir, 1)} % + ${fmtNum(T.social, 1)} % de prélèvements sociaux)`, m((taxY.taxable + taxY.dividends) * T.pfu / 100))}
 ${taxY.carryLeft > 0.005 ? row('Moins-values reportables (10 ans)', m(taxY.carryLeft)) : ''}
 </table></section>` : ''}
 
 ${peas.map(a => { const p = Tax.pea(a); return `<section><h2>${esc(a.name)} (PEA)</h2><table>
-${row('Date d\'ouverture', esc(fmtDate(p.open)))}${row('Versements ' + (p.manual ? '(saisis)' : p.tracked ? '(enregistrés)' : '(estimés)'), m(p.deposits, 0) + ' / ' + m(PEA_CAP, 0))}
+${row('Date d\'ouverture', esc(fmtDate(p.open)))}${row('Versements ' + (p.manual ? '(saisis)' : p.tracked ? '(enregistrés)' : '(estimés)'), m(p.deposits, 0) + ' / ' + m(T.peaCap, 0))}
 ${row('Cap des 5 ans', esc(p.five ? fmtDate(p.five) + (p.five <= todayISO() ? ' (atteint)' : '') : '—'))}</table></section>`; }).join('')}
 
 ${sales.length ? `<section><h2>Cessions</h2><table><tr><th>Date</th><th>Valeur</th><th class="num">Quantité</th><th class="num">Prix de cession net</th><th class="num">Prix de revient (PMP)</th><th class="num">+/- value</th></tr>
@@ -476,7 +477,7 @@ ${txs.map(t => { const i = Store.instrument(t.key) || {}; const c = i.currency |
 ${snap.rows.map(r => row(esc(Store.label(r.key)) + `<small>${esc(r.inst ? r.inst.name : '')}</small>`, esc(fmtQty(r.qty)), esc(fmtMoney(r.pru, r.currency, 3)), m(r.costBase), m(r.valueBase), `<span class="${cls(r.pnlBase)}">${sm(r.pnlBase)}</span>`)).join('')}
 <tr class="tot"><td colspan="3">Total</td><td class="num">${m(snap.totals.cost)}</td><td class="num">${m(snap.totals.value)}</td><td class="num ${cls(snap.totals.pnl)}">${sm(snap.totals.pnl)}</td></tr></table></section>
 
-<p class="note">Document indicatif établi à partir des opérations saisies dans APIstock. Montants en devises convertis au taux de change du jour de chaque opération ; positions et valeur actuelle au taux du jour d'édition. Les plus-values sont calculées au prix moyen pondéré d'acquisition, frais inclus. L'imprimé fiscal unique (IFU) de ton courtier et ta déclaration pré-remplie font foi.</p>
+<p class="note">Document indicatif établi à partir des opérations saisies dans APIstock. Montants en devises convertis au taux de change du jour de chaque opération ; positions et valeur actuelle au taux du jour d'édition. Les plus-values sont calculées au prix moyen pondéré d'acquisition, frais inclus. Taux fiscaux : ${esc(T.custom ? 'personnalisés (Réglages)' : 'revenus ' + T.year + ' — ' + T.source)}. L'imprimé fiscal unique (IFU) de ton courtier et ta déclaration pré-remplie font foi.</p>
 </body></html>`;
   },
 

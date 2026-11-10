@@ -343,7 +343,9 @@ table.data.corr td.corr-cell { min-width: 110px; }
 .acc-filter button { font-size: 13px; padding: 6px 14px; }
 .acc-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
 .acc-row { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1.2fr) 110px 60px 32px; gap: 10px; align-items: center; }
-.acc-row .pct { position: relative; }
+.acc-row .pct, .pct-field { position: relative; }
+.pct-field input { width: 100%; padding-right: 26px; text-align: right; }
+.pct-field::after { content: "%"; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
 .acc-row .pct input { padding-right: 26px; text-align: right; }
 .acc-row .pct::after { content: "%"; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: var(--muted); }
 .acc-new { grid-template-columns: minmax(0, 2fr) minmax(0, 1.2fr) auto; padding-top: 12px; border-top: 1px solid var(--border); }

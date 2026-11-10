@@ -1146,6 +1146,7 @@ const App = {
     $('#setRefresh').value = String(st.refreshSec);
     $('#setCredits').value = st.creditsPerMin;
     $('#setRiskFree').value = st.riskFree ?? 2;
+    if (this.renderTaxSettings) this.renderTaxSettings();
   },
 };
 

@@ -73,7 +73,6 @@ Object.assign(App, {
 /* ==================================================================== */
 /* FISCALITÉ                                                              */
 /* ==================================================================== */
-const PEA_CAP = 150000;
 
 function addYearsISO(iso, n) {
   const [y, m, d] = iso.split('-').map(Number);
@@ -190,6 +189,8 @@ Object.assign(App, {
     const today = todayISO();
     const parts = [];
 
+    const T = taxConf();
+    const PEA_CAP = T.peaCap;
     for (const a of peas) {
       const p = Tax.pea(a);
       const pct = Math.min(100, (p.deposits / PEA_CAP) * 100);
@@ -207,8 +208,8 @@ Object.assign(App, {
             el('span', { class: 'muted small' }, 'Cap des 5 ans'),
             el('b', { class: done ? 'up' : '' }, p.five ? (done ? '✔ Atteint depuis le ' + fmtDate(p.five) : fmtDate(p.five)) : '—'),
             el('span', { class: 'muted small' }, p.five ? (done
-              ? 'Retraits possibles sans clôture, gains exonérés d\'impôt (seuls les prélèvements sociaux de 17,2 % s\'appliquent).'
-              : 'Dans ' + fmtSpan(today, p.five) + '. Avant, un retrait clôture le PEA et les gains sont imposés à 30 %.') : '')),
+              ? `Retraits possibles sans clôture, gains exonérés d'impôt sur le revenu (seuls les prélèvements sociaux de ${fmtNum(T.social, 1)} % s'appliquent).`
+              : 'Dans ' + fmtSpan(today, p.five) + `. Avant, un retrait clôture le PEA et les gains sont imposés à ${fmtNum(T.pfu, 1)} % (prélèvement forfaitaire unique).`) : '')),
           el('div', { class: 'tax-stat tax-edit' },
             el('label', {}, el('span', { class: 'muted small' }, 'Date d\'ouverture'),
               el('input', { type: 'date', value: p.open, max: today, onchange: e => save({ openDate: e.target.value }) })),
@@ -229,7 +230,7 @@ Object.assign(App, {
         const names = ctos.map(a => a.name).join(', ');
         const select = el('select', { onchange: e => { this.taxYear = +e.target.value; this.renderTax(); } },
           ...withEvents.slice().reverse().map(y => el('option', { value: y, selected: y === this.taxYear }, 'Année ' + y)));
-        const flat = (Y.taxable + Y.dividends) * 0.30;
+        const flat = (Y.taxable + Y.dividends) * T.pfu / 100;
         parts.push(el('div', { class: 'tax-block' },
           el('div', { class: 'tax-head' }, el('h3', {}, 'Plus-values et dividendes', el('span', { class: 'muted small' }, ' · ' + names)), select),
           Y.sales.length ? el('div', { class: 'table-wrap' }, el('table', { class: 'data' },
@@ -244,11 +245,13 @@ Object.assign(App, {
             Y.used > 0.005 ? this.kpi('Moins-values antérieures imputées', '−' + fmtMoney(Y.used, cur), 'Reportées des 10 années précédentes') : null,
             this.kpi(Y.loss ? 'Moins-value à déclarer' : 'Plus-value imposable', fmtMoney(Y.loss || Y.taxable, cur), Y.loss ? 'Case 3VH de la 2042 C' : 'Case 3VG de la 2042 C (formulaire 2074 si besoin)', Y.loss ? 'down' : ''),
             this.kpi('Dividendes bruts', fmtMoney(Y.dividends, cur), 'Case 2DC (actions) ou 2TR (distributions d\'ETF), souvent déjà pré-remplis'),
-            this.kpi('Impôt estimé (flat tax 30 %)', fmtMoney(flat, cur), '12,8 % d\'impôt + 17,2 % de prélèvements sociaux, hors acomptes déjà prélevés'),
+            this.kpi(`Impôt estimé (flat tax ${fmtNum(T.pfu, 1)} %)`, fmtMoney(flat, cur), `${fmtNum(T.ir, 1)} % d'impôt + ${fmtNum(T.social, 1)} % de prélèvements sociaux, hors acomptes déjà prélevés`),
             Y.carryLeft > 0.005 ? this.kpi('Moins-values reportables', fmtMoney(Y.carryLeft, cur), 'Utilisables jusqu\'à 10 ans') : null),
           el('p', { class: 'muted small' }, 'Méthode du prix moyen pondéré d\'acquisition (frais inclus), calculée par compte. Les montants en devises sont convertis au taux de change du jour de chaque opération (clôture de la veille pour un week-end ; taux actuel si l\'historique n\'a pas pu être chargé).')));
       }
     }
+    parts.push(el('p', { class: 'muted small tax-source' }, T.custom ? 'Taux fiscaux personnalisés (Réglages → Fiscalité).'
+      : `Taux des revenus ${T.year} : ${T.source}. Modifiables dans Réglages → Fiscalité.`));
     $('#taxBody').replaceChildren(...parts);
   },
 });

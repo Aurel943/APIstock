@@ -1,11 +1,12 @@
 /* Comptes (PEA, CTO…), objectif patrimonial, calendrier des performances, mode discret, import/export CSV */
 'use strict';
 
+/* Types de compte ; le taux par défaut vient de la configuration fiscale (taxConf, js/store.js) */
 const ACCOUNT_TYPES = {
-  pea: { label: 'PEA', rate: 17.2, hint: 'PEA de plus de 5 ans : prélèvements sociaux' },
-  cto: { label: 'Compte-titres', rate: 30, hint: 'Flat tax' },
-  av: { label: 'Assurance-vie', rate: 24.7, hint: 'Contrat de plus de 8 ans, au-delà de l\'abattement' },
-  per: { label: 'PER', rate: 30, hint: 'À la sortie en capital (hors versements déduits)' },
+  pea: { label: 'PEA', get rate() { return taxRateFor('pea'); }, hint: 'PEA de plus de 5 ans : prélèvements sociaux' },
+  cto: { label: 'Compte-titres', get rate() { return taxRateFor('cto'); }, hint: 'Prélèvement forfaitaire unique (flat tax)' },
+  av: { label: 'Assurance-vie', get rate() { return taxRateFor('av'); }, hint: 'Contrat de plus de 8 ans, au-delà de l\'abattement' },
+  per: { label: 'PER', get rate() { return taxRateFor('per'); }, hint: 'À la sortie en capital (hors versements déduits)' },
   autre: { label: 'Autre', rate: 0, hint: '' },
 };
 const MONTHS_FR = ['Janv.', 'Févr.', 'Mars', 'Avr.', 'Mai', 'Juin', 'Juil.', 'Août', 'Sept.', 'Oct.', 'Nov.', 'Déc.'];
@@ -47,7 +48,39 @@ Object.assign(App, {
       el('td', { class: 'num ' + trendClass(r.net) }, r.rate > 0 ? fmtSignedMoney(r.net, cur) : '—', r.rate > 0 ? el('div', { class: 'small muted' }, 'impôt ' + fmtNum(r.rate, 1) + ' %') : null))));
   },
 
+  /* ================================================================== */
+  /* FISCALITÉ (Réglages)                                                 */
+  /* ================================================================== */
+  bindTaxSettings() {
+    if (!$('#taxSettings')) return;
+    const apply = () => {
+      if (Store.syncAccountRates()) this.renderAccountsSettings();
+      Store.save();
+      this.renderTaxSettings();
+      this.renderAll();
+    };
+    $$('#taxSettingsForm [data-tax]').forEach(i => i.addEventListener('change', () => {
+      const v = parseNum(i.value), k = i.dataset.tax;
+      const tax = Object.assign({}, Store.state.settings.tax);
+      if (isFinite(v) && v >= 0 && v !== TAX_DEFAULTS[k]) tax[k] = v; else delete tax[k];
+      Store.state.settings.tax = tax;
+      apply();
+    }));
+    $('#taxDefaults').addEventListener('click', () => { Store.state.settings.tax = {}; apply(); toast('Taux fiscaux par défaut rétablis', 'success', 2000); });
+    this.renderTaxSettings();
+  },
+
+  renderTaxSettings() {
+    if (!$('#taxSettings')) return;
+    const c = taxConf();
+    $$('#taxSettingsForm [data-tax]').forEach(i => { if (document.activeElement !== i) i.value = c[i.dataset.tax]; });
+    $('#taxSettingsInfo').textContent = `Taux utilisés pour l'impôt estimé, la carte Fiscalité et le rapport annuel. Valeurs par défaut : revenus ${TAX_DEFAULTS.year} (${TAX_DEFAULTS.source}). À vérifier après chaque loi de finances.`;
+    $('#taxSettingsSum').textContent = `Prélèvement forfaitaire unique : ${fmtNum(c.pfu, 1)} % · PEA de plus de 5 ans : ${fmtNum(taxRateFor('pea', c), 1)} % · assurance-vie de plus de 8 ans : ${fmtNum(taxRateFor('av', c), 1)} %`
+      + (c.custom ? ' · taux personnalisés' : '') + '. Les comptes restés sur le taux par défaut de leur type suivent ces valeurs.';
+  },
+
   bindAccounts() {
+    this.bindTaxSettings();
     $('#accAdd').addEventListener('click', () => {
       const type = $('#accNewType').value;
       const name = $('#accNewName').value.trim() || ACCOUNT_TYPES[type].label;
