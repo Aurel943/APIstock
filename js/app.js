@@ -348,8 +348,8 @@ const App = {
         el('td', { class: 'num' }, fmtMoney(r.pru, r.currency, 3)),
         el('td', { class: 'num' }, fmtMoney(r.costBase, cur), sameCcy ? null : el('div', { class: 'muted small' }, fmtMoney(r.cost, r.currency))),
         el('td', { class: 'num' }, fmtPct(r.weightCost, 1, false), el('div', { class: 'bar' }, el('span', { style: `width:${Math.min(100, r.weightCost || 0)}%` }))),
-        el('td', { class: 'num' }, q ? fmtMoney(r.price, r.currency, 3) : el('span', { class: 'muted' }, '—')),
-        el('td', { class: 'num' }, q ? el('span', { class: 'chip ' + trendClass(q.percentChange) }, fmtPct(q.percentChange)) : '—'),
+        el('td', { class: 'num' }, q ? el('span', this.flashAttrs('pf:' + r.key, r.price), fmtMoney(r.price, r.currency, 3)) : el('span', { class: 'muted' }, '—')),
+        el('td', { class: 'num' }, q ? el('span', { class: 'chip ' + trendClass(q.percentChange) }, fmtPct(q.percentChange)) : '—', this.daySpark(q, 64, 18)),
         el('td', { class: 'num' }, fmtMoney(r.valueBase, cur)),
         el('td', { class: 'num' }, fmtPct(r.weightValue, 1, false), el('div', { class: 'bar' }, el('span', { style: `width:${Math.min(100, r.weightValue || 0)}%` }))),
         el('td', { class: 'num ' + trendClass(r.pnl) }, fmtSignedMoney(r.pnlBase, cur), el('div', { class: 'small' }, fmtPct(r.pnlPct))),
@@ -629,9 +629,9 @@ const App = {
       const q = Api.cachedQuote(k);
       return el('tr', { class: k === this.detailKey ? 'selected' : '', onclick: () => this.selectDetail(k) },
         el('td', {}, el('span', { class: 'sym' }, Store.label(k)), el('span', { class: 'name', title: inst.name }, inst.name)),
-        el('td', { class: 'num' }, q ? fmtMoney(q.price, inst.currency, 3) : '—'),
+        el('td', { class: 'num' }, q ? el('span', this.flashAttrs('wl:' + k, q.price), fmtMoney(q.price, inst.currency, 3)) : '—'),
         el('td', { class: 'num ' + (q ? trendClass(q.change) : '') }, q ? (q.change > 0 ? '+' : '') + fmtNum(q.change, 3) : '—'),
-        el('td', { class: 'num' }, q ? el('span', { class: 'chip ' + trendClass(q.percentChange) }, fmtPct(q.percentChange)) : '—'),
+        el('td', { class: 'num' }, q ? el('span', { class: 'chip ' + trendClass(q.percentChange) }, fmtPct(q.percentChange)) : '—', this.daySpark(q, 64, 18)),
         el('td', { class: 'num muted' }, q ? fmtNum(q.low, 2) + ' – ' + fmtNum(q.high, 2) : '—'),
         el('td', { class: 'num' },
           el('button', { class: 'iconbtn', title: 'Ajouter un achat', onclick: e => { e.stopPropagation(); this.openTx(); this.setTxInstrument(k); } }, '+'),
@@ -665,7 +665,7 @@ const App = {
     $('#detailTitle').textContent = Store.label(k);
     $('#detailSub').textContent = `${inst.name} · ${inst.exchange || inst.mic} · ${inst.currency}`;
     $('#detailPrice').replaceChildren(...(q ? [
-      el('span', { class: 'big' }, fmtMoney(q.price, inst.currency, 3)),
+      el('span', this.flashAttrs('dt:' + k, q.price, 'big'), fmtMoney(q.price, inst.currency, 3)),
       el('span', { class: 'chip ' + trendClass(q.change) }, (q.change > 0 ? '+' : '') + fmtNum(q.change, 3) + ' (' + fmtPct(q.percentChange) + ')'),
       el('span', { class: 'muted small' }, (q.isOpen ? 'En direct · ' : 'Clôture · ') + q.datetime),
     ] : [el('span', { class: 'muted' }, 'Pas encore de cotation')]));

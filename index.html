@@ -59,6 +59,14 @@
       <div class="seg acc-filter hidden" id="accFilter"></div>
       <div class="kpis" id="kpis"></div>
 
+      <div class="card hidden" id="moversCard">
+        <div class="card-head"><h2>Variations du jour</h2><span class="muted small" id="moversInfo"></span></div>
+        <div class="movers">
+          <div><h3 class="movers-title up">En hausse</h3><ul class="movers-list" id="moversUp"></ul></div>
+          <div><h3 class="movers-title down">En baisse</h3><ul class="movers-list" id="moversDown"></ul></div>
+        </div>
+      </div>
+
       <div class="card hidden" id="accSummary">
         <div class="card-head"><h2>Mes comptes</h2><span class="muted small">Cliquer sur un compte pour le filtrer</span></div>
         <div class="table-wrap">
@@ -124,6 +132,22 @@
         </div>
         <div class="chart-box wide"><canvas id="historyChart"></canvas></div>
         <div id="calendar"></div>
+      </div>
+
+      <div class="card hidden" id="exposureCard">
+        <div class="card-head">
+          <h2>Exposition réelle &amp; frais</h2>
+          <span class="muted small">Ce que contiennent vraiment tes ETF (pondéré par leur valeur)</span>
+        </div>
+        <div id="exposureBody"></div>
+      </div>
+
+      <div class="card hidden" id="taxCard">
+        <div class="card-head">
+          <h2>Fiscalité</h2>
+          <span class="muted small">Estimations indicatives : ta déclaration pré-remplie et l'IFU de ton courtier font foi</span>
+        </div>
+        <div id="taxBody"></div>
       </div>
 
       <div class="card">
@@ -525,6 +549,31 @@
           </form>
         </div>
 
+        <div class="card" id="syncCard">
+          <div class="card-head"><h2>Synchronisation entre appareils</h2><span class="pill" id="syncState">Désactivée</span></div>
+          <div class="stack">
+            <p class="muted">Retrouve tes opérations, comptes, liste de suivi et réglages sur ton téléphone et ton ordinateur. Les données sont <b>chiffrées dans ton navigateur</b> avec ton code avant d'être envoyées : sans le code, personne ne peut les lire, pas même le relais qui les stocke.</p>
+            <div id="syncOff">
+              <label>Code de synchronisation
+                <div class="inline">
+                  <input type="text" id="syncCode" autocomplete="off" spellcheck="false" placeholder="Au moins 12 caractères" minlength="12">
+                  <button type="button" class="btn small" id="syncGen">Générer</button>
+                </div>
+                <span class="muted small">Sur ton 1er appareil, clique sur « Générer », note le code, puis active. Sur les autres, saisis le même code. Garde-le précieusement : il ne peut pas être récupéré.</span>
+              </label>
+              <div class="actions"><button type="button" class="btn primary" id="syncOn">Activer la synchronisation</button></div>
+            </div>
+            <div id="syncOnBox" class="hidden">
+              <p class="small">Code : <code id="syncCodeShow" class="mono"></code> <button type="button" class="btn small" id="syncReveal">Afficher</button></p>
+              <p class="muted small" id="syncInfo"></p>
+              <div class="actions">
+                <button type="button" class="btn" id="syncNow">Synchroniser maintenant</button>
+                <button type="button" class="btn danger" id="syncOffBtn">Désactiver sur cet appareil</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="card">
           <div class="card-head"><h2>Sauvegarde</h2></div>
           <div class="stack">
@@ -620,5 +669,6 @@
   <script src="js/compare.js"></script>
   <script src="js/extras.js"></script>
   <script src="js/mobile.js"></script>
+  <script src="js/features.js"></script>
 </body>
 </html>

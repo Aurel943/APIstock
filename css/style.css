@@ -585,3 +585,59 @@ button, a, .pos-card { -webkit-tap-highlight-color: transparent; }
 .req-usage .bar { height: 6px; }
 .req-usage .bar span.warn { background: var(--down); }
 .req-global { margin-top: 8px; padding-top: 10px; border-top: 1px solid var(--border); }
+
+/* ---- Temps réel : flash des prix, mini-graphiques, variations du jour ---- */
+.flash { border-radius: 4px; animation: 1.2s ease-out both; }
+.flash-up { animation-name: flash-up; }
+.flash-down { animation-name: flash-down; }
+@keyframes flash-up { 0% { background: rgba(16, 185, 129, .45); color: var(--up); } 100% { background: transparent; } }
+@keyframes flash-down { 0% { background: rgba(239, 68, 68, .45); color: var(--down); } 100% { background: transparent; } }
+@media (prefers-reduced-motion: reduce) { .flash { animation: none; } }
+.day-spark { display: inline-block; vertical-align: middle; }
+td.num .day-spark { display: block; margin: 4px 0 0 auto; }
+.pos-day { display: flex; align-items: center; gap: 6px; }
+.movers { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.movers-title { font-size: 13px; font-weight: 600; margin: 0 0 6px; }
+.movers-title.up { color: var(--up); }
+.movers-title.down { color: var(--down); }
+.movers-list { list-style: none; margin: 0; padding: 0; }
+.movers-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; align-items: center; gap: 10px; padding: 7px 0; border-top: 1px solid var(--border); cursor: pointer; }
+.movers-list li:first-child { border-top: 0; }
+.movers-list li .sym { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.movers-list li.muted { display: block; cursor: default; }
+@media (max-width: 700px) {
+  .movers { grid-template-columns: 1fr; gap: 8px; }
+  .movers-list li { grid-template-columns: minmax(0, 1fr) auto auto; }
+  .movers-list li .day-spark { display: none; }
+}
+
+/* ---- Fiscalité ---- */
+.tax-block + .tax-block { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
+.tax-block h3 { font-size: 15px; margin: 0 0 10px; }
+.tax-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.tax-head h3 { margin: 0; }
+.tax-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 10px 0; }
+.tax-stat { display: flex; flex-direction: column; gap: 4px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; }
+.tax-stat .bar { height: 6px; }
+.tax-stat .bar span.warn, .bar span.warn { background: var(--down); }
+.tax-edit label { display: flex; flex-direction: column; gap: 3px; }
+.tax-edit input { width: 100%; }
+.tax-head select { width: auto; min-width: 140px; }
+
+/* ---- Exposition réelle & frais ---- */
+.expo-notes { margin: 0 0 14px; padding: 10px 14px 10px 30px; border-radius: 10px; background: rgba(217, 119, 6, .1); color: var(--text); }
+.expo-notes li { margin: 3px 0; }
+.expo-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+.expo-col h3 { font-size: 14px; margin: 0 0 8px; }
+.expo-bars { list-style: none; margin: 0; padding: 0; }
+.expo-bars li { display: grid; grid-template-columns: minmax(0, 9em) 1fr 4.2em; align-items: center; gap: 8px; padding: 3px 0; font-size: 13px; }
+.expo-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.expo-bar { height: 8px; background: var(--surface-2); border-radius: 4px; overflow: hidden; }
+.expo-bar > span { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
+.expo-bars b { text-align: right; font-weight: 600; }
+.expo-fees { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin: 16px 0 10px; }
+.expo-fees .kpi { min-width: 260px; }
+.expo-select { display: block; width: 100%; max-width: 300px; margin-top: 6px; }
+.ter-input { width: 80px; text-align: right; }
+@media (max-width: 900px) { .expo-grid { grid-template-columns: 1fr; gap: 14px; } }
+#syncCodeShow { padding: 2px 6px; border-radius: 6px; background: var(--surface-2); letter-spacing: .03em; }
