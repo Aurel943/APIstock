@@ -8,7 +8,7 @@
  *   4. Copie l'URL du worker (https://apistock-yahoo.<ton-compte>.workers.dev)
  *      dans APIstock → Réglages → « Relais Yahoo Finance »
  *
- * Appels Yahoo autorisés, en lecture seule : graphique/cotation (avec dividendes et divisions), recherche, et actualités en français (flux RSS Yahoo Finance France et Google Actualités).
+ * Appels Yahoo autorisés, en lecture seule : graphique/cotation (avec dividendes et divisions), recherche, actualités en français (flux RSS Yahoo Finance France et Google Actualités) et image des articles.
  * Pour réserver le relais à ton site, liste ses adresses ci-dessous.
  *
  * Compteur global (optionnel) : nombre de requêtes reçues aujourd'hui par le worker,
@@ -140,6 +140,32 @@ async function handleNews(q, cors) {
   const params = { q: q.get('q') || '', s: q.get('s') || '', en: q.get('en') || '' };
   if (!params.q.trim() && !params.s.trim()) return json({ error: 'requête invalide' }, 400, cors);
   return json(await newsFor(params), 200, Object.assign({ 'Cache-Control': 'public, max-age=600' }, cors));
+}
+
+/* ---- Image d'un article (balise og:image de sa page), pour les vignettes des actualités ---- */
+const GENERIC_IMG = /default[-_]?logo|yahoo_default|\/logo[^/]*\.(png|svg)|googleusercontent\.com\/[^/]*=s0|gstatic\.com|favicon/i;
+
+async function articleImage(url) {
+  const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; APIstock/1.0)', Accept: 'text/html', 'Accept-Language': 'fr-FR,fr;q=0.9' }, redirect: 'follow' });
+  if (!r.ok || !r.body || !/html/i.test(r.headers.get('content-type') || '')) return null;
+  // lecture progressive : on s'arrête dès que la balise est trouvée (au plus 400 Ko)
+  const reader = r.body.getReader();
+  const dec = new TextDecoder();
+  let html = '', found = null;
+  while (html.length < 400000) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    html += dec.decode(value, { stream: true });
+    const metas = html.match(/<meta[^>]+(?:property|name)=["'](?:og:image|twitter:image)(?::src)?["'][^>]*>/gi) || [];
+    for (const m of metas) {
+      const c = (m.match(/content=["']([^"']+)["']/i) || [])[1];
+      if (c && !GENERIC_IMG.test(c)) { found = c.replace(/&amp;/g, '&'); break; }
+    }
+    if (found || /<\/head>/i.test(html)) break;
+  }
+  try { reader.cancel(); } catch (e) { /* ignore */ }
+  if (!found) return null;
+  try { const u = new URL(found, url); return u.protocol === 'https:' ? u.toString() : null; } catch (e) { return null; }
 }
 
 /* ---- Alertes push (Web Push chiffré, RFC 8291 + VAPID RFC 8292) ---- */
@@ -387,6 +413,22 @@ export default {
     if (request.method !== 'GET') return json({ error: 'method not allowed' }, 405, cors);
 
     if (q.get('type') === 'ping') return json({ ok: true }, 200, cors);
+    if (q.get('type') === 'ogimage') {
+      // redirige vers l'image de l'article (mise en cache une journée), 404 s'il n'en a pas
+      let target;
+      try { target = new URL(q.get('url') || ''); } catch (e) { return json({ error: 'requête invalide' }, 400, cors); }
+      if (target.protocol !== 'https:') return json({ error: 'requête invalide' }, 400, cors);
+      const cache = caches.default;
+      const ck = new Request('https://apistock-cache/ogimage?u=' + encodeURIComponent(target.toString()));
+      const hit = await cache.match(ck);
+      if (hit) return hit;
+      let img = null;
+      try { img = await articleImage(target.toString()); } catch (e) { img = null; }
+      const res = img ? new Response(null, { status: 302, headers: Object.assign({ Location: img, 'Cache-Control': 'public, max-age=86400' }, cors) })
+        : new Response('', { status: 404, headers: Object.assign({ 'Cache-Control': 'public, max-age=86400' }, cors) });
+      await cache.put(ck, res.clone());
+      return res;
+    }
     if (q.get('type') === 'news') {
       try { return await handleNews(q, cors); }
       catch (e) { return json({ error: 'actualités indisponibles : ' + e.message }, 502, cors); }

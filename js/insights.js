@@ -9,6 +9,8 @@ const NEWS_TOPIC = { // [recherche en français, recherche en anglais, symboles 
   europe: ['bourses européennes', 'Stoxx 600', '^STOXX'], es50: ['Euro Stoxx 50', 'Euro Stoxx 50', '^STOXX50E'], cac: ['CAC 40', 'CAC 40', '^FCHI'],
   japan: ['bourse de Tokyo Nikkei', 'Nikkei', '^N225'], gold: ['cours de l\'or', 'gold price', 'GC=F'], crypto: ['Bitcoin', 'Bitcoin', 'BTC-EUR'],
 };
+/* Repli quand aucune source française ne parle d'une valeur : actualité générale de Paris et Wall Street */
+const NEWS_GENERAL = { fr: 'Bourse de Paris CAC 40', en: 'stock market', s: '^FCHI,^GSPC', label: 'Marchés' };
 const NEWS_COLORS = ['#10b981', '#6366f1', '#f59e0b', '#ec4899', '#06b6d4', '#8b5cf6', '#ef4444', '#84cc16', '#f97316', '#3b82f6'];
 
 Object.assign(Api, {
@@ -225,12 +227,35 @@ Object.assign(App, {
     return { fr: n, en: prof === 'stock' ? (ysym || inst.symbol) : n, s: ysym, label: n };
   },
 
+  /** Actualités en français d'un sujet ; à défaut, actualité générale des marchés en français */
+  async newsFr(topic) {
+    const items = await Api.news(topic);
+    if (items.some(n => n.lang === 'fr') || topic === NEWS_GENERAL) return { items, general: false };
+    try {
+      const gen = await Api.news(NEWS_GENERAL);
+      if (gen.some(n => n.lang === 'fr')) return { items: gen, general: true };
+    } catch (e) { /* on garde les articles en anglais */ }
+    return { items, general: false };
+  },
+
   newsItem(n, tag) {
     const pub = n.publisher || '?';
     let h = 0;
     for (const ch of pub) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    // vignette : image de l'article (via le relais) posée sur la pastille de la source, qui reste visible s'il n'y en a pas
+    let img = null;
+    const base = Api.proxyUrl();
+    if (base && !/news\.google\./.test(n.link)) {
+      const u = new URL(base, location.href);
+      u.searchParams.set('type', 'ogimage');
+      u.searchParams.set('url', n.link);
+      img = el('img', { src: u.toString(), alt: '', loading: 'lazy', decoding: 'async', referrerpolicy: 'no-referrer', width: 96, height: 64 });
+      img.addEventListener('error', () => img.remove());
+      img.addEventListener('load', () => { if (img.naturalWidth < 40) img.remove(); });
+    }
     return el('li', { class: 'news-item' },
-      el('span', { class: 'news-badge', style: 'background:' + NEWS_COLORS[h % NEWS_COLORS.length], 'aria-hidden': 'true' }, pub.replace(/^(le|la|les|l')\s*/i, '').charAt(0).toUpperCase()),
+      el('a', { class: 'news-thumb', href: n.link, target: '_blank', rel: 'noopener noreferrer', tabindex: '-1', 'aria-hidden': 'true',
+        style: 'background:' + NEWS_COLORS[h % NEWS_COLORS.length] }, pub.replace(/^(le|la|les|l')\s*/i, '').charAt(0).toUpperCase(), img),
       el('div', { class: 'news-body' },
         el('a', { href: n.link, target: '_blank', rel: 'noopener noreferrer' }, n.title),
         el('div', { class: 'news-meta' }, [n.publisher, n.time ? fmtAgo(n.time) : '', tag].filter(Boolean).join(' · '))));
@@ -258,16 +283,17 @@ Object.assign(App, {
     try {
       for (const { q, tag } of queries.values()) {
         try {
-          for (const n of await Api.news(q)) {
+          const res = await this.newsFr(q);
+          for (const n of res.items) {
             const k = n.title.toLowerCase().slice(0, 60); // même article repris par plusieurs recherches
-            if (!all.has(k)) all.set(k, Object.assign({ tag }, n));
+            if (!all.has(k)) all.set(k, Object.assign({ tag: res.general ? NEWS_GENERAL.label : tag }, n));
           }
         } catch (e) { err = e; }
       }
     } finally { this._newsLoading = false; this.newsAt = Date.now(); }
     const list = Array.from(all.values()).sort((a, b) => b.time - a.time).slice(0, 10);
     $('#newsCard').classList.toggle('hidden', !list.length && !err);
-    $('#newsSource').textContent = list.some(n => n.lang === 'fr') ? 'Presse financière française' : 'En anglais : redéploie le worker Cloudflare pour les avoir en français';
+    $('#newsSource').textContent = !list.length || list.some(n => n.lang === 'fr') ? 'Presse financière française' : 'En anglais : redéploie le worker Cloudflare pour les avoir en français';
     $('#newsList').replaceChildren(...(list.length ? list.map(n => this.newsItem(n, queries.size > 1 ? n.tag : null)) : [el('li', { class: 'muted small' }, err ? err.message : 'Aucune actualité.')]));
   },
 
@@ -278,9 +304,13 @@ Object.assign(App, {
     const q = this.newsQuery(key);
     if (!q || !Api.hasProxy()) return;
     try {
-      const items = (await Api.news(q)).slice().sort((a, b) => b.time - a.time).slice(0, 6);
+      const res = await this.newsFr(q);
+      const items = res.items.slice().sort((a, b) => b.time - a.time).slice(0, 6);
       if (key !== this.detailKey) return;
-      box.replaceChildren(...(items.length ? [el('h3', {}, 'Actualités · ' + q.label + (items[0].lang === 'en' ? ' (en anglais)' : '')), this.newsList(items)] : []));
+      const title = res.general ? 'Actualités des marchés' : 'Actualités · ' + q.label + (items.length && items[0].lang === 'en' ? ' (en anglais)' : '');
+      box.replaceChildren(...(items.length ? [el('h3', {}, title),
+        res.general ? el('p', { class: 'muted small' }, `Rien en français sur ${q.label} pour l'instant : voici l'actualité générale de la Bourse de Paris et de Wall Street.`) : null,
+        this.newsList(items)].filter(Boolean) : []));
     } catch (e) {
       if (key === this.detailKey) box.replaceChildren(el('p', { class: 'muted small' }, e.message));
     }
