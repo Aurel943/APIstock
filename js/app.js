@@ -33,6 +33,7 @@ const App = {
     this.bindPrivacy();
     this.bindCsv();
     this.bindMobile();
+    this.bindInteractionGuard();
     if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
     Api.onUsage((used, limit) => {
       const c = $('#credits');
@@ -83,6 +84,7 @@ const App = {
     $$('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === view));
     $$('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + view));
     history.replaceState(null, '', '#' + view);
+    if (view === 'portfolio' && this._portfolioStale) { this._portfolioStale = false; this.renderPortfolio(); }
     if (view === 'markets' && !this.detailKey && Store.state.watchlist.length) this.selectDetail(Store.state.watchlist[0]);
     if (view === 'simulation') this.renderProjection();
     if (view === 'world') { this.renderWorld(); this.loadWorldQuotes(); }
@@ -93,9 +95,60 @@ const App = {
   },
 
   schedule() {
-    clearInterval(this.timer);
+    clearTimeout(this.timer);
     const sec = parseInt(Store.state.settings.refreshSec, 10);
-    if (sec > 0) this.timer = setInterval(() => { if (!document.hidden) this.refresh(); }, sec * 1000);
+    if (!(sec > 0)) return;
+    // on attend la fin d'un rafraîchissement avant de programmer le suivant (pas d'empilement)
+    const tick = async () => {
+      if (!document.hidden) { try { await this.refresh(); } catch (e) { /* déjà signalé */ } }
+      if (parseInt(Store.state.settings.refreshSec, 10) === sec) this.timer = setTimeout(tick, sec * 1000);
+    };
+    this.timer = setTimeout(tick, sec * 1000);
+  },
+
+  /** Rafraîchissement rapide (< 30 s) : seul Yahoo suit ce rythme, Twelve Data reste limité par ses crédits */
+  fastMode() { const s = parseInt(Store.state.settings.refreshSec, 10); return s > 0 && s < 30; },
+
+  /** Faut-il interroger cet instrument à ce tour-ci ? */
+  dueForRefresh(key, manual) {
+    if (manual || !this.fastMode()) return true;
+    const age = Api.quoteAge(key);
+    // Twelve Data : 8 crédits/min sur le forfait gratuit → au plus une fois par minute
+    if (Api.provider(key) !== 'yahoo') return age >= 60000;
+    // marché fermé : le cours ne bouge plus, inutile de l'interroger chaque seconde
+    const inst = Store.instrument(key);
+    const ex = inst && inst.mic ? Markets.forMic(inst.mic) : null;
+    if (ex && Markets.status(ex).state !== 'open') return age >= 120000;
+    return true;
+  },
+
+  /** Rendu des cotations groupé sur une image, et reporté si l'utilisateur est en train de cliquer ou sélectionner */
+  renderQuotes() {
+    if (this._rq) return;
+    this._rq = requestAnimationFrame(() => {
+      this._rq = 0;
+      const sel = window.getSelection && window.getSelection();
+      if (this.pointerDown || (sel && !sel.isCollapsed && sel.toString())) { this._rqPending = true; return; }
+      this._rqPending = false;
+      if (this.view === 'portfolio') this.renderPortfolio();
+      else this._portfolioStale = true;
+      this.renderWatchlist();
+      this.renderDetailHeader();
+      this.renderMarketState();
+      if (this.view === 'invest') { this.renderInvest(); this.renderAlerts(); }
+    });
+  },
+
+  bindInteractionGuard() {
+    // un tableau reconstruit entre l'appui et le relâchement ferait perdre le clic
+    document.addEventListener('pointerdown', () => { this.pointerDown = true; }, true);
+    const up = () => { this.pointerDown = false; if (this._rqPending) setTimeout(() => this.renderQuotes(), 50); };
+    document.addEventListener('pointerup', up, true);
+    document.addEventListener('pointercancel', up, true);
+    document.addEventListener('selectionchange', () => {
+      const sel = window.getSelection();
+      if (this._rqPending && sel && sel.isCollapsed) this.renderQuotes();
+    });
   },
 
   renderAll() {
@@ -123,41 +176,59 @@ const App = {
     if (this.refreshing) return;
     const keys = Store.trackedKeys();
     if (!keys.length) { if (manual) toast('Rien à rafraîchir : ajoute un ETF à ton portefeuille ou à ta liste de suivi.'); return; }
+    const fast = !manual && this.fastMode();
     this.refreshing = true;
-    $('#refreshBtn').classList.add('spin');
+    if (!fast) $('#refreshBtn').classList.add('spin'); // pas d'icône qui tourne en permanence en mode rapide
     // les positions d'abord, puis la watchlist ; les plus anciennes en premier
     const pf = new Set(Store.state.transactions.map(t => t.key));
     keys.sort((a, b) => (pf.has(b) - pf.has(a)) || (Api.quoteAge(b) - Api.quoteAge(a)));
-    let errors = 0, lastErr = null;
+    const due = keys.filter(k => this.dueForRefresh(k, manual));
+    let errors = 0, lastErr = null, changed = !fast;
     try {
       const currencies = new Set();
-      for (const k of keys) {
+      // Yahoo en parallèle (par petits groupes) pour tenir la seconde ; Twelve Data reste séquentiel (file de crédits)
+      const yahoo = due.filter(k => Api.provider(k) === 'yahoo');
+      let twelve = due.filter(k => Api.provider(k) !== 'yahoo');
+      // en mode rapide, jamais d'attente de crédits : au plus un appel Twelve Data par tour, et seulement s'il en reste
+      if (fast) twelve = Api.freeSlots() > 1 ? twelve.slice(0, 1) : [];
+      const one = async k => {
         try {
+          const prev = Api.cachedQuote(k);
           const q = await Api.quote(k);
           if (q.currency) currencies.add(q.currency);
           this.checkAlerts(k, q);
-          this.renderPortfolio();
-          this.renderWatchlist();
-          if (k === this.detailKey) this.renderDetailHeader();
+          // on ne redessine que si le cours a réellement bougé (évite de reconstruire l'écran pour rien chaque seconde)
+          if (!prev || prev.price !== q.price || prev.percentChange !== q.percentChange || prev.isOpen !== q.isOpen || prev.datetime !== q.datetime) {
+            changed = true;
+            this.renderQuotes();
+          }
         } catch (e) {
           errors++; lastErr = e;
-          if (e.code === 401) break; // clé invalide : inutile d'insister
+          if (e.code === 401) throw e; // clé invalide : inutile d'insister
         }
-      }
+      };
+      try { for (let i = 0; i < yahoo.length; i += 4) await Promise.all(yahoo.slice(i, i + 4).map(one)); } catch (e) { /* déjà compté */ }
+      try { for (const k of twelve) await one(k); } catch (e) { /* clé invalide */ }
       for (const k of keys) { const i = Store.instrument(k); if (i && i.currency) currencies.add(i.currency); }
       for (const c of currencies) { try { await Api.fxRate(c); } catch (e) { errors++; lastErr = e; } }
       this.lastRefresh = Date.now();
-      $('#lastUpdate').textContent = 'Mis à jour à ' + fmtTime(this.lastRefresh);
+      if (due.length) $('#lastUpdate').textContent = 'Mis à jour à ' + fmtTime(this.lastRefresh);
     } finally {
       this.refreshing = false;
       $('#refreshBtn').classList.remove('spin');
-      this.renderPortfolio();
-      this.renderWatchlist();
-      this.renderMarketState();
-      if (this.view === 'invest') { this.renderInvest(); this.renderAlerts(); }
+      if (changed) this.renderQuotes();
     }
-    if (errors && lastErr) toast(lastErr.message, 'error', 6000);
-    else if (manual) toast('Cours mis à jour', 'success', 2000);
+    if (errors && lastErr) {
+      // pas de pluie de messages : en automatique, une même erreur n'est signalée qu'une fois par minute
+      const now = Date.now();
+      if (manual || lastErr.message !== this._lastErrMsg || now - (this._lastErrAt || 0) > 60000) {
+        this._lastErrMsg = lastErr.message; this._lastErrAt = now;
+        toast(lastErr.message, 'error', 6000);
+      }
+    } else {
+      this._lastErrMsg = '';
+      if (manual) toast('Cours mis à jour', 'success', 2000);
+    }
   },
 
   /* ------------------------------------------------------------------ */

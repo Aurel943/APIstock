@@ -58,7 +58,7 @@ export default {
     try {
       const r = await fetch(upstream, {
         headers: { 'User-Agent': 'Mozilla/5.0 (compatible; APIstock/1.0)', Accept: 'application/json' },
-        cf: { cacheTtl: q.get('type') === 'search' ? 86400 : 15, cacheEverything: true },
+        cf: { cacheTtl: q.get('type') === 'search' ? 86400 : 1, cacheEverything: true }, // 1 s : compatible avec le rafraîchissement chaque seconde
       });
       return new Response(await r.text(), { status: r.status, headers: Object.assign({ 'Content-Type': 'application/json; charset=utf-8' }, cors) });
     } catch (e) {
