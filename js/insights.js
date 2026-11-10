@@ -2,26 +2,33 @@
 'use strict';
 
 const RISK_BENCH = { ysym: 'IWDA.AS', name: 'MSCI World (iShares IWDA, en €)' };
-const NEWS_TOPIC = { world: 'MSCI World', allworld: 'FTSE All-World', sp500: 'S&P 500', ndx: 'Nasdaq 100', em: 'emerging markets stocks',
-  europe: 'Stoxx 600', es50: 'Euro Stoxx 50', cac: 'CAC 40', japan: 'Nikkei', gold: 'gold price', crypto: 'Bitcoin' };
+/* Sujets d'actualité par type d'ETF : recherche en français (Google Actualités) et en anglais (Yahoo, en secours) */
+const NEWS_TOPIC = {
+  world: ['MSCI World', 'MSCI World'], allworld: ['ETF monde bourse', 'FTSE All-World'], sp500: ['S&P 500', 'S&P 500'], ndx: ['Nasdaq', 'Nasdaq 100'],
+  em: ['marchés émergents bourse', 'emerging markets stocks'], europe: ['bourses européennes', 'Stoxx 600'], es50: ['Euro Stoxx 50', 'Euro Stoxx 50'],
+  cac: ['CAC 40', 'CAC 40'], japan: ['bourse de Tokyo Nikkei', 'Nikkei'], gold: ['cours de l\'or', 'gold price'], crypto: ['Bitcoin', 'Bitcoin'],
+};
+const NEWS_COLORS = ['#10b981', '#6366f1', '#f59e0b', '#ec4899', '#06b6d4', '#8b5cf6', '#ef4444', '#84cc16', '#f97316', '#3b82f6'];
 
 Object.assign(Api, {
   newsCache: {},
-  /** Actualités Yahoo pour une recherche (mises en cache 15 min) */
-  async news(q) {
-    const c = this.newsCache[q];
+  /** Actualités (en français via Google Actualités, sinon Yahoo en anglais), mises en cache 15 min */
+  async news(topic) {
+    const q = topic.fr, ck = q + '|' + topic.en;
+    const c = this.newsCache[ck];
     if (c && Date.now() - c.ts < 15 * 60000) return c.items;
     let json;
-    try { json = await this.yahoo({ type: 'news', q }); }
+    try { json = await this.yahoo({ type: 'news', q, en: topic.en }); }
     catch (e) {
       if (/invalide/.test(e.message)) throw new ApiError('Le relais en ligne ne gère pas encore les actualités : redéploie le worker Cloudflare (voir le README).', 0);
       throw e;
     }
-    const items = (json.news || []).filter(n => n.title && n.link).map(n => ({
-      id: n.uuid || n.link, title: n.title, publisher: n.publisher || '', link: n.link, time: (n.providerPublishTime || 0) * 1000,
-      thumb: n.thumbnail && n.thumbnail.resolutions ? (n.thumbnail.resolutions.find(r => r.width <= 200) || n.thumbnail.resolutions[0] || {}).url : '',
+    // ancien relais : réponse Yahoo brute, sans champ « lang »
+    const lang = json.lang || 'en';
+    const items = (json.news || []).filter(n => n.title && /^https:\/\//.test(n.link || '')).map(n => ({
+      id: n.uuid || n.link, title: n.title, publisher: n.publisher || '', link: n.link, time: (n.providerPublishTime || 0) * 1000, lang,
     }));
-    this.newsCache[q] = { ts: Date.now(), items };
+    this.newsCache[ck] = { ts: Date.now(), items };
     return items;
   },
 });
@@ -204,22 +211,32 @@ Object.assign(App, {
   /* ================================================================== */
   /* ACTUALITÉS                                                           */
   /* ================================================================== */
+  /** Sujet de recherche d'actualités d'un instrument : { fr, en, label } */
   newsQuery(key) {
     const inst = Store.instrument(key);
     if (!inst) return null;
-    if (!inst.mic && inst.ysymbol) return inst.ysymbol; // indices, matières premières, crypto
+    const clean = n => (n || '').replace(/\(.*?\)/g, '').replace(/\b(UCITS|ETF|Acc|Dist|EUR|USD|Inc|Corp|Corporation|Ltd|plc|S\.?A|SE|N\.?V|AG|Class [A-C])\b\.?/gi, '').replace(/[,.]+$/, '').replace(/\s+/g, ' ').trim();
+    if (!inst.mic && inst.ysymbol) { const n = clean(inst.name) || inst.ysymbol; return { fr: n, en: inst.ysymbol, label: n }; } // indices, matières premières, crypto
     const prof = typeof Expo !== 'undefined' ? Expo.of(key).profile : 'none';
-    if (NEWS_TOPIC[prof]) return NEWS_TOPIC[prof];
-    if (prof === 'stock') return yahooSymbolFor(inst) || inst.symbol;
-    return (inst.name || '').replace(/\b(UCITS|ETF|Acc|Dist|EUR|USD|C|D|\(.*?\))\b/gi, '').replace(/\s+/g, ' ').trim() || inst.symbol;
+    if (NEWS_TOPIC[prof]) return { fr: NEWS_TOPIC[prof][0], en: NEWS_TOPIC[prof][1], label: NEWS_TOPIC[prof][0] };
+    const n = clean(inst.name) || inst.symbol;
+    return { fr: n, en: prof === 'stock' ? (yahooSymbolFor(inst) || inst.symbol) : n, label: n };
   },
 
   newsItem(n, tag) {
+    const pub = n.publisher || '?';
+    let h = 0;
+    for (const ch of pub) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
     return el('li', { class: 'news-item' },
-      n.thumb ? el('img', { src: n.thumb, alt: '', loading: 'lazy', referrerpolicy: 'no-referrer' }) : el('span', { class: 'news-ph' }, '📰'),
-      el('div', {},
+      el('span', { class: 'news-badge', style: 'background:' + NEWS_COLORS[h % NEWS_COLORS.length], 'aria-hidden': 'true' }, pub.replace(/^(le|la|les|l')\s*/i, '').charAt(0).toUpperCase()),
+      el('div', { class: 'news-body' },
         el('a', { href: n.link, target: '_blank', rel: 'noopener noreferrer' }, n.title),
-        el('div', { class: 'muted small' }, [n.publisher, fmtAgo(n.time), tag].filter(Boolean).join(' · '))));
+        el('div', { class: 'news-meta' }, [n.publisher, n.time ? fmtAgo(n.time) : '', tag].filter(Boolean).join(' · '))));
+  },
+
+  newsList(items, tag) {
+    // styles de base en ligne : lisible même si l'ancienne feuille de style est encore en cache
+    return el('ul', { class: 'news-list', style: 'list-style:none;margin:0;padding:0' }, ...items.map(n => this.newsItem(n, tag ? n.tag : null)));
   },
 
   async loadNews(force = false) {
@@ -229,7 +246,7 @@ Object.assign(App, {
     const queries = new Map();
     for (const r of rows.slice().sort((a, b) => (b.valueBase || 0) - (a.valueBase || 0))) {
       const q = this.newsQuery(r.key);
-      if (q && !queries.has(q)) queries.set(q, Store.label(r.key));
+      if (q && !queries.has(q.fr)) queries.set(q.fr, { q, tag: q.label });
       if (queries.size >= 4) break;
     }
     if (!queries.size) { $('#newsCard').classList.add('hidden'); return; }
@@ -237,14 +254,19 @@ Object.assign(App, {
     const all = new Map();
     let err = null;
     try {
-      for (const [q, tag] of queries) {
-        try { for (const n of await Api.news(q)) if (!all.has(n.id)) all.set(n.id, Object.assign({ tag }, n)); }
-        catch (e) { err = e; }
+      for (const { q, tag } of queries.values()) {
+        try {
+          for (const n of await Api.news(q)) {
+            const k = n.title.toLowerCase().slice(0, 60); // même article repris par plusieurs recherches
+            if (!all.has(k)) all.set(k, Object.assign({ tag }, n));
+          }
+        } catch (e) { err = e; }
       }
     } finally { this._newsLoading = false; this.newsAt = Date.now(); }
-    const list = Array.from(all.values()).sort((a, b) => b.time - a.time).slice(0, 8);
+    const list = Array.from(all.values()).sort((a, b) => b.time - a.time).slice(0, 10);
     $('#newsCard').classList.toggle('hidden', !list.length && !err);
-    $('#newsList').replaceChildren(...(list.length ? list.map(n => this.newsItem(n, n.tag)) : [el('li', { class: 'muted small' }, err ? err.message : 'Aucune actualité.')]));
+    $('#newsSource').textContent = list.some(n => n.lang === 'fr') ? 'Google Actualités' : 'Yahoo Finance (en anglais : redéploie le worker pour les avoir en français)';
+    $('#newsList').replaceChildren(...(list.length ? list.map(n => this.newsItem(n, queries.size > 1 ? n.tag : null)) : [el('li', { class: 'muted small' }, err ? err.message : 'Aucune actualité.')]));
   },
 
   async loadDetailNews(key) {
@@ -254,9 +276,9 @@ Object.assign(App, {
     const q = this.newsQuery(key);
     if (!q || !Api.hasProxy()) return;
     try {
-      const items = (await Api.news(q)).slice(0, 5);
+      const items = (await Api.news(q)).slice().sort((a, b) => b.time - a.time).slice(0, 6);
       if (key !== this.detailKey) return;
-      box.replaceChildren(...(items.length ? [el('h3', {}, 'Actualités · ' + q), el('ul', { class: 'news-list' }, ...items.map(n => this.newsItem(n)))] : []));
+      box.replaceChildren(...(items.length ? [el('h3', {}, 'Actualités · ' + q.label + (items[0].lang === 'en' ? ' (en anglais)' : '')), this.newsList(items)] : []));
     } catch (e) {
       if (key === this.detailKey) box.replaceChildren(el('p', { class: 'muted small' }, e.message));
     }

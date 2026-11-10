@@ -8,7 +8,7 @@
  *   4. Copie l'URL du worker (https://apistock-yahoo.<ton-compte>.workers.dev)
  *      dans APIstock → Réglages → « Relais Yahoo Finance »
  *
- * Appels Yahoo autorisés, en lecture seule : graphique/cotation (avec dividendes et divisions), recherche et actualités.
+ * Appels Yahoo autorisés, en lecture seule : graphique/cotation (avec dividendes et divisions), recherche, et actualités (Google Actualités en français, Yahoo en secours).
  * Pour réserver le relais à ton site, liste ses adresses ci-dessous.
  *
  * Compteur global (optionnel) : nombre de requêtes reçues aujourd'hui par le worker,
@@ -57,14 +57,54 @@ function buildUpstream(q) {
     if (ev && /^(div|split)(,(div|split))?$/.test(ev)) u.searchParams.set('events', ev);
     return u;
   }
-  if (type === 'search' || type === 'news') {
+  if (type === 'search' || type === 'yahoo-news') {
     const u = new URL('https://query1.finance.yahoo.com/v1/finance/search');
     u.searchParams.set('q', (q.get('q') || '').slice(0, 60));
-    u.searchParams.set('quotesCount', type === 'news' ? '0' : '20');
-    u.searchParams.set('newsCount', type === 'news' ? '10' : '0');
+    u.searchParams.set('quotesCount', type === 'yahoo-news' ? '0' : '20');
+    u.searchParams.set('newsCount', type === 'yahoo-news' ? '10' : '0');
     return u;
   }
   return null;
+}
+
+/* ---- Actualités en français : Google Actualités (flux RSS France), Yahoo (anglais) en secours ---- */
+const decodeXml = s => s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
+  .replace(/&#39;|&apos;/g, "'").replace(/&#(\d+);/g, (m, n) => String.fromCharCode(+n)).replace(/&amp;/g, '&');
+
+function parseGoogleNews(xml) {
+  const out = [];
+  for (const m of xml.matchAll(/<item>([\s\S]*?)<\/item>/g)) {
+    const tag = t => { const x = m[1].match(new RegExp('<' + t + '(?: [^>]*)?>([\\s\\S]*?)<\\/' + t + '>')); return x ? decodeXml(x[1]).trim() : ''; };
+    const source = tag('source');
+    const site = (m[1].match(/<source url="([^"]+)"/) || [])[1] || '';
+    let title = tag('title');
+    if (source && title.endsWith(' - ' + source)) title = title.slice(0, -(source.length + 3));
+    const link = tag('link');
+    if (!title || !/^https:\/\//.test(link)) continue;
+    out.push({ uuid: tag('guid') || link, title, link, publisher: source, site, providerPublishTime: Math.floor(Date.parse(tag('pubDate')) / 1000) || 0 });
+    if (out.length >= 12) break;
+  }
+  return out;
+}
+
+async function handleNews(q, cors) {
+  const query = (q.get('q') || '').slice(0, 80).trim();
+  if (!query) return json({ error: 'requête invalide' }, 400, cors);
+  try {
+    const u = new URL('https://news.google.com/rss/search');
+    u.searchParams.set('q', query + ' when:14d');
+    u.searchParams.set('hl', 'fr'); u.searchParams.set('gl', 'FR'); u.searchParams.set('ceid', 'FR:fr');
+    const r = await fetch(u, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; APIstock/1.0)' }, cf: { cacheTtl: 600, cacheEverything: true } });
+    if (r.ok) {
+      const news = parseGoogleNews(await r.text());
+      if (news.length) return json({ lang: 'fr', news }, 200, Object.assign({ 'Cache-Control': 'public, max-age=600' }, cors));
+    }
+  } catch (e) { /* on passe à Yahoo */ }
+  const y = new URL('https://query1.finance.yahoo.com/v1/finance/search');
+  y.searchParams.set('q', (q.get('en') || query).slice(0, 60)); y.searchParams.set('quotesCount', '0'); y.searchParams.set('newsCount', '10');
+  const r = await fetch(y, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; APIstock/1.0)', Accept: 'application/json' }, cf: { cacheTtl: 600, cacheEverything: true } });
+  const j = await r.json();
+  return json({ lang: 'en', news: j.news || [] }, 200, cors);
 }
 
 /* ---- Alertes push (Web Push chiffré, RFC 8291 + VAPID RFC 8292) ---- */
@@ -312,6 +352,10 @@ export default {
     if (request.method !== 'GET') return json({ error: 'method not allowed' }, 405, cors);
 
     if (q.get('type') === 'ping') return json({ ok: true }, 200, cors);
+    if (q.get('type') === 'news') {
+      try { return await handleNews(q, cors); }
+      catch (e) { return json({ error: 'actualités indisponibles : ' + e.message }, 502, cors); }
+    }
     if (q.get('type') === 'stats') {
       try { return json(await dailyStats(env), 200, cors); }
       catch (e) { return json({ configured: true, error: 'statistiques indisponibles : ' + e.message }, 200, cors); }
@@ -322,7 +366,7 @@ export default {
     try {
       const r = await fetch(upstream, {
         headers: { 'User-Agent': 'Mozilla/5.0 (compatible; APIstock/1.0)', Accept: 'application/json' },
-        cf: { cacheTtl: q.get('type') === 'search' ? 86400 : q.get('type') === 'news' ? 600 : 1, cacheEverything: true }, // 1 s : compatible avec le rafraîchissement chaque seconde
+        cf: { cacheTtl: q.get('type') === 'search' ? 86400 : q.get('type') === 'yahoo-news' ? 600 : 1, cacheEverything: true }, // 1 s : compatible avec le rafraîchissement chaque seconde
       });
       return new Response(await r.text(), { status: r.status, headers: Object.assign({ 'Content-Type': 'application/json; charset=utf-8' }, cors) });
     } catch (e) {
