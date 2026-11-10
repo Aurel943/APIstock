@@ -1,6 +1,6 @@
 /* Service worker : rend le site installable et utilisable hors-ligne (dernières données en cache).
  * Stratégie « réseau d'abord » pour les fichiers du site, afin de toujours récupérer la dernière version. */
-const CACHE = 'apistock-63b38337db'; // calculé par scripts/sw-version.mjs (ne pas modifier à la main)
+const CACHE = 'apistock-93cb327fc6'; // calculé par scripts/sw-version.mjs (ne pas modifier à la main)
 const ASSETS = ['./', 'index.html', 'css/style.css', 'js/utils.js', 'js/store.js', 'js/api.js', 'js/markets.js',
   'js/portfolio.js', 'js/charts.js', 'js/app.js', 'js/views.js', 'js/compare.js', 'js/extras.js', 'js/mobile.js', 'js/features.js',
   'js/money.js', 'js/insights.js', 'manifest.webmanifest', 'icons/icon-192.png'];
@@ -22,7 +22,7 @@ self.addEventListener('fetch', e => {
     fetch(e.request, { cache: 'no-cache' }).then(res => { // revalide auprès du serveur (ignore le cache HTTP de 10 min de GitHub Pages)
       if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); }
       return res;
-    }).catch(() => caches.match(e.request).then(r => r || caches.match('index.html')))
+    }).catch(() => caches.match(e.request, { ignoreSearch: true }).then(r => r || caches.match('index.html'))) // « ?v= » ignoré hors ligne
   );
 });
 
