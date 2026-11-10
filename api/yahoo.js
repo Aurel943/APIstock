@@ -39,6 +39,7 @@ module.exports = async (req, res) => {
 
   const q = req.query || {};
   if (q.type === 'ping') { res.status(200).json({ ok: true }); return; }
+  if (q.type === 'stats') { res.status(200).json({ configured: false, unsupported: true }); return; } // compteur global : Cloudflare uniquement
   const upstream = buildUpstream(q);
   if (!upstream) { res.status(400).json({ error: 'requête invalide' }); return; }
 
