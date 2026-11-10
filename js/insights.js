@@ -360,7 +360,7 @@ Object.assign(App, {
     const series = {}, fx = {};
     for (const k of new Set(txs.map(t => t.key))) {
       series[k] = await Api.daily(k, start);
-      fx[k] = await Api.fxRate((Store.instrument(k) || {}).currency || this.base());
+      fx[k] = await Api.fxSeries((Store.instrument(k) || {}).currency || this.base(), start);
     }
     return Portfolio.replay(series, fx, Portfolio.historyEvents(txs)).points;
   },
@@ -380,13 +380,14 @@ Object.assign(App, {
     const y0 = year + '-01-01', y1 = year + '-12-31';
     const allTx = Store.state.transactions.filter(inAcc);
     const txs = allTx.filter(t => t.date >= y0 && t.date <= y1).sort((a, b) => (a.date < b.date ? -1 : 1));
-    const fxOf = k => { const i = Store.instrument(k); return Api.fxCached((i && i.currency) || cur); };
+    try { await Api.preloadFxHistory(); } catch (e) { /* repli : taux du jour */ }
+    const fxOf = (k, d) => { const i = Store.instrument(k); return Api.fxAt((i && i.currency) || cur, d); };
     const sum = (list, f) => list.reduce((s, t) => s + (isFinite(f(t)) ? f(t) : 0), 0);
     const buys = txs.filter(t => t.type === 'buy'), sells = txs.filter(t => t.type === 'sell'), divs = txs.filter(t => t.type === 'div');
-    const bought = sum(buys, t => (t.qty * t.price + (t.fees || 0)) * fxOf(t.key));
-    const sold = sum(sells, t => (t.qty * t.price - (t.fees || 0)) * fxOf(t.key));
-    const divNet = sum(divs, t => (t.qty * t.price - (t.fees || 0)) * fxOf(t.key));
-    const fees = sum(txs.filter(t => t.type !== 'div'), t => (t.fees || 0) * fxOf(t.key));
+    const bought = sum(buys, t => (t.qty * t.price + (t.fees || 0)) * fxOf(t.key, t.date));
+    const sold = sum(sells, t => (t.qty * t.price - (t.fees || 0)) * fxOf(t.key, t.date));
+    const divNet = sum(divs, t => (t.qty * t.price - (t.fees || 0)) * fxOf(t.key, t.date));
+    const fees = sum(txs.filter(t => t.type !== 'div'), t => (t.fees || 0) * fxOf(t.key, t.date));
     const moves = Store.state.cashMoves.filter(m => inAcc(m) && m.date >= y0 && m.date <= y1);
     const deposits = sum(moves.filter(m => m.type !== 'withdraw'), m => m.amount), withdrawals = sum(moves.filter(m => m.type === 'withdraw'), m => m.amount);
     let realized = 0;
@@ -475,7 +476,7 @@ ${txs.map(t => { const i = Store.instrument(t.key) || {}; const c = i.currency |
 ${snap.rows.map(r => row(esc(Store.label(r.key)) + `<small>${esc(r.inst ? r.inst.name : '')}</small>`, esc(fmtQty(r.qty)), esc(fmtMoney(r.pru, r.currency, 3)), m(r.costBase), m(r.valueBase), `<span class="${cls(r.pnlBase)}">${sm(r.pnlBase)}</span>`)).join('')}
 <tr class="tot"><td colspan="3">Total</td><td class="num">${m(snap.totals.cost)}</td><td class="num">${m(snap.totals.value)}</td><td class="num ${cls(snap.totals.pnl)}">${sm(snap.totals.pnl)}</td></tr></table></section>
 
-<p class="note">Document indicatif établi à partir des opérations saisies dans APIstock. Montants en devises convertis au taux de change du jour d'édition. Les plus-values sont calculées au prix moyen pondéré d'acquisition, frais inclus. L'imprimé fiscal unique (IFU) de ton courtier et ta déclaration pré-remplie font foi.</p>
+<p class="note">Document indicatif établi à partir des opérations saisies dans APIstock. Montants en devises convertis au taux de change du jour de chaque opération ; positions et valeur actuelle au taux du jour d'édition. Les plus-values sont calculées au prix moyen pondéré d'acquisition, frais inclus. L'imprimé fiscal unique (IFU) de ton courtier et ta déclaration pré-remplie font foi.</p>
 </body></html>`;
   },
 

@@ -49,7 +49,7 @@ const App = {
     const hash = location.hash.replace('#', '');
     this.show(['portfolio', 'markets', 'compare', 'world', 'invest', 'simulation', 'settings'].includes(hash) ? hash : (Api.ready() ? 'portfolio' : 'settings'));
     this.renderAll();
-    Api.detectProxy().finally(() => { this.renderAll(); this.refresh(); });
+    Api.detectProxy().finally(() => { this.renderAll(); this.refresh(); this.preloadFx(); });
     if (sessionStorage.getItem('apistock:reloaded')) {
       sessionStorage.removeItem('apistock:reloaded');
       setTimeout(() => toast('Site rechargé et à jour ✔', 'success', 3000), 300);
@@ -115,6 +115,16 @@ const App = {
   },
 
   /** Rafraîchissement rapide (< 30 s) : seul Yahoo suit ce rythme, Twelve Data reste limité par ses crédits */
+  /** Charge en arrière-plan les taux de change historiques des opérations, puis redessine si de nouveaux taux sont arrivés */
+  preloadFx() {
+    if (!Api.ready()) return Promise.resolve(false);
+    if (!this._fxLoading) {
+      this._fxLoading = Api.preloadFxHistory().then(changed => { if (changed) this.renderAll(); return changed; })
+        .catch(() => false).finally(() => { this._fxLoading = null; });
+    }
+    return this._fxLoading;
+  },
+
   fastMode() { const s = parseInt(Store.state.settings.refreshSec, 10); return s > 0 && s < 30; },
 
   /** Faut-il interroger cet instrument à ce tour-ci ? */
@@ -266,6 +276,7 @@ const App = {
       for (const k of keys) { const i = Store.instrument(k); if (i && i.currency) currencies.add(i.currency); }
       for (const c of currencies) { try { await Api.fxRate(c); } catch (e) { errors++; lastErr = e; } }
       this.lastRefresh = Date.now();
+      this.preloadFx(); // taux historiques des opérations : ne charge que ce qui manque (au plus toutes les 12 h)
       if (due.length) $('#lastUpdate').textContent = 'Mis à jour à ' + fmtTime(this.lastRefresh);
     } finally {
       this.refreshing = false;
@@ -428,7 +439,7 @@ const App = {
       for (const k of keys) {
         series[k] = await Api.daily(k, start);
         const inst = Store.instrument(k);
-        fx[k] = await Api.fxRate(inst ? inst.currency : this.base());
+        fx[k] = await Api.fxSeries(inst ? inst.currency : this.base(), start);
       }
       const { points } = Portfolio.replay(series, fx, Portfolio.historyEvents(txs));
       if (!points.length) throw new Error('Pas de données historiques disponibles.');
@@ -552,6 +563,7 @@ const App = {
       }
       dlg.close();
       this.renderAll();
+      this.preloadFx();
       if (!Api.cachedQuote(tx.key)) Api.quote(tx.key).then(() => Api.fxRate(Store.instrument(tx.key).currency)).then(() => this.renderPortfolio()).catch(err => toast(err.message, 'error'));
       toast('Opération enregistrée', 'success', 2000);
     });
@@ -858,10 +870,10 @@ const App = {
       for (const r of s.rows) {
         series[r.key] = await Api.daily(r.key, s.start);
         const inst = Store.instrument(r.key);
-        fx[r.key] = await Api.fxRate(inst.currency);
+        fx[r.key] = await Api.fxSeries(inst.currency, s.start);
         if (!series[r.key].length) throw new Error('Aucun historique pour ' + Store.label(r.key));
         if (series[r.key][0][0] > addDaysISO(s.start, 7)) notes.push(`${Store.label(r.key)} : données disponibles à partir du ${fmtDate(series[r.key][0][0])}, l'argent reste en attente jusque-là.`);
-        if (inst.currency !== cur) notes.push(`${Store.label(r.key)} est coté en ${inst.currency} : conversion au taux actuel (${fmtNum(fx[r.key], 4)}).`);
+        if (inst.currency !== cur) notes.push(`${Store.label(r.key)} est coté en ${inst.currency} : conversion au taux de change de chaque jour.`);
       }
 
       const events = [];

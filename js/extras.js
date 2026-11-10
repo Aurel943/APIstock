@@ -207,6 +207,7 @@ Object.assign(App, {
         this.renderAll();
         this.renderAccountsSettings();
         this.refresh();
+        this.preloadFx();
         toast(res.txs.length + ' opération(s) importée(s)', 'success');
       } catch (err) {
         toast('Import CSV impossible : ' + err.message, 'error', 8000);

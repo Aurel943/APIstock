@@ -97,7 +97,8 @@ const Tax = {
     return Store.state.transactions.filter(t => (t.account || Store.defaultAccount()) === accountId)
       .slice().sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
   },
-  fxOf(key) { const i = Store.instrument(key); return Api.fxCached((i && i.currency) || Store.state.settings.baseCurrency); },
+  /** Taux de change de l'instrument à la date de l'opération (règle fiscale : chaque montant au taux du jour où il est réalisé) */
+  fxOf(key, date) { const i = Store.instrument(key); return Api.fxAt((i && i.currency) || Store.state.settings.baseCurrency, date); },
 
   /**
    * PEA : versements estimés. On suppose que les ventes et dividendes restent dans le PEA
@@ -108,7 +109,7 @@ const Tax = {
     let cash = 0, deposits = 0;
     for (const t of txs) {
       if (t.type === 'split') continue;
-      const fx = this.fxOf(t.key);
+      const fx = this.fxOf(t.key, t.date);
       const qty = parseNum(t.qty), price = parseNum(t.price), fees = parseNum(t.fees) || 0;
       if (!isFinite(fx) || !isFinite(qty) || !isFinite(price)) continue;
       if (t.type === 'buy') { const cost = (qty * price + fees) * fx; const use = Math.min(cash, cost); cash -= use; deposits += cost - use; }
@@ -126,21 +127,26 @@ const Tax = {
       manual: isManual, tracked: tracked && !isManual, cash: tracked ? real.cash : cash };
   },
 
-  /** Cessions (prix moyen pondéré d'acquisition, frais inclus) et dividendes d'un compte */
+  /**
+   * Cessions (prix moyen pondéré d'acquisition, frais inclus) et dividendes d'un compte.
+   * Montants en devise de base : le prix de revient de chaque achat au taux de change de sa date,
+   * le prix de cession au taux du jour de la vente (la plus-value inclut donc l'effet de change).
+   */
   events(acc) {
     const pos = {}, sales = [], divs = [];
     for (const t of this.sortedTxs(acc.id)) {
-      const p = pos[t.key] = pos[t.key] || { qty: 0, cost: 0 };
-      const qty = parseNum(t.qty), price = parseNum(t.price), fees = parseNum(t.fees) || 0, fx = this.fxOf(t.key);
-      if (t.type === 'div') { divs.push({ date: t.date, key: t.key, amount: (qty * price) * fx, acc }); continue; }
+      const p = pos[t.key] = pos[t.key] || { qty: 0, cost: 0, costBase: 0 };
+      const qty = parseNum(t.qty), price = parseNum(t.price), fees = parseNum(t.fees) || 0, fx = this.fxOf(t.key, t.date);
+      if (t.type === 'div') { divs.push({ date: t.date, key: t.key, amount: (qty * price) * fx, fx, acc }); continue; }
       if (t.type === 'split') { if (qty > 0) p.qty *= qty; continue; }
       if (t.type === 'sell') {
         if (p.qty <= 0) continue;
-        const q = Math.min(qty, p.qty), costOut = p.cost * (q / p.qty);
-        sales.push({ date: t.date, key: t.key, qty: q, proceeds: (q * price - fees) * fx, cost: costOut * fx, gain: (q * price - fees - costOut) * fx, pmp: p.cost / p.qty, price, acc });
-        p.qty -= q; p.cost -= costOut;
-        if (p.qty < 1e-9) { p.qty = 0; p.cost = 0; }
-      } else { p.qty += qty; p.cost += qty * price + fees; }
+        const q = Math.min(qty, p.qty), share = q / p.qty, costOut = p.cost * share, costOutBase = p.costBase * share;
+        const proceeds = (q * price - fees) * fx;
+        sales.push({ date: t.date, key: t.key, qty: q, proceeds, cost: costOutBase, gain: proceeds - costOutBase, pmp: p.cost / p.qty, price, fx, acc });
+        p.qty -= q; p.cost -= costOut; p.costBase -= costOutBase;
+        if (p.qty < 1e-9) { p.qty = 0; p.cost = 0; p.costBase = 0; }
+      } else { p.qty += qty; p.cost += qty * price + fees; p.costBase += (qty * price + fees) * fx; }
     }
     return { sales, divs };
   },
@@ -240,7 +246,7 @@ Object.assign(App, {
             this.kpi('Dividendes bruts', fmtMoney(Y.dividends, cur), 'Case 2DC (actions) ou 2TR (distributions d\'ETF), souvent déjà pré-remplis'),
             this.kpi('Impôt estimé (flat tax 30 %)', fmtMoney(flat, cur), '12,8 % d\'impôt + 17,2 % de prélèvements sociaux, hors acomptes déjà prélevés'),
             Y.carryLeft > 0.005 ? this.kpi('Moins-values reportables', fmtMoney(Y.carryLeft, cur), 'Utilisables jusqu\'à 10 ans') : null),
-          el('p', { class: 'muted small' }, 'Méthode du prix moyen pondéré d\'acquisition (frais inclus), calculée par compte. Les montants en devises sont convertis au taux de change du jour : pour une déclaration exacte, le taux du jour de chaque opération s\'applique.')));
+          el('p', { class: 'muted small' }, 'Méthode du prix moyen pondéré d\'acquisition (frais inclus), calculée par compte. Les montants en devises sont convertis au taux de change du jour de chaque opération (clôture de la veille pour un week-end ; taux actuel si l\'historique n\'a pas pu être chargé).')));
       }
     }
     $('#taxBody').replaceChildren(...parts);

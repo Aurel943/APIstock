@@ -404,6 +404,90 @@ const Api = {
     return c ? c.rate : NaN;
   },
 
+  /* ---- Taux de change historiques (clôtures journalières Yahoo, à défaut Twelve Data) ---- */
+  fxHist: {},           // 'USD/EUR' -> { start, ts, values: [[date, taux], …] }
+
+  /** Devise cotée réelle et multiplicateur : les cours en pence (GBp, GBX) valent 1/100 de livre */
+  fxNorm(from) { return from === 'GBp' || from === 'GBX' ? ['GBP', 0.01] : [from, 1]; },
+
+  /** Historique d'une paire, relu au besoin depuis le cache local des séries (même ancien : mieux que le taux du jour) */
+  fxHistory(pair) {
+    if (this.fxHist[pair] === undefined) {
+      let c = null;
+      try { c = JSON.parse(localStorage.getItem('apistock:daily:Y:' + pair.replace('/', '') + '=X') || 'null'); } catch (e) { c = null; }
+      this.fxHist[pair] = c && Array.isArray(c.values) && c.values.length ? { start: c.start, ts: c.ts, values: c.values } : null;
+    }
+    return this.fxHist[pair];
+  },
+
+  /**
+   * Taux de `from` vers la devise de base à une date donnée (synchrone) : dernière clôture connue à cette date
+   * (veille pour un week-end ou un jour férié). Repli sur le taux du jour si l'historique n'est pas chargé.
+   */
+  fxAt(from, date) {
+    const base = Store.state.settings.baseCurrency;
+    if (!from || from === base) return 1;
+    const [cur, mult] = this.fxNorm(from);
+    if (cur === base) return mult;
+    if (!date || date >= todayISO()) return this.fxCached(from);
+    const h = this.fxHistory(cur + '/' + base);
+    const v = h && h.values;
+    if (v && v.length && date >= v[0][0]) {
+      let lo = 0, hi = v.length - 1;
+      while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (v[mid][0] <= date) lo = mid; else hi = mid - 1; }
+      const [d, r] = v[lo];
+      if (r > 0 && Date.parse(date) - Date.parse(d) <= 7 * 864e5) return r * mult;
+    }
+    return this.fxCached(from);
+  },
+
+  /** Charge l'historique d'une devise depuis `start` (si absent, trop court ou daté de plus de 12 h). true si de nouvelles données sont arrivées. */
+  async loadFxHistory(from, start) {
+    const base = Store.state.settings.baseCurrency;
+    const [cur] = this.fxNorm(from);
+    if (!from || cur === base || !start) return false;
+    const pair = cur + '/' + base;
+    const h = this.fxHistory(pair);
+    const yesterday = addDaysISO(todayISO(), -1);
+    if (h && h.start <= start && (Date.now() - h.ts < 12 * 3600 * 1000 || h.values[h.values.length - 1][0] >= yesterday)) return false;
+    const from0 = h && h.start < start ? h.start : start;
+    let values = [];
+    if (this.hasProxy()) values = await this.daily('Y:' + cur + base + '=X', from0);
+    else if (this.hasKey()) {
+      const json = await this.request('time_series', { symbol: pair, interval: '1day', start_date: from0, outputsize: 5000, order: 'asc' });
+      values = (json.values || []).map(v => [v.datetime.slice(0, 10), parseNum(v.close)]).sort((a, b) => (a[0] < b[0] ? -1 : 1));
+      try { localStorage.setItem('apistock:daily:Y:' + cur + base + '=X', JSON.stringify({ ts: Date.now(), start: from0, values })); } catch (e) { /* ignore */ }
+    } else return false;
+    values = values.filter(v => isFinite(v[1]) && v[1] > 0);
+    if (!values.length) return false;
+    this.fxHist[pair] = { start: from0, ts: Date.now(), values };
+    return true;
+  },
+
+  /** Charge les taux historiques nécessaires aux opérations enregistrées (une fois par devise). true si quelque chose a changé. */
+  async preloadFxHistory() {
+    const need = {};
+    for (const t of Store.state.transactions) {
+      const i = Store.instrument(t.key);
+      const c = i && i.currency;
+      if (!c || !t.date) continue;
+      const k = this.fxNorm(c)[0];
+      if (!need[k] || t.date < need[k]) need[k] = t.date;
+    }
+    let changed = false;
+    for (const [c, d] of Object.entries(need)) {
+      try { if (await this.loadFxHistory(c, addDaysISO(d, -7))) changed = true; } catch (e) { /* repli : taux du jour */ }
+    }
+    return changed;
+  },
+
+  /** Fonction date → taux pour Portfolio.replay (historique chargé au préalable, taux du jour pour aujourd'hui) */
+  async fxSeries(from, start) {
+    await this.fxRate(from);
+    try { await this.loadFxHistory(from, addDaysISO(start, -7)); } catch (e) { /* repli : taux du jour */ }
+    return d => this.fxAt(from, d);
+  },
+
   /**
    * Historique journalier [[date, close], …] trié par date croissante depuis startDate.
    * Mis en cache dans localStorage (6 h) pour économiser les crédits.

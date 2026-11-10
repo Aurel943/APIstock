@@ -190,6 +190,7 @@ Object.assign(App, {
     }
     Store.save();
     this.renderAll();
+    this.preloadFx();
     toast(n + ' achat(s) enregistré(s)' + (skipped ? ` · ${skipped} à saisir à la main (cours indisponible ou montant trop faible)` : ''), n ? 'success' : 'error', 6000);
   },
 
@@ -278,7 +279,7 @@ Object.assign(App, {
             } }, '🗑'))))))),
       moves.length > 5 ? el('button', { class: 'btn small', style: 'margin-top:8px', onclick: () => { this.cashShowAll = !showAll; this.renderCash(); } },
         showAll ? 'Réduire' : `Voir les ${moves.length} mouvements`) : null,
-      el('p', { class: 'muted small' }, 'Espèces = versements − retraits − achats (frais inclus) + ventes + dividendes nets. Les opérations en devises sont converties au taux du jour.')].filter(Boolean));
+      el('p', { class: 'muted small' }, 'Espèces = versements − retraits − achats (frais inclus) + ventes + dividendes nets. Les opérations en devises sont converties au taux de change de leur date.')].filter(Boolean));
   },
 
   /* ================================================================== */
