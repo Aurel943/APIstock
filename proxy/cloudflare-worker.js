@@ -8,7 +8,7 @@
  *   4. Copie l'URL du worker (https://apistock-yahoo.<ton-compte>.workers.dev)
  *      dans APIstock → Réglages → « Relais Yahoo Finance »
  *
- * Appels Yahoo autorisés, en lecture seule : graphique/cotation (avec dividendes et divisions), recherche, et actualités (Google Actualités en français, Yahoo en secours).
+ * Appels Yahoo autorisés, en lecture seule : graphique/cotation (avec dividendes et divisions), recherche, et actualités en français (flux RSS Yahoo Finance France et Google Actualités).
  * Pour réserver le relais à ton site, liste ses adresses ci-dessous.
  *
  * Compteur global (optionnel) : nombre de requêtes reçues aujourd'hui par le worker,
@@ -67,44 +67,79 @@ function buildUpstream(q) {
   return null;
 }
 
-/* ---- Actualités en français : Google Actualités (flux RSS France), Yahoo (anglais) en secours ---- */
+/* ---- Actualités en français : Yahoo Finance France et Google Actualités (RSS), Yahoo en anglais en secours ---- */
 const decodeXml = s => s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
   .replace(/&#39;|&apos;/g, "'").replace(/&#(\d+);/g, (m, n) => String.fromCharCode(+n)).replace(/&amp;/g, '&');
 
-function parseGoogleNews(xml) {
+const SITE_NAMES = { 'capital.fr': 'Capital', 'boursorama.com': 'Boursorama', 'zonebourse.com': 'Zonebourse', 'investing.com': 'Investing.com',
+  'fr.investing.com': 'Investing.com France', 'lesechos.fr': 'Les Échos', 'investir.lesechos.fr': 'Investir', 'bfmtv.com': 'BFM Bourse', 'tradingsat.com': 'BFM Bourse',
+  'lefigaro.fr': 'Le Figaro', 'lemonde.fr': 'Le Monde', 'latribune.fr': 'La Tribune', 'finance.yahoo.com': 'Yahoo Finance', 'fr.finance.yahoo.com': 'Yahoo Finance',
+  'abcbourse.com': 'ABC Bourse', 'cercledelepargne.com': 'Cercle de l\'Épargne', 'journaldunet.com': 'Journal du Net', 'challenges.fr': 'Challenges', 'reuters.com': 'Reuters' };
+function siteName(link) {
+  try {
+    const h = new URL(link).hostname.replace(/^www\./, '');
+    return SITE_NAMES[h] || SITE_NAMES[h.split('.').slice(-2).join('.')] || h;
+  } catch (e) { return ''; }
+}
+
+/** Articles d'un flux RSS (Google Actualités ou Yahoo Finance) */
+function parseRss(xml) {
   const out = [];
   for (const m of xml.matchAll(/<item>([\s\S]*?)<\/item>/g)) {
     const tag = t => { const x = m[1].match(new RegExp('<' + t + '(?: [^>]*)?>([\\s\\S]*?)<\\/' + t + '>')); return x ? decodeXml(x[1]).trim() : ''; };
-    const source = tag('source');
-    const site = (m[1].match(/<source url="([^"]+)"/) || [])[1] || '';
+    const link = tag('link').replace(/\?\.tsrc=rss$/, '');
+    const source = tag('source') || siteName(link);
     let title = tag('title');
     if (source && title.endsWith(' - ' + source)) title = title.slice(0, -(source.length + 3));
-    const link = tag('link');
     if (!title || !/^https:\/\//.test(link)) continue;
-    out.push({ uuid: tag('guid') || link, title, link, publisher: source, site, providerPublishTime: Math.floor(Date.parse(tag('pubDate')) / 1000) || 0 });
-    if (out.length >= 12) break;
+    out.push({ uuid: tag('guid') || link, title, link, publisher: source, providerPublishTime: Math.floor(Date.parse(tag('pubDate')) / 1000) || 0 });
+    if (out.length >= 15) break;
   }
   return out;
 }
 
-async function handleNews(q, cors) {
-  const query = (q.get('q') || '').slice(0, 80).trim();
-  if (!query) return json({ error: 'requête invalide' }, 400, cors);
-  try {
-    const u = new URL('https://news.google.com/rss/search');
-    u.searchParams.set('q', query + ' when:14d');
-    u.searchParams.set('hl', 'fr'); u.searchParams.set('gl', 'FR'); u.searchParams.set('ceid', 'FR:fr');
-    const r = await fetch(u, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; APIstock/1.0)' }, cf: { cacheTtl: 600, cacheEverything: true } });
-    if (r.ok) {
-      const news = parseGoogleNews(await r.text());
-      if (news.length) return json({ lang: 'fr', news }, 200, Object.assign({ 'Cache-Control': 'public, max-age=600' }, cors));
-    }
-  } catch (e) { /* on passe à Yahoo */ }
+async function rss(url) {
+  const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; APIstock/1.0)', 'Accept-Language': 'fr-FR,fr;q=0.9' }, redirect: 'follow' });
+  return r.ok ? parseRss(await r.text()) : [];
+}
+
+/**
+ * Actualités en français : flux RSS France de Yahoo Finance pour les symboles donnés (s), puis Google Actualités (q),
+ * et en dernier recours la recherche Yahoo en anglais (en).
+ */
+async function newsFor(q) {
+  const query = String(q.q || '').slice(0, 80).trim();
+  const syms = String(q.s || '').split(',').map(x => x.trim()).filter(x => SYMBOL_RE.test(x)).slice(0, 5);
+  const tried = [];
+  if (syms.length) {
+    try {
+      const u = new URL('https://feeds.finance.yahoo.com/rss/2.0/headline');
+      u.searchParams.set('s', syms.join(',')); u.searchParams.set('region', 'FR'); u.searchParams.set('lang', 'fr-FR');
+      const items = await rss(u);
+      if (items.length >= 3) return { lang: 'fr', source: 'yahoo-fr', news: items };
+      tried.push('yahoo-fr:' + items.length);
+    } catch (e) { tried.push('yahoo-fr:' + e.message); }
+  }
+  if (query) {
+    try {
+      const u = new URL('https://news.google.com/rss/search');
+      u.searchParams.set('q', query + ' when:14d');
+      u.searchParams.set('hl', 'fr'); u.searchParams.set('gl', 'FR'); u.searchParams.set('ceid', 'FR:fr');
+      const items = await rss(u);
+      if (items.length) return { lang: 'fr', source: 'google', news: items };
+      tried.push('google:0');
+    } catch (e) { tried.push('google:' + e.message); }
+  }
   const y = new URL('https://query1.finance.yahoo.com/v1/finance/search');
-  y.searchParams.set('q', (q.get('en') || query).slice(0, 60)); y.searchParams.set('quotesCount', '0'); y.searchParams.set('newsCount', '10');
-  const r = await fetch(y, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; APIstock/1.0)', Accept: 'application/json' }, cf: { cacheTtl: 600, cacheEverything: true } });
-  const j = await r.json();
-  return json({ lang: 'en', news: j.news || [] }, 200, cors);
+  y.searchParams.set('q', String(q.en || query || syms[0] || '').slice(0, 60)); y.searchParams.set('quotesCount', '0'); y.searchParams.set('newsCount', '10');
+  const j = await (await fetch(y, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; APIstock/1.0)', Accept: 'application/json' } })).json();
+  return { lang: 'en', source: 'yahoo-en', tried, news: j.news || [] };
+}
+
+async function handleNews(q, cors) {
+  const params = { q: q.get('q') || '', s: q.get('s') || '', en: q.get('en') || '' };
+  if (!params.q.trim() && !params.s.trim()) return json({ error: 'requête invalide' }, 400, cors);
+  return json(await newsFor(params), 200, Object.assign({ 'Cache-Control': 'public, max-age=600' }, cors));
 }
 
 /* ---- Alertes push (Web Push chiffré, RFC 8291 + VAPID RFC 8292) ---- */
