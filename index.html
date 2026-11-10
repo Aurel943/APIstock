@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=331eb8bf60">
+  <link rel="stylesheet" href="css/style.css?v=36d97283b3">
 </head>
 <body>
   <header class="topbar">
@@ -153,6 +153,14 @@
           <div class="actions"><span class="muted small">Espèces disponibles sur tes comptes</span><button class="btn small" id="cashAdd2">+ Versement / retrait</button></div>
         </div>
         <div id="cashBody"></div>
+      </div>
+
+      <div class="card" id="wealthCard">
+        <div class="card-head">
+          <h2>Patrimoine global</h2>
+          <div class="actions"><span class="muted small">Titres, espèces, épargne et immobilier</span><button class="btn small" id="assetAdd">+ Ajouter un actif</button></div>
+        </div>
+        <div id="wealthBody"></div>
       </div>
 
       <div class="card hidden" id="divCard">
@@ -351,6 +359,7 @@
           <label>Date cible<input type="date" id="goalDate"></label>
           <label><span>Versement mensuel (<span class="ccy"></span>)</span><input type="number" id="goalMonthly" min="0" step="50"></label>
           <label>Rendement annuel supposé (%)<input type="number" id="goalRate" step="0.5"></label>
+          <label class="check"><input type="checkbox" id="goalAssets"> Inclure mes autres actifs (livrets, fonds euros, compte courant, immobilier net — carte « Patrimoine global »)</label>
         </div>
         <div id="goalResult"></div>
       </div>
@@ -782,6 +791,25 @@
     </form>
   </dialog>
 
+  <dialog id="assetDialog">
+    <form id="assetForm" class="stack">
+      <h2 id="assetDialogTitle">Ajouter un actif</h2>
+      <div class="form-grid compact">
+        <label>Type<select id="assetType"><option value="livretA">Livret A</option><option value="ldds">LDDS</option><option value="lep">LEP</option><option value="fondsEuros">Fonds euros (assurance-vie)</option><option value="courant">Compte courant</option><option value="immo">Immobilier</option><option value="autre">Autre</option></select></label>
+        <label>Nom<input type="text" id="assetName" placeholder="ex. Livret A Banque"></label>
+        <label><span>Valeur (<span class="ccy"></span>)</span><input type="number" id="assetValue" min="0" step="0.01" inputmode="decimal" required></label>
+        <label>Date de mise à jour<input type="date" id="assetDate" required></label>
+        <label id="assetRateWrap">Taux annuel (%)<input type="number" id="assetRate" min="0" max="20" step="0.05" inputmode="decimal" placeholder="ex. taux du livret"></label>
+        <label id="assetDebtWrap" class="hidden"><span>Crédit restant dû (<span class="ccy"></span>)</span><input type="number" id="assetDebt" min="0" step="100" inputmode="decimal"></label>
+      </div>
+      <p class="muted small">Livrets et fonds euros : la valeur est estimée chaque jour avec le taux indiqué, à partir de la date de mise à jour. Mets-la à jour avec ton relevé de temps en temps.</p>
+      <div class="actions end">
+        <button type="button" class="btn" id="assetCancel">Annuler</button>
+        <button type="submit" class="btn primary">Enregistrer</button>
+      </div>
+    </form>
+  </dialog>
+
   <dialog id="csvDialog">
     <form method="dialog" class="stack" id="csvForm">
       <h2>Importer des opérations</h2>
@@ -819,20 +847,21 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-  <script src="js/utils.js?v=331eb8bf60"></script>
-  <script src="js/store.js?v=331eb8bf60"></script>
-  <script src="js/api.js?v=331eb8bf60"></script>
-  <script src="js/markets.js?v=331eb8bf60"></script>
-  <script src="js/portfolio.js?v=331eb8bf60"></script>
-  <script src="js/charts.js?v=331eb8bf60"></script>
-  <script src="js/app.js?v=331eb8bf60"></script>
-  <script src="js/views.js?v=331eb8bf60"></script>
-  <script src="js/compare.js?v=331eb8bf60"></script>
-  <script src="js/extras.js?v=331eb8bf60"></script>
-  <script src="js/mobile.js?v=331eb8bf60"></script>
-  <script src="js/features.js?v=331eb8bf60"></script>
-  <script src="js/money.js?v=331eb8bf60"></script>
-  <script src="js/newsart.js?v=331eb8bf60"></script>
-  <script src="js/insights.js?v=331eb8bf60"></script>
+  <script src="js/utils.js?v=36d97283b3"></script>
+  <script src="js/store.js?v=36d97283b3"></script>
+  <script src="js/api.js?v=36d97283b3"></script>
+  <script src="js/markets.js?v=36d97283b3"></script>
+  <script src="js/portfolio.js?v=36d97283b3"></script>
+  <script src="js/charts.js?v=36d97283b3"></script>
+  <script src="js/app.js?v=36d97283b3"></script>
+  <script src="js/views.js?v=36d97283b3"></script>
+  <script src="js/compare.js?v=36d97283b3"></script>
+  <script src="js/extras.js?v=36d97283b3"></script>
+  <script src="js/mobile.js?v=36d97283b3"></script>
+  <script src="js/features.js?v=36d97283b3"></script>
+  <script src="js/money.js?v=36d97283b3"></script>
+  <script src="js/newsart.js?v=36d97283b3"></script>
+  <script src="js/insights.js?v=36d97283b3"></script>
+  <script src="js/wealth.js?v=36d97283b3"></script>
 </body>
 </html>

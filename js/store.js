@@ -53,6 +53,7 @@ const DEFAULT_STATE = {
   instruments: {},   // key -> { symbol, mic, exchange, name, currency, type }
   transactions: [],  // { id, key, type: 'buy'|'sell'|'div'|'split', date, qty (parité pour 'split'), price, fees, note }
   cashMoves: [],     // { id, account, type: 'deposit'|'withdraw', date, amount (devise de base), note }
+  assets: [],        // autres actifs (patrimoine global) { id, type, name, value, date, rate?, debt? }
   plans: [],         // versements programmés { id, key, account, amount, day, start, fractional, active, done: { 'AAAA-MM': idOpération | 'skip' } }
   watchlist: [],     // [key]
   deleted: {},       // id -> horodatage de suppression (synchronisation : un élément supprimé ne réapparaît pas)
@@ -73,6 +74,7 @@ const Store = {
     this.state.alerts = this.state.alerts || [];
     if (!Array.isArray(this.state.cashMoves)) this.state.cashMoves = [];
     if (!Array.isArray(this.state.plans)) this.state.plans = [];
+    if (!Array.isArray(this.state.assets)) this.state.assets = [];
     for (const k of ['deleted', 'restored']) if (!this.state[k] || typeof this.state[k] !== 'object' || Array.isArray(this.state[k])) this.state[k] = {};
     this.purgeTombstones();
     // comptes (PEA, CTO…) : migration depuis l'ancien réglage fiscal unique

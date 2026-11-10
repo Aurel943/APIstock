@@ -710,3 +710,14 @@ td.num .day-spark { display: block; margin: 4px 0 0 auto; }
 .csv-isin .name { display: block; }
 .csv-isin select { width: 100%; min-width: 0; }
 @media (max-width: 640px) { .csv-isin { grid-template-columns: 1fr; } }
+
+/* Patrimoine global */
+.wealth-top { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.wealth-top .spark { width: 160px; height: 40px; }
+.wealth-total { font-size: 1.8rem; font-weight: 700; }
+.wealth-bar { display: flex; height: 12px; border-radius: 6px; overflow: hidden; background: var(--surface-2); margin-bottom: 10px; }
+.wealth-bar span { display: block; height: 100%; }
+.wealth-legend { list-style: none; margin: 0 0 12px; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 6px 16px; }
+.wealth-legend li { display: flex; align-items: center; gap: 8px; }
+.wealth-legend .dot { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.wealth-legend b { margin-left: auto; }

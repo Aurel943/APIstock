@@ -549,7 +549,7 @@ const Sync = {
     return j;
   },
   /** Listes fusionnées par identifiant (et filtrées des éléments supprimés) */
-  LISTS: ['transactions', 'alerts', 'accounts', 'cashMoves', 'plans'],
+  LISTS: ['transactions', 'alerts', 'accounts', 'cashMoves', 'plans', 'assets'],
 
   /**
    * Suppressions des deux appareils : pour chaque identifiant, la date la plus récente l'emporte entre
@@ -577,6 +577,7 @@ const Sync = {
     if (first) for (const k of ['transactions', 'cashMoves', 'plans']) out[k] = out[k].map(x => (x.account && !accIds.has(x.account) ? Object.assign({}, x, { account: first }) : x));
     out.watchlist = Array.from(new Set([...(remote.watchlist || []), ...(local.watchlist || [])]));
     out.targets = Object.assign({}, remote.targets || {}, local.targets || {});
+    out.wealthHistory = Object.assign({}, remote.wealthHistory || {}, local.wealthHistory || {});
     return out;
   },
 };
