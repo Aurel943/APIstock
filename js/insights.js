@@ -27,8 +27,17 @@ Object.assign(Api, {
     }
     // ancien relais : réponse Yahoo brute, sans champ « lang »
     const lang = json.lang || 'en';
+    // certaines sources n'ont qu'une adresse comme nom : « https://www.exemple.fr/ » ou « fr.beincrypto.com » → nom lisible
+    const SITES = { 'beincrypto.com': 'BeInCrypto', 'cointribune.com': 'Cointribune', 'zonebourse.com': 'Zonebourse', 'boursorama.com': 'Boursorama',
+      'lesechos.fr': 'Les Échos', 'capital.fr': 'Capital', 'investing.com': 'Investing.com', 'boursier.com': 'Boursier.com' };
+    const pubName = p => {
+      p = (p || '').trim();
+      if (!/^(https?:\/\/)?[a-z0-9.-]+\.[a-z]{2,}\/?$/i.test(p)) return p;
+      const host = p.replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^(www|fr)\./, '');
+      return SITES[host] || host;
+    };
     const items = (json.news || []).filter(n => n.title && /^https:\/\//.test(n.link || '')).map(n => ({
-      id: n.uuid || n.link, title: n.title, publisher: n.publisher || '', link: n.link, time: (n.providerPublishTime || 0) * 1000, lang,
+      id: n.uuid || n.link, title: n.title, publisher: pubName(n.publisher), link: n.link, time: (n.providerPublishTime || 0) * 1000, lang,
     }));
     this.newsCache[ck] = { ts: Date.now(), items };
     return items;
