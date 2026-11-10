@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=36d97283b3">
+  <link rel="stylesheet" href="css/style.css?v=97e16ce5ed">
 </head>
 <body>
   <header class="topbar">
@@ -559,6 +559,32 @@
         <div class="chart-box wide"><canvas id="projChart"></canvas></div>
         <p class="muted small">La zone colorée contient 80 % des scénarios simulés (entre le 10<sup>e</sup> et le 90<sup>e</sup> centile) : les marchés ne montent pas en ligne droite. Le rendement saisi est le rendement médian ; la volatilité mesure l'ampleur des variations d'une année à l'autre.</p>
       </div>
+
+      <div class="card" id="retireCard">
+        <div class="card-head">
+          <div>
+            <h2>Phase de retraite : vivre de son capital</h2>
+            <p class="muted small">Retraits mensuels sur un capital qui reste placé. Combien de temps tient-il, selon les scénarios de marché ?</p>
+          </div>
+        </div>
+        <div class="form-grid">
+          <label><span>Capital de départ (<span class="ccy"></span>)</span>
+            <div class="inline wrap">
+              <input type="number" id="retInitial" min="0" step="1000" value="300000">
+              <button class="btn small" id="retFromWealth" type="button" title="Utiliser ton patrimoine financier : titres, espèces et épargne (hors immobilier)">Mon patrimoine</button>
+            </div>
+          </label>
+          <label><span>Retrait mensuel (<span class="ccy"></span>)</span><input type="number" id="retWithdraw" min="0" step="50" value="1200"></label>
+          <label>Inflation (indexation annuelle, %)<input type="number" id="retInflation" min="0" max="20" step="0.1" value="2"></label>
+          <label>Durée (années)<input type="number" id="retYears" min="1" max="60" value="30"></label>
+          <label>Rendement annuel moyen (%, net de frais)<input type="number" id="retRate" step="0.5" value="5"></label>
+          <label>Volatilité annuelle (%)<input type="number" id="retVol" min="0" max="80" step="1" value="12"></label>
+          <label>Ton âge aujourd'hui (optionnel)<input type="number" id="retAge" min="18" max="110" step="1" placeholder="ex. 62"></label>
+        </div>
+        <div class="kpis" id="retKpis"></div>
+        <div class="chart-box wide"><canvas id="retChart"></canvas></div>
+        <p class="muted small" id="retNote">Monte-Carlo, 2 000 trajectoires, mêmes hypothèses de marché que la projection. Le retrait de la première année est indexé chaque année sur l'inflation. Hors impôts sur les retraits. Une simulation, pas un conseil.</p>
+      </div>
     </section>
 
     <!-- ============ RÉGLAGES ============ -->
@@ -847,21 +873,21 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-  <script src="js/utils.js?v=36d97283b3"></script>
-  <script src="js/store.js?v=36d97283b3"></script>
-  <script src="js/api.js?v=36d97283b3"></script>
-  <script src="js/markets.js?v=36d97283b3"></script>
-  <script src="js/portfolio.js?v=36d97283b3"></script>
-  <script src="js/charts.js?v=36d97283b3"></script>
-  <script src="js/app.js?v=36d97283b3"></script>
-  <script src="js/views.js?v=36d97283b3"></script>
-  <script src="js/compare.js?v=36d97283b3"></script>
-  <script src="js/extras.js?v=36d97283b3"></script>
-  <script src="js/mobile.js?v=36d97283b3"></script>
-  <script src="js/features.js?v=36d97283b3"></script>
-  <script src="js/money.js?v=36d97283b3"></script>
-  <script src="js/newsart.js?v=36d97283b3"></script>
-  <script src="js/insights.js?v=36d97283b3"></script>
-  <script src="js/wealth.js?v=36d97283b3"></script>
+  <script src="js/utils.js?v=97e16ce5ed"></script>
+  <script src="js/store.js?v=97e16ce5ed"></script>
+  <script src="js/api.js?v=97e16ce5ed"></script>
+  <script src="js/markets.js?v=97e16ce5ed"></script>
+  <script src="js/portfolio.js?v=97e16ce5ed"></script>
+  <script src="js/charts.js?v=97e16ce5ed"></script>
+  <script src="js/app.js?v=97e16ce5ed"></script>
+  <script src="js/views.js?v=97e16ce5ed"></script>
+  <script src="js/compare.js?v=97e16ce5ed"></script>
+  <script src="js/extras.js?v=97e16ce5ed"></script>
+  <script src="js/mobile.js?v=97e16ce5ed"></script>
+  <script src="js/features.js?v=97e16ce5ed"></script>
+  <script src="js/money.js?v=97e16ce5ed"></script>
+  <script src="js/newsart.js?v=97e16ce5ed"></script>
+  <script src="js/insights.js?v=97e16ce5ed"></script>
+  <script src="js/wealth.js?v=97e16ce5ed"></script>
 </body>
 </html>

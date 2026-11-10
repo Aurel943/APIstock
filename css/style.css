@@ -721,3 +721,5 @@ td.num .day-spark { display: block; margin: 4px 0 0 auto; }
 .wealth-legend li { display: flex; align-items: center; gap: 8px; }
 .wealth-legend .dot { width: 10px; height: 10px; border-radius: 3px; flex: none; }
 .wealth-legend b { margin-left: auto; }
+.inline.wrap { flex-wrap: wrap; }
+.inline.wrap input { flex: 1 1 110px; min-width: 0; }

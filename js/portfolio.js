@@ -358,10 +358,15 @@ const Portfolio = {
    * Renvoie, pour chaque année, les percentiles 10 / 50 / 90 de la valeur et la probabilité d'atteindre `target`.
    * Générateur pseudo-aléatoire à graine fixe : mêmes hypothèses → mêmes résultats.
    */
-  monteCarlo({ initial, monthly, rate, fees, vol, years, target, paths = 2000, seed = 42 }) {
+  /** Tirages gaussiens reproductibles (générateur mulberry32 à graine fixe + Box-Muller) */
+  gaussian(seed = 42) {
     let st = seed >>> 0;
     const rand = () => { st = (st + 0x6D2B79F5) >>> 0; let t = st; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-    const gauss = () => { let u = 0; while (!u) u = rand(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * rand()); };
+    return () => { let u = 0; while (!u) u = rand(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * rand()); };
+  },
+
+  monteCarlo({ initial, monthly, rate, fees, vol, years, target, paths = 2000, seed = 42 }) {
+    const gauss = this.gaussian(seed);
     const months = Math.round(years * 12);
     const mu = Math.log(1 + (rate - (fees || 0)) / 100) / 12;
     const sigma = (vol || 0) / 100 / Math.sqrt(12);
@@ -381,6 +386,60 @@ const Portfolio = {
     const q = (arr, x) => arr[Math.min(arr.length - 1, Math.max(0, Math.round(x * (arr.length - 1))))];
     const out = byYear.map((arr, y) => { const s = Array.from(arr).sort((a, b) => a - b); return { year: y, p10: q(s, 0.1), p50: q(s, 0.5), p90: q(s, 0.9), invested: initial + monthly * y * 12 }; });
     return { years: out, probTarget: target > 0 ? reached / paths : NaN, probLoss: losses / paths, invested };
+  },
+
+  /**
+   * Phase de retraite : retraits mensuels (indexés chaque année sur l'inflation) sur un capital placé.
+   * Mêmes hypothèses de marché que monteCarlo (rendements mensuels log-normaux, graine fixe).
+   * Renvoie, par année, les percentiles 10 / 50 / 90 du capital restant, la probabilité que le capital tienne
+   * toute la durée, et le mois d'épuisement dans les scénarios défavorable (10 %), médian et favorable (90 %)
+   * (Infinity = pas épuisé avant la fin). withdrawn[y] = total retiré à la fin de l'année y (scénario sans épuisement).
+   */
+  retirement({ initial, withdraw, inflation = 0, rate, fees = 0, vol, years, paths = 2000, seed = 42 }) {
+    const gauss = this.gaussian(seed);
+    const months = Math.max(1, Math.round(years * 12));
+    const mu = Math.log(1 + (rate - (fees || 0)) / 100) / 12;
+    const sigma = (vol || 0) / 100 / Math.sqrt(12);
+    const infl = 1 + (inflation || 0) / 100;
+    const wYear = Array.from({ length: Math.ceil(months / 12) + 1 }, (_, y) => withdraw * Math.pow(infl, y));
+    const byYear = Array.from({ length: Math.floor(months / 12) + 1 }, () => new Float64Array(paths));
+    const depleted = new Float64Array(paths);
+    let survived = 0;
+    for (let p = 0; p < paths; p++) {
+      let v = initial, out = Infinity;
+      byYear[0][p] = v;
+      for (let m = 1; m <= months; m++) {
+        if (out === Infinity) {
+          v = v * Math.exp(mu + sigma * gauss()) - wYear[Math.floor((m - 1) / 12)];
+          if (v < -1e-9) { v = 0; out = m; } else if (v < 0) v = 0;
+        }
+        if (m % 12 === 0) byYear[m / 12][p] = v;
+      }
+      depleted[p] = out;
+      if (out === Infinity) survived++;
+    }
+    const q = (arr, x) => arr[Math.min(arr.length - 1, Math.max(0, Math.round(x * (arr.length - 1))))];
+    const dep = Array.from(depleted).sort((a, b) => a - b);
+    let paid = 0;
+    const withdrawn = [0];
+    for (let y = 1; y < byYear.length; y++) { paid += 12 * withdraw * Math.pow(infl, y - 1); withdrawn.push(paid); }
+    return {
+      years: byYear.map((arr, y) => { const s = Array.from(arr).sort((a, b) => a - b); return { year: y, p10: q(s, 0.1), p50: q(s, 0.5), p90: q(s, 0.9) }; }),
+      probSuccess: survived / paths, months,
+      depletion: { p10: q(dep, 0.1), p50: q(dep, 0.5), p90: q(dep, 0.9) },
+      withdrawn,
+    };
+  },
+
+  /** Retrait mensuel maximal (première année, puis indexé) pour que le capital tienne `years` ans avec une probabilité `prob` */
+  maxWithdrawal(params, prob = 0.9) {
+    const ok = w => this.retirement(Object.assign({}, params, { withdraw: w, paths: params.paths || 600 })).probSuccess >= prob;
+    if (!(params.initial > 0)) return 0;
+    let lo = 0, hi = params.initial / Math.max(1, params.years * 12) * 3;
+    while (ok(hi) && hi < params.initial) { lo = hi; hi *= 2; }
+    // précision : 0,5 % du retrait ou 1 € (largement suffisant pour une hypothèse de marché)
+    for (let i = 0; i < 25 && hi - lo > Math.max(1, hi * 0.005); i++) { const mid = (lo + hi) / 2; if (ok(mid)) lo = mid; else hi = mid; }
+    return lo;
   },
 
   /**

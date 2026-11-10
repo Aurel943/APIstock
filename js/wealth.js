@@ -145,12 +145,78 @@ Object.assign(App, {
   },
 });
 
+Object.assign(App, {
+  /* ================================================================== */
+  /* PHASE DE RETRAITE (onglet Simulation)                                */
+  /* ================================================================== */
+  RET_FIELDS: { initial: '#retInitial', withdraw: '#retWithdraw', inflation: '#retInflation', years: '#retYears', rate: '#retRate', vol: '#retVol', age: '#retAge' },
+
+  bindRetirement() {
+    if (!$('#retireCard')) return;
+    const saved = Store.state.retirement || {};
+    for (const [k, id] of Object.entries(this.RET_FIELDS)) {
+      if (saved[k] !== undefined && saved[k] !== '') $(id).value = saved[k];
+      $(id).addEventListener('input', () => {
+        Store.state.retirement = Object.fromEntries(Object.entries(this.RET_FIELDS).map(([kk, ii]) => [kk, $(ii).value === '' ? '' : parseNum($(ii).value)]));
+        Store.save();
+        clearTimeout(this._retT);
+        this._retT = setTimeout(() => this.renderRetirement(), 200);
+      });
+    }
+    $('#retFromWealth').addEventListener('click', () => {
+      const s = Wealth.summary();
+      const v = s.securities + s.cash + s.savings;
+      if (!(v > 0)) { toast('Aucun patrimoine financier : ajoute des opérations ou des actifs.'); return; }
+      $('#retInitial').value = Math.round(v);
+      $('#retInitial').dispatchEvent(new Event('input'));
+      toast('Capital repris de ton patrimoine financier (titres, espèces, épargne ; hors immobilier)', 'success', 3000);
+    });
+  },
+
+  retirementParams() {
+    const v = Object.fromEntries(Object.entries(this.RET_FIELDS).map(([k, id]) => [k, parseNum($(id).value)]));
+    return { initial: Math.max(0, v.initial || 0), withdraw: Math.max(0, v.withdraw || 0), inflation: v.inflation || 0, years: Math.min(60, Math.max(1, Math.round(v.years || 1))),
+      rate: isFinite(v.rate) ? v.rate : 0, vol: Math.max(0, v.vol || 0), age: v.age > 0 ? v.age : NaN };
+  },
+
+  renderRetirement() {
+    if (!$('#retireCard')) return;
+    const cur = this.base();
+    const p = this.retirementParams();
+    const mc = Portfolio.retirement(p);
+    const max90 = Portfolio.maxWithdrawal(p, 0.9);
+    const when = m => {
+      if (m === Infinity) return { v: 'Jamais épuisé', sub: `le capital tient les ${p.years} ans` };
+      const date = addMonthsISO(todayISO(), m);
+      const age = isFinite(p.age) ? Math.floor(p.age + m / 12) : NaN;
+      return { v: isFinite(age) ? `À ${age} ans` : fmtDate(date), sub: `épuisé ${isFinite(age) ? 'vers ' + MONTHS_FR[+date.slice(5, 7) - 1].toLowerCase() + ' ' + date.slice(0, 4) : ''} après ${Math.floor(m / 12)} an(s) et ${m % 12} mois`.replace(/\s+/g, ' ') };
+    };
+    const d10 = when(mc.depletion.p10), d50 = when(mc.depletion.p50), d90 = when(mc.depletion.p90);
+    const prob = mc.probSuccess;
+    $('#retKpis').replaceChildren(
+      this.kpi('Le capital tient jusqu\'au bout', fmtPct(prob * 100, 0, false), `${p.years} ans de retraits de ${fmtMoney(p.withdraw, cur, 0)}/mois` + (p.inflation ? ` (indexés de ${fmtNum(p.inflation, 1)} %/an)` : ''), prob >= 0.9 ? 'up' : prob < 0.7 ? 'down' : ''),
+      this.kpi('Scénario défavorable', d10.v, d10.sub + ' · 1 chance sur 10 de faire moins bien', mc.depletion.p10 === Infinity ? 'up' : 'down'),
+      this.kpi('Scénario médian', d50.v, d50.sub, mc.depletion.p50 === Infinity ? 'up' : 'down'),
+      this.kpi('Scénario favorable', d90.v, d90.sub, mc.depletion.p90 === Infinity ? 'up' : ''),
+      this.kpi('Retrait soutenable à 90 %', fmtMoney(max90, cur, 0) + '/mois', `9 chances sur 10 que le capital tienne ${p.years} ans` + (p.inflation ? ', retrait indexé' : ''), max90 >= p.withdraw ? 'up' : 'down'));
+    if (this.view === 'simulation') {
+      const det = Portfolio.retirement(Object.assign({}, p, { vol: 0, paths: 1 }));
+      Charts.fan('retChart', mc.years.map(y => 'An ' + y.year + (isFinite(p.age) ? ` (${Math.floor(p.age + y.year)} ans)` : '')), {
+        p10: mc.years.map(y => y.p10), p50: mc.years.map(y => y.p50), p90: mc.years.map(y => y.p90),
+        expected: det.years.map(y => y.p50), invested: mc.withdrawn, names: { expected: 'Rendement régulier', invested: 'Total retiré' },
+      }, cur);
+    }
+  },
+});
+
 // rendu avec le reste de l'écran et à chaque mise à jour des cours du portefeuille
 (() => {
   const origAll = App.renderAll;
   App.renderAll = function () { origAll.apply(this, arguments); this.renderWealth(); };
   const origPf = App.renderPortfolio;
   App.renderPortfolio = function () { origPf.apply(this, arguments); this.renderWealth(); };
+  const origShow = App.show;
+  App.show = function (view) { origShow.apply(this, arguments); if (view === 'simulation') this.renderRetirement(); };
 })();
 
-document.addEventListener('DOMContentLoaded', () => { App.bindWealth(); App.renderWealth(); });
+document.addEventListener('DOMContentLoaded', () => { App.bindWealth(); App.renderWealth(); App.bindRetirement(); App.renderRetirement(); });
