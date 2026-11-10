@@ -10,8 +10,7 @@ const NEWS_TOPIC = { // [recherche en français, recherche en anglais, symboles 
   japan: ['bourse de Tokyo Nikkei', 'Nikkei', '^N225'], gold: ['cours de l\'or', 'gold price', 'GC=F'], crypto: ['Bitcoin', 'Bitcoin', 'BTC-EUR'],
 };
 /* Repli quand aucune source française ne parle d'une valeur : actualité générale de Paris et Wall Street */
-const NEWS_GENERAL = { fr: 'Bourse de Paris CAC 40', en: 'stock market', s: '^FCHI,^GSPC', label: 'Marchés' };
-const NEWS_COLORS = ['#10b981', '#6366f1', '#f59e0b', '#ec4899', '#06b6d4', '#8b5cf6', '#ef4444', '#84cc16', '#f97316', '#3b82f6'];
+const NEWS_GENERAL = { fr: 'Bourse de Paris CAC 40', en: 'stock market', s: '^FCHI,^GSPC', label: 'Marchés', theme: 'markets' };
 
 Object.assign(Api, {
   newsCache: {},
@@ -28,8 +27,17 @@ Object.assign(Api, {
     }
     // ancien relais : réponse Yahoo brute, sans champ « lang »
     const lang = json.lang || 'en';
+    // certaines sources n'ont qu'une adresse comme nom : « https://www.exemple.fr/ » ou « fr.beincrypto.com » → nom lisible
+    const SITES = { 'beincrypto.com': 'BeInCrypto', 'cointribune.com': 'Cointribune', 'zonebourse.com': 'Zonebourse', 'boursorama.com': 'Boursorama',
+      'lesechos.fr': 'Les Échos', 'capital.fr': 'Capital', 'investing.com': 'Investing.com', 'boursier.com': 'Boursier.com' };
+    const pubName = p => {
+      p = (p || '').trim();
+      if (!/^(https?:\/\/)?[a-z0-9.-]+\.[a-z]{2,}\/?$/i.test(p)) return p;
+      const host = p.replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^(www|fr)\./, '');
+      return SITES[host] || host;
+    };
     const items = (json.news || []).filter(n => n.title && /^https:\/\//.test(n.link || '')).map(n => ({
-      id: n.uuid || n.link, title: n.title, publisher: n.publisher || '', link: n.link, time: (n.providerPublishTime || 0) * 1000, lang,
+      id: n.uuid || n.link, title: n.title, publisher: pubName(n.publisher), link: n.link, time: (n.providerPublishTime || 0) * 1000, lang,
     }));
     this.newsCache[ck] = { ts: Date.now(), items };
     return items;
@@ -219,12 +227,13 @@ Object.assign(App, {
     const inst = Store.instrument(key);
     if (!inst) return null;
     const clean = n => (n || '').replace(/\(.*?\)/g, '').replace(/\b(UCITS|ETF|Acc|Dist|EUR|USD|Inc|Corp|Corporation|Ltd|plc|S\.?A|SE|N\.?V|AG|Class [A-C])\b\.?/gi, '').replace(/[,.]+$/, '').replace(/\s+/g, ' ').trim();
-    if (!inst.mic && inst.ysymbol) { const n = clean(inst.name) || inst.ysymbol; return { fr: n, en: inst.ysymbol, s: inst.ysymbol, label: n }; } // indices, matières premières, crypto
     const prof = typeof Expo !== 'undefined' ? Expo.of(key).profile : 'none';
-    if (NEWS_TOPIC[prof]) return { fr: NEWS_TOPIC[prof][0], en: NEWS_TOPIC[prof][1], s: NEWS_TOPIC[prof][2], label: NEWS_TOPIC[prof][0] };
+    const theme = NEWS_THEME_BY_PROFILE[prof] || newsTheme(inst.name, 'markets');
+    if (!inst.mic && inst.ysymbol) { const n = clean(inst.name) || inst.ysymbol; return { fr: n, en: inst.ysymbol, s: inst.ysymbol, label: n, theme }; } // indices, matières premières, crypto
+    if (NEWS_TOPIC[prof]) return { fr: NEWS_TOPIC[prof][0], en: NEWS_TOPIC[prof][1], s: NEWS_TOPIC[prof][2], label: NEWS_TOPIC[prof][0], theme };
     const n = clean(inst.name) || inst.symbol;
     const ysym = yahooSymbolFor(inst) || '';
-    return { fr: n, en: prof === 'stock' ? (ysym || inst.symbol) : n, s: ysym, label: n };
+    return { fr: n, en: prof === 'stock' ? (ysym || inst.symbol) : n, s: ysym, label: n, theme };
   },
 
   /** Actualités en français d'un sujet ; à défaut, actualité générale des marchés en français */
@@ -238,11 +247,8 @@ Object.assign(App, {
     return { items, general: false };
   },
 
-  newsItem(n, tag) {
-    const pub = n.publisher || '?';
-    let h = 0;
-    for (const ch of pub) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-    // vignette : image de l'article (via le relais) posée sur la pastille de la source, qui reste visible s'il n'y en a pas
+  newsItem(n, tag, theme) {
+    // vignette : image de l'article (via le relais) posée sur une illustration du thème, qui reste visible s'il n'y en a pas
     let img = null;
     const base = Api.proxyUrl();
     if (base && !/news\.google\./.test(n.link)) {
@@ -255,15 +261,15 @@ Object.assign(App, {
     }
     return el('li', { class: 'news-item' },
       el('a', { class: 'news-thumb', href: n.link, target: '_blank', rel: 'noopener noreferrer', tabindex: '-1', 'aria-hidden': 'true',
-        style: 'background:' + NEWS_COLORS[h % NEWS_COLORS.length] }, pub.replace(/^(le|la|les|l')\s*/i, '').charAt(0).toUpperCase(), img),
+        style: `background-image:url("${NEWS_ART[newsTheme(n.title, n.theme || theme)]}")` }, img),
       el('div', { class: 'news-body' },
         el('a', { href: n.link, target: '_blank', rel: 'noopener noreferrer' }, n.title),
         el('div', { class: 'news-meta' }, [n.publisher, n.time ? fmtAgo(n.time) : '', tag].filter(Boolean).join(' · '))));
   },
 
-  newsList(items, tag) {
+  newsList(items, theme) {
     // styles de base en ligne : lisible même si l'ancienne feuille de style est encore en cache
-    return el('ul', { class: 'news-list', style: 'list-style:none;margin:0;padding:0' }, ...items.map(n => this.newsItem(n, tag ? n.tag : null)));
+    return el('ul', { class: 'news-list', style: 'list-style:none;margin:0;padding:0' }, ...items.map(n => this.newsItem(n, null, theme)));
   },
 
   async loadNews(force = false) {
@@ -286,7 +292,7 @@ Object.assign(App, {
           const res = await this.newsFr(q);
           for (const n of res.items) {
             const k = n.title.toLowerCase().slice(0, 60); // même article repris par plusieurs recherches
-            if (!all.has(k)) all.set(k, Object.assign({ tag: res.general ? NEWS_GENERAL.label : tag }, n));
+            if (!all.has(k)) all.set(k, Object.assign({ tag: res.general ? NEWS_GENERAL.label : tag, theme: res.general ? NEWS_GENERAL.theme : q.theme }, n));
           }
         } catch (e) { err = e; }
       }
@@ -310,7 +316,7 @@ Object.assign(App, {
       const title = res.general ? 'Actualités des marchés' : 'Actualités · ' + q.label + (items.length && items[0].lang === 'en' ? ' (en anglais)' : '');
       box.replaceChildren(...(items.length ? [el('h3', {}, title),
         res.general ? el('p', { class: 'muted small' }, `Rien en français sur ${q.label} pour l'instant : voici l'actualité générale de la Bourse de Paris et de Wall Street.`) : null,
-        this.newsList(items)].filter(Boolean) : []));
+        this.newsList(items, res.general ? NEWS_GENERAL.theme : q.theme)].filter(Boolean) : []));
     } catch (e) {
       if (key === this.detailKey) box.replaceChildren(el('p', { class: 'muted small' }, e.message));
     }
