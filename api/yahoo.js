@@ -3,7 +3,7 @@
  * Si le site est déployé sur Vercel, ce fichier est servi à /api/yahoo et
  * l'application le détecte automatiquement (rien à configurer).
  *
- * Appels Yahoo autorisés, en lecture seule : graphique/cotation (avec dividendes et divisions), recherche, et actualités en français (flux RSS Yahoo Finance France et Google Actualités).
+ * Appels Yahoo autorisés, en lecture seule : graphique/cotation (avec dividendes et divisions), recherche, actualités en français (flux RSS Yahoo Finance France et Google Actualités) et image des articles.
  */
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
 const SYMBOL_RE = /^[A-Za-z0-9.\-=^&]{1,25}$/;
@@ -96,6 +96,32 @@ async function newsFor(q) {
   return { lang: 'en', source: 'yahoo-en', tried, news: j.news || [] };
 }
 
+/* ---- Image d'un article (balise og:image de sa page), pour les vignettes des actualités ---- */
+const GENERIC_IMG = /default[-_]?logo|yahoo_default|\/logo[^/]*\.(png|svg)|googleusercontent\.com\/[^/]*=s0|gstatic\.com|favicon/i;
+
+async function articleImage(url) {
+  const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; APIstock/1.0)', Accept: 'text/html', 'Accept-Language': 'fr-FR,fr;q=0.9' }, redirect: 'follow' });
+  if (!r.ok || !r.body || !/html/i.test(r.headers.get('content-type') || '')) return null;
+  // lecture progressive : on s'arrête dès que la balise est trouvée (au plus 400 Ko)
+  const reader = r.body.getReader();
+  const dec = new TextDecoder();
+  let html = '', found = null;
+  while (html.length < 400000) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    html += dec.decode(value, { stream: true });
+    const metas = html.match(/<meta[^>]+(?:property|name)=["'](?:og:image|twitter:image)(?::src)?["'][^>]*>/gi) || [];
+    for (const m of metas) {
+      const c = (m.match(/content=["']([^"']+)["']/i) || [])[1];
+      if (c && !GENERIC_IMG.test(c)) { found = c.replace(/&amp;/g, '&'); break; }
+    }
+    if (found || /<\/head>/i.test(html)) break;
+  }
+  try { reader.cancel(); } catch (e) { /* ignore */ }
+  if (!found) return null;
+  try { const u = new URL(found, url); return u.protocol === 'https:' ? u.toString() : null; } catch (e) { return null; }
+}
+
 module.exports = async (req, res) => {
   const origin = req.headers.origin;
   if (ALLOWED_ORIGINS.length && origin && !ALLOWED_ORIGINS.includes(origin)) {
@@ -112,6 +138,16 @@ module.exports = async (req, res) => {
   if (q.type === 'ping') { res.status(200).json({ ok: true }); return; }
   if (q.type === 'sync') { res.status(200).json({ configured: false, unsupported: true }); return; } // synchronisation : Cloudflare uniquement
   if (q.type === 'stats') { res.status(200).json({ configured: false, unsupported: true }); return; } // compteur global : Cloudflare uniquement
+  if (q.type === 'ogimage') {
+    let target;
+    try { target = new URL(String(q.url || '')); } catch (e) { res.status(400).json({ error: 'requête invalide' }); return; }
+    if (target.protocol !== 'https:') { res.status(400).json({ error: 'requête invalide' }); return; }
+    let img = null;
+    try { img = await articleImage(target.toString()); } catch (e) { img = null; }
+    res.setHeader('Cache-Control', 's-maxage=86400');
+    if (img) { res.setHeader('Location', img); res.status(302).end(); } else res.status(404).end();
+    return;
+  }
   if (q.type === 'news') {
     if (!String(q.q || '').trim() && !String(q.s || '').trim()) { res.status(400).json({ error: 'requête invalide' }); return; }
     try { res.setHeader('Cache-Control', 's-maxage=600'); res.status(200).json(await newsFor(q)); }
