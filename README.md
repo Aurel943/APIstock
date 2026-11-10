@@ -68,6 +68,26 @@ Site personnel (100 % statique, sans serveur ni compte) pour suivre ses ETF et l
 - **PEA** : versements estimés face au plafond de 150 000 €, date des 5 ans et compte à rebours ; date d'ouverture et versements réels modifiables
 - **Compte-titres** : plus-values réalisées par année (prix moyen pondéré d'acquisition), imputation des moins-values sur 10 ans, dividendes, cases de la déclaration (3VG / 3VH, 2DC / 2TR) et impôt estimé au prélèvement forfaitaire unique de 30 %
 
+**Versements programmés & liquidités**
+- **Versements programmés (DCA)** : « 200 € sur CW8 le 5 de chaque mois » (onglet Investir). À chaque échéance, l'achat apparaît dans la carte **À faire** du portefeuille, pré-rempli avec le cours de clôture du jour de l'échéance : un clic pour l'enregistrer (ou « Tout enregistrer », ou « Ignorer »). Parts entières ou fractionnées, mise en pause possible
+- **Liquidités par compte** : bouton « + Versement / retrait » (carte Opérations). Dès le premier mouvement, le compte suit ses espèces (versements − retraits − achats + ventes + dividendes) : carte Liquidités, KPI « Liquidités » et valeur totale titres + espèces, objectif patrimonial calculé avec les espèces, et pour un PEA le plafond est calculé sur les **versements réels**
+- **Divisions d'actions (splits)** : type d'opération « Division / regroupement » (parité `10`, `1:10` ou `10:1`). Le nombre de parts est multiplié, le prix de revient total ne change pas, l'historique et la fiscalité en tiennent compte. Les divisions survenues sur tes positions sont **détectées automatiquement** (Yahoo) et proposées dans « À faire »
+- **Dividendes détachés non saisis** : proposés dans « À faire » avec le montant estimé (dividende par part × parts détenues)
+
+**Analyses**
+- **Risque du portefeuille** : volatilité annuelle, pire baisse (avec dates), performance annualisée (TWR), ratios de Sharpe et de Sortino, bêta et corrélation face au MSCI World. Taux sans risque réglable dans Réglages
+- **Projection Monte-Carlo** (onglet Simulation) : 2 000 trajectoires aléatoires selon le rendement et la volatilité choisis → scénarios défavorable / médian / favorable, zone de 80 % des cas sur le graphique, risque de finir sous le total versé et probabilité d'atteindre ton objectif
+- **Rééquilibrage sans vente** (onglet Investir) : montant minimal à investir pour revenir à l'allocation cible sans rien vendre (pas d'impôt en compte-titres), répartition par ligne ; alerte dans « À faire » quand une ligne s'écarte de plus de N points (seuil réglable)
+- **Dividendes à venir** : estimation des 12 prochains mois d'après les détachements de l'année écoulée (montant par mois, rendement, prochain versement)
+- **Actualités** de tes placements (carte du portefeuille) et de chaque valeur (onglet Marchés), via Yahoo Finance
+
+**Confort**
+- **Recherche par ISIN** (ex. `IE00B4L5Y983`, `FR0010315770`) : toutes les places de cotation du fonds sont proposées
+- **Annuler** une suppression (opération, mouvement d'espèces, versement programmé) pendant quelques secondes
+- **Note libre** sur chaque opération (affichée dans la liste, exportée en CSV)
+- **Rapport annuel imprimable / PDF** (bouton dans Opérations) : synthèse de l'année, performance mois par mois, cases fiscales du compte-titres, PEA, cessions, opérations et positions
+- **Alertes de prix même site fermé** : notifications push envoyées par ton worker Cloudflare (voir plus bas)
+
 **Synchronisation entre appareils** : opérations, comptes, liste de suivi et réglages identiques sur ton téléphone et ton ordinateur, **chiffrés de bout en bout** avec ton code (voir plus bas).
 
 ## Démarrage
@@ -112,8 +132,20 @@ Dans **Réglages**, le site affiche le nombre de requêtes envoyées aujourd'hui
    - `CF_API_TOKEN` (type *Secret*) : le jeton créé à l'étape 1.
 3. **Deploy**. Le jeton reste dans le worker : le site ne reçoit que les totaux, rafraîchis au plus une fois par minute.
 
+#### Mettre à jour le worker (actualités, dividendes, divisions, alertes push)
+Les actualités, le calendrier des dividendes et la détection des divisions passent par de nouvelles requêtes du relais. Si tu utilises ton propre worker (ou le relais par défaut), **remplace son code** par la dernière version de [`proxy/cloudflare-worker.js`](proxy/cloudflare-worker.js) → **Deploy**. Sans cette mise à jour, le reste du site fonctionne normalement ; ces cartes restent simplement vides (ou affichent « redéploie le worker »).
+
+#### Alertes de prix même site fermé (optionnel)
+Le worker vérifie tes alertes toutes les 5 minutes et t'envoie une notification push (Web Push chiffré, sans service tiers). Prérequis : l'espace KV `SYNC` de la synchronisation (voir ci-dessus).
+1. Sur le site : **Investir** → *Alertes de prix* → **Générer les clés du worker…** et copie les deux valeurs.
+2. Worker → **Settings** → **Variables and Secrets** → **Add**, type *Secret* : `VAPID_PUBLIC` et `VAPID_PRIVATE` (et, facultatif, `VAPID_SUBJECT` = `mailto:…` ou l'URL de ton site).
+3. Worker → **Settings** → **Triggers** → **Cron Triggers** → **Add** : `*/5 * * * *` → **Deploy**.
+4. Sur chaque appareil : **Investir** → **Activer sur cet appareil** (sur iPhone : ajoute d'abord le site à l'écran d'accueil, iOS 16.4 ou plus, et ouvre-le depuis l'icône), puis **Envoyer une notification de test**.
+
+Une alerte déclenchée par le worker est marquée « Déclenchée » sur tes appareils à leur prochaine ouverture. Le worker stocke, pour chaque appareil, l'adresse d'abonnement push et les alertes (symbole Yahoo, condition, seuil) en clair, puisqu'il doit les lire ; rien d'autre de ton portefeuille. Coût : une lecture de la liste KV toutes les 5 minutes (≈ 290 par jour, quota gratuit 1 000) et une écriture seulement quand une alerte se déclenche.
+
 ### B. Héberger tout le site sur Vercel
-Importe le dépôt sur <https://vercel.com/new> : la fonction [`api/yahoo.js`](api/yahoo.js) est déployée automatiquement et le site la détecte tout seul (rien à saisir dans les réglages).
+Importe le dépôt sur <https://vercel.com/new> : la fonction [`api/yahoo.js`](api/yahoo.js) est déployée automatiquement et le site la détecte tout seul (rien à saisir dans les réglages). La synchronisation, le compteur global et les alertes push restent réservés au relais Cloudflare.
 
 ### Comment le site choisit sa source
 - Quand tu cherches un ETF, chaque résultat porte une étiquette **Yahoo** ou **Twelve Data** : choisis la ligne Yahoo pour les places européennes.
@@ -132,7 +164,7 @@ Importe le dépôt sur <https://vercel.com/new> : la fonction [`api/yahoo.js`](a
 ## Structure
 
 ```
-index.html        page unique (4 onglets)
+index.html        page unique (7 onglets)
 css/style.css     styles (thème clair / sombre)
 js/utils.js       formatage, helpers DOM
 js/store.js       persistance locale
@@ -145,8 +177,28 @@ js/compare.js     onglet Comparer
 js/extras.js      comptes, objectif, calendrier, mode discret, CSV
 js/mobile.js      navigation et affichage mobile
 js/features.js    temps réel, exposition & frais, fiscalité, synchronisation
+js/money.js       versements programmés, liquidités, divisions, ISIN, carte « À faire »
+js/insights.js    risque, rééquilibrage, dividendes à venir, actualités, rapport annuel, alertes push
 sw.js, manifest.webmanifest, icons/   application installable (PWA)
 js/app.js         interface
 api/yahoo.js      relais Yahoo Finance (fonction Vercel)
-proxy/cloudflare-worker.js   relais Yahoo Finance (Cloudflare Workers)
+proxy/cloudflare-worker.js   relais Yahoo Finance (Cloudflare Workers) + synchronisation + alertes push
+scripts/sw-version.mjs       version du cache de l'application, calculée d'après le contenu des fichiers
+tests/                       tests unitaires (node --test)
 ```
+
+## Développement
+
+Aucune dépendance à installer (Node 20 ou plus) :
+
+```bash
+npm test
+```
+
+Après avoir modifié un fichier du site, mets à jour la version du cache de l'application installée (sinon les tests et l'intégration continue échouent) :
+
+```bash
+npm run sw-version
+```
+
+L'intégration continue (GitHub Actions, `.github/workflows/ci.yml`) vérifie la syntaxe des scripts, la version du cache et lance les tests à chaque push.

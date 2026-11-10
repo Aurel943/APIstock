@@ -1,0 +1,22 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Syntaxe des scripts
+        run: |
+          for f in js/*.js sw.js api/yahoo.js; do node --check "$f"; done
+          node --input-type=module --check < proxy/cloudflare-worker.js
+      - name: Version du cache du service worker à jour
+        run: node scripts/sw-version.mjs --check
+      - name: Tests unitaires
+        run: node --test tests/*.test.mjs

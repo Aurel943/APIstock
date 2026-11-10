@@ -123,6 +123,33 @@ const Charts = {
     });
   },
 
+  /** Projection en éventail : zone 10-90 %, médiane, projection régulière et total versé */
+  fan(id, labels, d, currency) {
+    this.destroy(id);
+    const ctx = document.getElementById(id);
+    if (!ctx || typeof Chart === 'undefined') return;
+    const o = this.baseOptions();
+    o.plugins.tooltip.callbacks = { label: c => (c.dataset.label ? ` ${c.dataset.label} : ${fmtMoney(c.raw, currency, 0)}` : null) };
+    o.plugins.legend.labels.filter = item => !!item.text;
+    o.scales.y.ticks.callback = v => fmtMoney(v, currency, 0);
+    o.elements = { point: { radius: 0, hoverRadius: 4 } };
+    const accent = this.css('--accent'), muted = this.css('--muted');
+    this.instances[id] = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          { label: 'Favorable (90 %)', data: d.p90, borderColor: accent + '66', borderWidth: 1, fill: '+1', backgroundColor: accent + '22', tension: 0.2 },
+          { label: 'Défavorable (10 %)', data: d.p10, borderColor: accent + '66', borderWidth: 1, fill: false, tension: 0.2 },
+          { label: 'Médiane', data: d.p50, borderColor: accent, borderWidth: 2.5, fill: false, tension: 0.2 },
+          { label: 'Rendement régulier', data: d.expected, borderColor: '#6366f1', borderDash: [2, 3], borderWidth: 1.5, fill: false, tension: 0.2 },
+          { label: 'Total versé', data: d.invested, borderColor: muted, borderDash: [5, 4], borderWidth: 1.5, fill: false },
+        ],
+      },
+      options: o,
+    });
+  },
+
   refreshTheme() {
     for (const c of Object.values(this.instances)) {
       const muted = this.css('--muted'), grid = this.css('--chart-grid');

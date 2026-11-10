@@ -16,7 +16,9 @@ const DEFAULT_STATE = {
   targets: {},       // key -> % cible
   alerts: [],        // { id, key, kind: 'above'|'below'|'dayUp'|'dayDown', value, active, triggeredAt }
   instruments: {},   // key -> { symbol, mic, exchange, name, currency, type }
-  transactions: [],  // { id, key, type: 'buy'|'sell', date, qty, price, fees }
+  transactions: [],  // { id, key, type: 'buy'|'sell'|'div'|'split', date, qty (parité pour 'split'), price, fees, note }
+  cashMoves: [],     // { id, account, type: 'deposit'|'withdraw', date, amount (devise de base), note }
+  plans: [],         // versements programmés { id, key, account, amount, day, start, fractional, active, done: { 'AAAA-MM': idOpération | 'skip' } }
   watchlist: [],     // [key]
   sim: null,         // derniers paramètres de simulation
   projection: null,
@@ -32,6 +34,8 @@ const Store = {
     this.state.settings = Object.assign({}, DEFAULT_STATE.settings, (saved && saved.settings) || {});
     this.state.targets = this.state.targets || {};
     this.state.alerts = this.state.alerts || [];
+    if (!Array.isArray(this.state.cashMoves)) this.state.cashMoves = [];
+    if (!Array.isArray(this.state.plans)) this.state.plans = [];
     // comptes (PEA, CTO…) : migration depuis l'ancien réglage fiscal unique
     if (!Array.isArray(this.state.accounts) || !this.state.accounts.length) {
       const st = this.state.settings;
@@ -63,6 +67,7 @@ const Store = {
       provider: info.provider || prev.provider || 'twelve',
       ysymbol: info.ysymbol || prev.ysymbol || '',
       short: info.short || prev.short || '',
+      isin: info.isin || prev.isin || '',
     });
     this.save();
     return key;
@@ -111,6 +116,7 @@ const Store = {
     for (const t of this.state.transactions) set.add(t.key);
     for (const k of Object.keys(this.state.targets || {})) set.add(k);
     for (const a of this.state.alerts || []) if (a.active) set.add(a.key);
+    for (const p of this.state.plans || []) if (p.active !== false) set.add(p.key);
     return Array.from(set).filter(k => this.state.instruments[k]);
   },
 
@@ -128,5 +134,6 @@ const Store = {
     this.state = Object.assign(structuredClone(DEFAULT_STATE), data);
     this.state.settings = Object.assign({}, DEFAULT_STATE.settings, data.settings || {}, { apiKey });
     this.save();
+    this.load(); // mêmes migrations qu'au démarrage
   },
 };
