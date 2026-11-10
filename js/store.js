@@ -83,6 +83,7 @@ const Store = {
         taxRate: st.taxMode && st.taxMode !== 'none' ? parseNum(st.taxRate) || 0 : 0 }];
     }
     this.syncAccountRates();
+    if (typeof Portfolio !== 'undefined') Portfolio.invalidate();
     if (!this.state.accountFilter || (this.state.accountFilter !== 'all' && !this.state.accounts.some(a => a.id === this.state.accountFilter))) this.state.accountFilter = 'all';
     return this.state;
   },
@@ -105,6 +106,7 @@ const Store = {
   },
 
   save() {
+    if (typeof Portfolio !== 'undefined') Portfolio.invalidate(); // données modifiées : instantanés à recalculer
     try { localStorage.setItem(STORE_KEY, JSON.stringify(this.state)); }
     catch (e) { toast('Impossible de sauvegarder localement : ' + e.message, 'error'); }
   },

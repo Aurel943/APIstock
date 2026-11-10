@@ -40,8 +40,26 @@ const Portfolio = {
     }));
   },
 
-  /** Positions enrichies avec cotations + conversion dans la devise de base */
+  /*
+   * Cache des instantanés : en rafraîchissement rapide, snapshot() est demandé par de nombreuses cartes à chaque cotation.
+   * Le résultat est gardé par compte jusqu'au prochain changement de données (Store.save / Store.load), de cotation ou de
+   * taux de change (Api), qui appelle invalidate().
+   */
+  _snap: new Map(),
+  rev: 0,
+  stats: { hits: 0, misses: 0 },
+  invalidate() { this.rev++; this._snap.clear(); },
+
+  /** Positions enrichies avec cotations + conversion dans la devise de base (copie du résultat en cache) */
   snapshot(account) {
+    const acc = account === undefined ? Store.state.accountFilter || 'all' : account;
+    let c = this._snap.get(acc);
+    if (c) this.stats.hits++;
+    else { this.stats.misses++; c = this.computeSnapshot(acc); this._snap.set(acc, c); }
+    return { rows: c.rows.slice(), closed: c.closed.slice(), totals: Object.assign({}, c.totals) };
+  },
+
+  computeSnapshot(account) {
     const rows = this.positions(account);
     const totals = { value: 0, cost: 0, day: 0, realized: 0, dividends: 0, missing: 0 };
     for (const r of rows) {

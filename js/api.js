@@ -62,7 +62,11 @@ const Api = {
   init() {
     try { this.quotes = JSON.parse(localStorage.getItem('apistock:quotes') || '{}'); } catch (e) { this.quotes = {}; }
     try { this.fx = JSON.parse(localStorage.getItem('apistock:fx') || '{}'); } catch (e) { this.fx = {}; }
+    this.touch();
   },
+
+  /** Une cotation ou un taux de change a changé : les instantanés du portefeuille sont à recalculer */
+  touch() { if (typeof Portfolio !== 'undefined') Portfolio.invalidate(); },
 
   onUsage(fn) { this.listeners.add(fn); },
   emitUsage() {
@@ -296,6 +300,7 @@ const Api = {
       high52: q.fifty_two_week ? parseNum(q.fifty_two_week.high) : NaN,
     };
     this.quotes[key] = { data, ts: Date.now() };
+    this.touch();
     const inst = Store.instrument(key);
     if (inst && ((q.currency && inst.currency !== q.currency) || (q.name && inst.name === inst.symbol))) {
       Store.upsertInstrument({ symbol: inst.symbol, mic: inst.mic, currency: q.currency || inst.currency, name: q.name || inst.name, exchange: q.exchange });
@@ -344,6 +349,7 @@ const Api = {
     const m = r.meta;
     const data = this.parseYahoo(r);
     this.quotes[key] = { data, ts: Date.now() };
+    this.touch();
     const inst = Store.instrument(key);
     if (inst && ((m.currency && inst.currency !== m.currency) || !inst.name || inst.name === inst.symbol)) {
       Store.upsertInstrument({ symbol: inst.symbol, mic: inst.mic, currency: m.currency || inst.currency, name: inst.name && inst.name !== inst.symbol ? inst.name : data.name, exchange: inst.exchange || data.exchange });
@@ -384,6 +390,7 @@ const Api = {
         rate = parseNum(json.rate);
       }
       if (isFinite(rate) && rate > 0) {
+        if (!c || c.rate !== rate) this.touch();
         this.fx[pair] = { rate, ts: Date.now() };
         try { localStorage.setItem('apistock:fx', JSON.stringify(this.fx)); } catch (e) { /* ignore */ }
         return rate;
@@ -461,6 +468,7 @@ const Api = {
     values = values.filter(v => isFinite(v[1]) && v[1] > 0);
     if (!values.length) return false;
     this.fxHist[pair] = { start: from0, ts: Date.now(), values };
+    this.touch();
     return true;
   },
 

@@ -1092,7 +1092,8 @@ const App = {
 
     $('#clearCache').addEventListener('click', () => {
       Api.pruneSeriesCache();
-      Api.quotes = {}; Api.fx = {}; Api.intraday = {};
+      Api.quotes = {}; Api.fx = {}; Api.intraday = {}; Api.fxHist = {};
+      Api.touch();
       localStorage.removeItem('apistock:quotes');
       localStorage.removeItem('apistock:fx');
       this.renderAll();

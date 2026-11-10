@@ -183,3 +183,24 @@ test('CSV : export puis import d\'une division et d\'une note', () => {
   assert.equal(res.txs[1].type, 'split');
   assert.equal(res.txs[1].qty, 10);
 });
+
+test('snapshot : résultat mis en cache, recalculé après un changement de données, de cotation ou de taux', () => {
+  const { Portfolio, Store, Api } = loadApp(base({ transactions: [
+    { id: '1', key: 'CW8@XPAR', type: 'buy', date: '2024-01-01', account: 'pea', qty: 10, price: 100, fees: 0 },
+  ] }));
+  let price = 110;
+  Api.cachedQuote = () => ({ price, change: 1, percentChange: 1 });
+  Portfolio.invalidate();
+  const s0 = Portfolio.stats.misses;
+  const a = Portfolio.snapshot('all');
+  const b = Portfolio.snapshot('all');
+  assert.equal(Portfolio.stats.misses - s0, 1);         // deuxième appel servi par le cache
+  near(a.totals.value, 1100);
+  b.rows.length = 0; b.totals.value = 0;                  // modifier une copie ne touche pas le cache
+  near(Portfolio.snapshot('all').totals.value, 1100);
+  price = 120; Api.touch();                               // nouvelle cotation
+  near(Portfolio.snapshot('all').totals.value, 1200);
+  Store.addTransaction({ key: 'CW8@XPAR', type: 'buy', date: '2024-02-01', account: 'pea', qty: 1, price: 100, fees: 0 });
+  near(Portfolio.snapshot('all').totals.value, 1320);     // Store.save invalide le cache
+  near(Portfolio.snapshot('cto').totals.value, 0);        // un cache par compte
+});
