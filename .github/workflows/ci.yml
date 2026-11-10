@@ -20,3 +20,18 @@ jobs:
         run: node scripts/sw-version.mjs --check
       - name: Tests unitaires
         run: node --test tests/*.test.mjs
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # Playwright n'est pas une dépendance du site : installé seulement pour ce test (sans modifier package.json)
+      - name: Installation de Playwright et Chromium
+        run: |
+          npm install --no-save playwright@1.63.0
+          npx playwright install --with-deps chromium
+      - name: Tests de bout en bout (relais simulé, aucun appel réseau)
+        run: npm run test:e2e

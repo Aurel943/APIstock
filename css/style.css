@@ -671,7 +671,8 @@ td.num .day-spark { display: block; margin: 4px 0 0 auto; }
 .cash-grid b { font-size: 18px; }
 
 /* ---------- Dividendes à venir ---------- */
-.div-months { display: grid; grid-template-columns: repeat(12, 1fr); gap: 6px; margin: 16px 0 8px; }
+.div-months { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 6px; margin: 16px 0 8px; }
+@media (max-width: 420px) { .div-months { gap: 2px; } .div-month .small { font-size: .62rem; } }
 .div-month { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .div-bar { height: 60px; width: 100%; max-width: 34px; background: var(--surface-2); border-radius: 6px; position: relative; overflow: hidden; }
 .div-bar span { position: absolute; left: 0; right: 0; bottom: 0; background: var(--accent); border-radius: 6px 6px 0 0; }
