@@ -11,7 +11,8 @@ Site personnel (100 % statique, sans serveur ni compte) pour suivre ses ETF et l
 - **Plus-value latente** en € et en %, par ligne et au total, + variation du jour et plus-value réalisée
 - Répartition (camembert) par valeur actuelle ou par montant investi
 - Courbe d'évolution du portefeuille (valeur vs montant investi) reconstruite à partir de tes opérations
-- Conversion automatique dans ta devise de référence (ETF cotés en USD, GBP…)
+- Conversion automatique dans ta devise de référence (ETF cotés en USD, GBP…) : valeur actuelle au taux du jour, et **chaque opération au taux de change de sa date** (clôtures Yahoo) pour la fiscalité, les liquidités, le rendement annualisé, l'historique et le rapport annuel
+- **Patrimoine global** : ajoute tes livrets (Livret A, LDDS, LEP), fonds euros, compte courant, immobilier (valeur et crédit restant)… → total, répartition titres / espèces / épargne / immobilier net et évolution mois par mois ; les livrets sont revalorisés chaque jour avec leur taux
 
 **Marchés**
 - Recherche de n'importe quel ETF / action / indice (Euronext, Xetra, LSE, NYSE…)
@@ -21,10 +22,10 @@ Site personnel (100 % statique, sans serveur ni compte) pour suivre ses ETF et l
 **Comptes, dividendes, objectif**
 - Plusieurs comptes (PEA, compte-titres, assurance-vie, PER…) avec filtre, récapitulatif par compte et plus-value nette d'impôt estimée selon le taux de chaque compte
 - Saisie des dividendes reçus, inclus dans le gain total et le rendement annualisé
-- Objectif patrimonial : progression, date estimée d'atteinte, versement mensuel nécessaire
+- Objectif patrimonial : progression, date estimée d'atteinte, versement mensuel nécessaire ; autres actifs (livrets, immobilier…) inclus ou non
 - Calendrier des performances mois par mois (hors versements)
 - Mode discret 👁 : masque tous les montants en un clic
-- Import / export CSV des opérations (Excel, historique de courtier)
+- Import / export CSV des opérations : modèle APIstock, **relevés Degiro** (Transactions.csv, en anglais ou en français) et **Trade Republic** (export des transactions, format non vérifié sur un vrai fichier) reconnus automatiquement ; autres relevés (Boursorama, Fortuneo…) lus d'après leurs en-têtes (date, sens, ISIN ou symbole, quantité, cours, frais, montant). Les lignes connues seulement par leur ISIN sont associées à un symbole par la recherche ISIN, à confirmer avant l'import
 
 **Comparer**
 - Compare jusqu'à 5 valeurs sur la même base : indices (S&P 500, Nasdaq, Nasdaq 100, Dow Jones, CAC 40, DAX, Euro Stoxx 50, Nikkei…), tes ETF, n'importe quelle action, l'or, le Bitcoin… et **ton propre portefeuille** (performance pondérée dans le temps, pour savoir si tu bats le marché)
@@ -51,6 +52,7 @@ Site personnel (100 % statique, sans serveur ni compte) pour suivre ses ETF et l
 **Simulation**
 - *Simulation sur données réelles* : « et si j'avais investi X € + Y €/mois depuis telle date, réparti en % sur ces ETF ? » → somme investie, nombre de parts, PRU, valeur actuelle, % actuel et plus-value latente par ETF, courbe et pire baisse (drawdown). Parts entières ou fractionnées. Bouton pour reprendre la répartition de ton portefeuille.
 - *Projection dans le futur* : intérêts composés avec versements mensuels, rendement et frais annuels.
+- *Phase de retraite* : retraits mensuels indexés sur l'inflation sur un capital placé (bouton « Mon patrimoine ») → probabilité que le capital tienne jusqu'au bout, âge ou date d'épuisement dans les scénarios défavorable / médian / favorable, retrait maximal soutenable à 90 %, graphique en éventail (Monte-Carlo).
 
 **Temps réel**
 - Rafraîchissement automatique réglable de **1 seconde** à 15 min, mis en pause quand l'onglet est caché
@@ -63,10 +65,12 @@ Site personnel (100 % statique, sans serveur ni compte) pour suivre ses ETF et l
 - Répartition de ton portefeuille par **pays**, **secteurs** et **devises**, en regardant à l'intérieur de chaque ETF (MSCI World, S&P 500, Nasdaq-100, All-World, émergents, Europe, CAC 40, Japon, or, crypto, actions en direct)
 - Alertes de concentration (ex. « 73 % dépend des actions américaines ») et de **recoupement** entre ETF (ex. CW8 et ESE ≈ 68 %)
 - **Frais annuels** en € à partir du TER de chaque ETF (valeurs indicatives pré-remplies pour les ETF courants, modifiables)
+- **Coût des frais sur le long terme** : TER et courtage déjà payé sur 10 et 20 ans, intérêts composés perdus compris (rendement supposé réglable), et **équivalents moins chers** connus (même type d'indice, TER plus bas, éligibles au PEA si la ligne est dans un PEA) avec l'écart estimé — à titre d'information
 
 **Fiscalité** (estimations indicatives)
+- **Taux à jour et modifiables** (Réglages → Fiscalité) : valeurs par défaut des revenus 2026 — prélèvements sociaux 18,6 % (loi de financement de la Sécurité sociale 2026), prélèvement forfaitaire unique 31,4 %, PEA de plus de 5 ans 18,6 %, assurance-vie 17,2 % de prélèvements sociaux (+ 7,5 % au-delà de 8 ans), plafond PEA 150 000 € ; bouton « Valeurs par défaut »
 - **PEA** : versements estimés face au plafond de 150 000 €, date des 5 ans et compte à rebours ; date d'ouverture et versements réels modifiables
-- **Compte-titres** : plus-values réalisées par année (prix moyen pondéré d'acquisition), imputation des moins-values sur 10 ans, dividendes, cases de la déclaration (3VG / 3VH, 2DC / 2TR) et impôt estimé au prélèvement forfaitaire unique de 30 %
+- **Compte-titres** : plus-values réalisées par année (prix moyen pondéré d'acquisition), imputation des moins-values sur 10 ans, dividendes, cases de la déclaration (3VG / 3VH, 2DC / 2TR) et impôt estimé au prélèvement forfaitaire unique (31,4 % par défaut) ; montants en devises convertis au taux de change du jour de chaque opération
 
 **Versements programmés & liquidités**
 - **Versements programmés (DCA)** : « 200 € sur CW8 le 5 de chaque mois » (onglet Investir). À chaque échéance, l'achat apparaît dans la carte **À faire** du portefeuille, pré-rempli avec le cours de clôture du jour de l'échéance : un clic pour l'enregistrer (ou « Tout enregistrer », ou « Ignorer »). Parts entières ou fractionnées, mise en pause possible
@@ -83,12 +87,12 @@ Site personnel (100 % statique, sans serveur ni compte) pour suivre ses ETF et l
 
 **Confort**
 - **Recherche par ISIN** (ex. `IE00B4L5Y983`, `FR0010315770`) : toutes les places de cotation du fonds sont proposées
-- **Annuler** une suppression (opération, mouvement d'espèces, versement programmé) pendant quelques secondes
+- **Annuler** une suppression (opération, mouvement d'espèces, versement programmé, alerte, actif) pendant quelques secondes
 - **Note libre** sur chaque opération (affichée dans la liste, exportée en CSV)
 - **Rapport annuel imprimable / PDF** (bouton dans Opérations) : synthèse de l'année, performance mois par mois, cases fiscales du compte-titres, PEA, cessions, opérations et positions
 - **Alertes de prix même site fermé** : notifications push envoyées par ton worker Cloudflare (voir plus bas)
 
-**Synchronisation entre appareils** : opérations, comptes, liste de suivi et réglages identiques sur ton téléphone et ton ordinateur, **chiffrés de bout en bout** avec ton code (voir plus bas).
+**Synchronisation entre appareils** : opérations, comptes, liste de suivi et réglages identiques sur ton téléphone et ton ordinateur, **chiffrés de bout en bout** avec ton code (voir plus bas). Une suppression faite sur un appareil est conservée lors de la fusion (elle ne réapparaît plus depuis l'autre appareil) ; les traces de suppression sont oubliées après 180 jours.
 
 ## Démarrage
 
@@ -158,7 +162,7 @@ Importe le dépôt sur <https://vercel.com/new> : la fonction [`api/yahoo.js`](a
 - **Crédits API** : 1 cotation = 1 crédit, 1 historique = 1 crédit. L'appli respecte automatiquement ta limite par minute (file d'attente) et met les historiques en cache 6 h. Avec le forfait gratuit et ~8 lignes, garde un rafraîchissement ≥ 1 min. Pense aussi à la limite de 800 crédits/jour.
 - **Places de cotation** : selon ton forfait Twelve Data, certaines bourses européennes peuvent ne pas être incluses ; l'appli affiche alors le message d'erreur de l'API. Dans ce cas, essaie une autre place de cotation pour le même ETF.
 - **Données privées** : tes opérations et ta clé sont enregistrées uniquement dans le `localStorage` de ton navigateur. Utilise *Exporter (JSON)* pour sauvegarder ou passer sur un autre appareil (la clé n'est pas exportée). Si tu publies le site sur GitHub Pages, le code est public mais tes données restent dans ton navigateur.
-- **Devises** : les montants dans une autre devise sont convertis au taux de change actuel (approximation pour l'historique).
+- **Devises** : la valeur actuelle est convertie au taux du jour ; les opérations passées au taux de clôture de leur date (historique Yahoo, chargé une fois et gardé en cache). Si l'historique n'est pas disponible, le taux du jour sert de repli.
 - Les simulations ignorent frais de courtage et fiscalité. Les performances passées ne préjugent pas des performances futures.
 
 ## Structure
@@ -167,24 +171,28 @@ Importe le dépôt sur <https://vercel.com/new> : la fonction [`api/yahoo.js`](a
 index.html        page unique (7 onglets)
 css/style.css     styles (thème clair / sombre)
 js/utils.js       formatage, helpers DOM
-js/store.js       persistance locale
-js/api.js         client Twelve Data (limite de crédits, caches)
-js/portfolio.js   calculs : PRU, plus-values, rejeu historique, projection
+js/store.js       persistance locale, taux fiscaux (TAX_DEFAULTS / taxConf), suppressions mémorisées
+js/api.js         client Twelve Data / relais Yahoo (limite de crédits, caches, taux de change historiques)
+js/portfolio.js   calculs : PRU, plus-values, instantané en cache, rejeu historique, projection, Monte-Carlo, retraite
 js/charts.js      graphiques (Chart.js)
 js/markets.js     horaires des bourses, fuseaux, jours fériés
 js/views.js       onglets Monde et Investir (plan, alertes)
 js/compare.js     onglet Comparer
-js/extras.js      comptes, objectif, calendrier, mode discret, CSV
+js/extras.js      comptes, réglages fiscaux, objectif, calendrier, mode discret, import CSV (formats des courtiers)
 js/mobile.js      navigation et affichage mobile
-js/features.js    temps réel, exposition & frais, fiscalité, synchronisation
+js/features.js    temps réel, exposition & frais (coût long terme, équivalents), fiscalité, synchronisation
 js/money.js       versements programmés, liquidités, divisions, ISIN, carte « À faire »
 js/insights.js    risque, rééquilibrage, dividendes à venir, actualités, rapport annuel, alertes push
+js/wealth.js      patrimoine global (autres actifs), phase de retraite
 sw.js, manifest.webmanifest, icons/   application installable (PWA)
-js/app.js         interface
+js/app.js         interface et bus d'événements (App.on / App.emit, liste des événements en tête du fichier)
 api/yahoo.js      relais Yahoo Finance (fonction Vercel)
 proxy/cloudflare-worker.js   relais Yahoo Finance (Cloudflare Workers) + synchronisation + alertes push
 scripts/sw-version.mjs       version du cache de l'application, calculée d'après le contenu des fichiers
-tests/                       tests unitaires (node --test)
+scripts/record-fixtures.mjs  enregistre les réponses Yahoo utilisées par les tests de bout en bout
+tests/*.test.mjs             tests unitaires (node --test)
+tests/e2e/                   tests de bout en bout (Playwright, relais simulé)
+tests/fixtures/              réponses Yahoo enregistrées, relevés CSV d'exemple anonymisés
 ```
 
 ## Développement
@@ -201,4 +209,18 @@ Après avoir modifié un fichier du site, mets à jour la version du cache de l'
 npm run sw-version
 ```
 
-L'intégration continue (GitHub Actions, `.github/workflows/ci.yml`) vérifie la syntaxe des scripts, la version du cache et lance les tests à chaque push.
+Tests de bout en bout (navigateur Chromium) : ils servent le site en local et simulent le relais Yahoo avec les réponses de `tests/fixtures/relay/` — aucun appel réseau, et toute requête externe fait échouer le test. Playwright n'est pas une dépendance du projet : il faut l'avoir sur la machine (`npm install --no-save playwright && npx playwright install chromium`).
+
+```bash
+npm run test:e2e
+```
+
+Pour réenregistrer les réponses Yahoo des tests (symboles publics uniquement, aucune donnée personnelle envoyée) :
+
+```bash
+npm run record-fixtures
+```
+
+Les modules ne modifient pas les fonctions d'`App` : ils s'abonnent aux événements (`App.on('rendered:all', fn)`, `'rendered:portfolio'`, `'refreshed'`, `'view:shown'`…), listés et documentés en tête de `js/app.js`.
+
+L'intégration continue (GitHub Actions, `.github/workflows/ci.yml`) vérifie la syntaxe des scripts, la version du cache, lance les tests unitaires et, dans un second job, les tests de bout en bout.

@@ -149,8 +149,8 @@ Object.assign(App, {
           onclick: () => { p.active = !active; Store.save(); this.renderPlans(); this.renderTodo(true); } }, active ? 'Actif' : 'En pause')),
         el('td', { class: 'num' }, el('button', { class: 'iconbtn', title: 'Supprimer', onclick: () => {
           const idx = Store.state.plans.indexOf(p);
-          Store.state.plans.splice(idx, 1); Store.save(); this.renderPlans(); this.renderTodo(true);
-          undoToast('Versement programmé supprimé', () => { Store.state.plans.splice(idx, 0, p); Store.save(); this.renderPlans(); this.renderTodo(true); });
+          Store.state.plans.splice(idx, 1); Store.markDeleted(p.id); Store.save(); this.renderPlans(); this.renderTodo(true);
+          undoToast('Versement programmé supprimé', () => { Store.state.plans.splice(idx, 0, p); Store.unmarkDeleted(p.id); Store.save(); this.renderPlans(); this.renderTodo(true); });
         } }, '🗑')));
     }));
     if (!list.length) $('#plansTable tbody').append(el('tr', {}, el('td', { colspan: 7, class: 'empty' }, 'Aucun versement programmé. Exemple : 200 € sur CW8 le 5 de chaque mois.')));
@@ -190,6 +190,7 @@ Object.assign(App, {
     }
     Store.save();
     this.renderAll();
+    this.preloadFx();
     toast(n + ' achat(s) enregistré(s)' + (skipped ? ` · ${skipped} à saisir à la main (cours indisponible ou montant trop faible)` : ''), n ? 'success' : 'error', 6000);
   },
 
@@ -273,12 +274,12 @@ Object.assign(App, {
             el('button', { class: 'iconbtn', title: 'Modifier', onclick: () => this.openCash(m) }, '✎'),
             el('button', { class: 'iconbtn', title: 'Supprimer', onclick: () => {
               const idx = Store.state.cashMoves.indexOf(m);
-              Store.state.cashMoves.splice(idx, 1); Store.save(); this.renderAll();
-              undoToast('Mouvement supprimé', () => { Store.state.cashMoves.splice(idx, 0, m); Store.save(); this.renderAll(); });
+              Store.state.cashMoves.splice(idx, 1); Store.markDeleted(m.id); Store.save(); this.renderAll();
+              undoToast('Mouvement supprimé', () => { Store.state.cashMoves.splice(idx, 0, m); Store.unmarkDeleted(m.id); Store.save(); this.renderAll(); });
             } }, '🗑'))))))),
       moves.length > 5 ? el('button', { class: 'btn small', style: 'margin-top:8px', onclick: () => { this.cashShowAll = !showAll; this.renderCash(); } },
         showAll ? 'Réduire' : `Voir les ${moves.length} mouvements`) : null,
-      el('p', { class: 'muted small' }, 'Espèces = versements − retraits − achats (frais inclus) + ventes + dividendes nets. Les opérations en devises sont converties au taux du jour.')].filter(Boolean));
+      el('p', { class: 'muted small' }, 'Espèces = versements − retraits − achats (frais inclus) + ventes + dividendes nets. Les opérations en devises sont converties au taux de change de leur date.')].filter(Boolean));
   },
 
   /* ================================================================== */
@@ -425,27 +426,14 @@ Object.assign(App, {
 /* ==================================================================== */
 /* Branchements                                                           */
 /* ==================================================================== */
-(() => {
-  const origAll = App.renderAll;
-  App.renderAll = function () {
-    origAll.apply(this, arguments);
-    this.renderCash();
-    this.renderPlans();
-    this.renderTodo(true);
-  };
-  const origPf = App.renderPortfolio;
-  App.renderPortfolio = function () {
-    origPf.apply(this, arguments);
-    this.renderTodo(); // seulement si la liste a changé
-  };
-  // après chaque rafraîchissement : dividendes et divisions des positions (au plus toutes les 6 h)
-  const origRefresh = App.refresh;
-  App.refresh = async function () {
-    const res = await origRefresh.apply(this, arguments);
-    this.loadEvents().catch(() => {});
-    return res;
-  };
-})();
+App.on('rendered:all', function () {
+  this.renderCash();
+  this.renderPlans();
+  this.renderTodo(true);
+});
+App.on('rendered:portfolio', function () { this.renderTodo(); }); // seulement si la liste a changé
+// après chaque rafraîchissement : dividendes et divisions des positions (au plus toutes les 6 h)
+App.on('refreshed', function () { this.loadEvents().catch(() => {}); });
 
 document.addEventListener('DOMContentLoaded', () => {
   App.bindPlans();

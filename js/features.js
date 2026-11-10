@@ -62,18 +62,11 @@ Object.assign(App, {
 });
 
 // les variations du jour suivent chaque rendu du portefeuille
-(() => {
-  const orig = App.renderPortfolio;
-  App.renderPortfolio = function () {
-    orig.apply(this, arguments);
-    this.renderMovers(Portfolio.snapshot().rows);
-  };
-})();
+App.on('rendered:portfolio', function () { this.renderMovers(Portfolio.snapshot().rows); });
 
 /* ==================================================================== */
 /* FISCALITÉ                                                              */
 /* ==================================================================== */
-const PEA_CAP = 150000;
 
 function addYearsISO(iso, n) {
   const [y, m, d] = iso.split('-').map(Number);
@@ -97,7 +90,8 @@ const Tax = {
     return Store.state.transactions.filter(t => (t.account || Store.defaultAccount()) === accountId)
       .slice().sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
   },
-  fxOf(key) { const i = Store.instrument(key); return Api.fxCached((i && i.currency) || Store.state.settings.baseCurrency); },
+  /** Taux de change de l'instrument à la date de l'opération (règle fiscale : chaque montant au taux du jour où il est réalisé) */
+  fxOf(key, date) { const i = Store.instrument(key); return Api.fxAt((i && i.currency) || Store.state.settings.baseCurrency, date); },
 
   /**
    * PEA : versements estimés. On suppose que les ventes et dividendes restent dans le PEA
@@ -108,7 +102,7 @@ const Tax = {
     let cash = 0, deposits = 0;
     for (const t of txs) {
       if (t.type === 'split') continue;
-      const fx = this.fxOf(t.key);
+      const fx = this.fxOf(t.key, t.date);
       const qty = parseNum(t.qty), price = parseNum(t.price), fees = parseNum(t.fees) || 0;
       if (!isFinite(fx) || !isFinite(qty) || !isFinite(price)) continue;
       if (t.type === 'buy') { const cost = (qty * price + fees) * fx; const use = Math.min(cash, cost); cash -= use; deposits += cost - use; }
@@ -126,21 +120,26 @@ const Tax = {
       manual: isManual, tracked: tracked && !isManual, cash: tracked ? real.cash : cash };
   },
 
-  /** Cessions (prix moyen pondéré d'acquisition, frais inclus) et dividendes d'un compte */
+  /**
+   * Cessions (prix moyen pondéré d'acquisition, frais inclus) et dividendes d'un compte.
+   * Montants en devise de base : le prix de revient de chaque achat au taux de change de sa date,
+   * le prix de cession au taux du jour de la vente (la plus-value inclut donc l'effet de change).
+   */
   events(acc) {
     const pos = {}, sales = [], divs = [];
     for (const t of this.sortedTxs(acc.id)) {
-      const p = pos[t.key] = pos[t.key] || { qty: 0, cost: 0 };
-      const qty = parseNum(t.qty), price = parseNum(t.price), fees = parseNum(t.fees) || 0, fx = this.fxOf(t.key);
-      if (t.type === 'div') { divs.push({ date: t.date, key: t.key, amount: (qty * price) * fx, acc }); continue; }
+      const p = pos[t.key] = pos[t.key] || { qty: 0, cost: 0, costBase: 0 };
+      const qty = parseNum(t.qty), price = parseNum(t.price), fees = parseNum(t.fees) || 0, fx = this.fxOf(t.key, t.date);
+      if (t.type === 'div') { divs.push({ date: t.date, key: t.key, amount: (qty * price) * fx, fx, acc }); continue; }
       if (t.type === 'split') { if (qty > 0) p.qty *= qty; continue; }
       if (t.type === 'sell') {
         if (p.qty <= 0) continue;
-        const q = Math.min(qty, p.qty), costOut = p.cost * (q / p.qty);
-        sales.push({ date: t.date, key: t.key, qty: q, proceeds: (q * price - fees) * fx, cost: costOut * fx, gain: (q * price - fees - costOut) * fx, pmp: p.cost / p.qty, price, acc });
-        p.qty -= q; p.cost -= costOut;
-        if (p.qty < 1e-9) { p.qty = 0; p.cost = 0; }
-      } else { p.qty += qty; p.cost += qty * price + fees; }
+        const q = Math.min(qty, p.qty), share = q / p.qty, costOut = p.cost * share, costOutBase = p.costBase * share;
+        const proceeds = (q * price - fees) * fx;
+        sales.push({ date: t.date, key: t.key, qty: q, proceeds, cost: costOutBase, gain: proceeds - costOutBase, pmp: p.cost / p.qty, price, fx, acc });
+        p.qty -= q; p.cost -= costOut; p.costBase -= costOutBase;
+        if (p.qty < 1e-9) { p.qty = 0; p.cost = 0; p.costBase = 0; }
+      } else { p.qty += qty; p.cost += qty * price + fees; p.costBase += (qty * price + fees) * fx; }
     }
     return { sales, divs };
   },
@@ -184,6 +183,8 @@ Object.assign(App, {
     const today = todayISO();
     const parts = [];
 
+    const T = taxConf();
+    const PEA_CAP = T.peaCap;
     for (const a of peas) {
       const p = Tax.pea(a);
       const pct = Math.min(100, (p.deposits / PEA_CAP) * 100);
@@ -201,8 +202,8 @@ Object.assign(App, {
             el('span', { class: 'muted small' }, 'Cap des 5 ans'),
             el('b', { class: done ? 'up' : '' }, p.five ? (done ? '✔ Atteint depuis le ' + fmtDate(p.five) : fmtDate(p.five)) : '—'),
             el('span', { class: 'muted small' }, p.five ? (done
-              ? 'Retraits possibles sans clôture, gains exonérés d\'impôt (seuls les prélèvements sociaux de 17,2 % s\'appliquent).'
-              : 'Dans ' + fmtSpan(today, p.five) + '. Avant, un retrait clôture le PEA et les gains sont imposés à 30 %.') : '')),
+              ? `Retraits possibles sans clôture, gains exonérés d'impôt sur le revenu (seuls les prélèvements sociaux de ${fmtNum(T.social, 1)} % s'appliquent).`
+              : 'Dans ' + fmtSpan(today, p.five) + `. Avant, un retrait clôture le PEA et les gains sont imposés à ${fmtNum(T.pfu, 1)} % (prélèvement forfaitaire unique).`) : '')),
           el('div', { class: 'tax-stat tax-edit' },
             el('label', {}, el('span', { class: 'muted small' }, 'Date d\'ouverture'),
               el('input', { type: 'date', value: p.open, max: today, onchange: e => save({ openDate: e.target.value }) })),
@@ -223,7 +224,7 @@ Object.assign(App, {
         const names = ctos.map(a => a.name).join(', ');
         const select = el('select', { onchange: e => { this.taxYear = +e.target.value; this.renderTax(); } },
           ...withEvents.slice().reverse().map(y => el('option', { value: y, selected: y === this.taxYear }, 'Année ' + y)));
-        const flat = (Y.taxable + Y.dividends) * 0.30;
+        const flat = (Y.taxable + Y.dividends) * T.pfu / 100;
         parts.push(el('div', { class: 'tax-block' },
           el('div', { class: 'tax-head' }, el('h3', {}, 'Plus-values et dividendes', el('span', { class: 'muted small' }, ' · ' + names)), select),
           Y.sales.length ? el('div', { class: 'table-wrap' }, el('table', { class: 'data' },
@@ -238,24 +239,22 @@ Object.assign(App, {
             Y.used > 0.005 ? this.kpi('Moins-values antérieures imputées', '−' + fmtMoney(Y.used, cur), 'Reportées des 10 années précédentes') : null,
             this.kpi(Y.loss ? 'Moins-value à déclarer' : 'Plus-value imposable', fmtMoney(Y.loss || Y.taxable, cur), Y.loss ? 'Case 3VH de la 2042 C' : 'Case 3VG de la 2042 C (formulaire 2074 si besoin)', Y.loss ? 'down' : ''),
             this.kpi('Dividendes bruts', fmtMoney(Y.dividends, cur), 'Case 2DC (actions) ou 2TR (distributions d\'ETF), souvent déjà pré-remplis'),
-            this.kpi('Impôt estimé (flat tax 30 %)', fmtMoney(flat, cur), '12,8 % d\'impôt + 17,2 % de prélèvements sociaux, hors acomptes déjà prélevés'),
+            this.kpi(`Impôt estimé (flat tax ${fmtNum(T.pfu, 1)} %)`, fmtMoney(flat, cur), `${fmtNum(T.ir, 1)} % d'impôt + ${fmtNum(T.social, 1)} % de prélèvements sociaux, hors acomptes déjà prélevés`),
             Y.carryLeft > 0.005 ? this.kpi('Moins-values reportables', fmtMoney(Y.carryLeft, cur), 'Utilisables jusqu\'à 10 ans') : null),
-          el('p', { class: 'muted small' }, 'Méthode du prix moyen pondéré d\'acquisition (frais inclus), calculée par compte. Les montants en devises sont convertis au taux de change du jour : pour une déclaration exacte, le taux du jour de chaque opération s\'applique.')));
+          el('p', { class: 'muted small' }, 'Méthode du prix moyen pondéré d\'acquisition (frais inclus), calculée par compte. Les montants en devises sont convertis au taux de change du jour de chaque opération (clôture de la veille pour un week-end ; taux actuel si l\'historique n\'a pas pu être chargé).')));
       }
     }
+    parts.push(el('p', { class: 'muted small tax-source' }, T.custom ? 'Taux fiscaux personnalisés (Réglages → Fiscalité).'
+      : `Taux des revenus ${T.year} : ${T.source}. Modifiables dans Réglages → Fiscalité.`));
     $('#taxBody').replaceChildren(...parts);
   },
 });
 
 // cartes « lentes » (fiscalité, exposition) : recalculées avec le reste de l'écran, pas à chaque cotation
-(() => {
-  const orig = App.renderAll;
-  App.renderAll = function () {
-    orig.apply(this, arguments);
-    this.renderTax();
-    if (this.renderExposure) this.renderExposure();
-  };
-})();
+App.on('rendered:all', function () {
+  this.renderTax();
+  if (this.renderExposure) this.renderExposure();
+});
 
 /* ==================================================================== */
 /* EXPOSITION RÉELLE & FRAIS                                              */
@@ -330,6 +329,11 @@ const ETF_DB = {
   GOLD: ['gold', 0.12], IGLN: ['gold', 0.12], SGLD: ['gold', 0.12], GLD: ['gold', 0.40],
 };
 
+/* ETF éligibles au PEA parmi ETF_DB (liste indicative, à vérifier sur la fiche de l'ETF) */
+const PEA_ELIGIBLE = new Set(['CW8', 'EWLD', 'DCAM', 'WPEA', 'ESE', 'PSP5', 'PANX', 'PUST', 'PAEEM', 'PCEU', 'PTPXE', 'C50', 'C40', 'CAC', 'MEUD']);
+/* Fonds cotés aux États-Unis : en général non proposés aux particuliers européens (pas de document d'informations clés) */
+const US_FUNDS = new Set(['SPY', 'VOO', 'IVV', 'QQQ', 'QQQM', 'ACWI', 'URTH', 'GLD']);
+
 /* Recoupement approximatif des titres (en poids) entre deux indices */
 const OVERLAP = { 'sp500|world': 68, 'ndx|world': 30, 'ndx|sp500': 45, 'allworld|world': 87, 'allworld|sp500': 60, 'allworld|ndx': 27,
   'allworld|em': 10, 'europe|world': 15, 'allworld|europe': 14, 'es50|europe': 45, 'cac|europe': 20, 'cac|es50': 35, 'japan|world': 5.5, 'allworld|japan': 5.5 };
@@ -357,6 +361,53 @@ const Expo = {
     const ter = inst && inst.ter !== undefined && inst.ter !== '' && isFinite(parseNum(inst.ter)) ? parseNum(inst.ter) : g.ter;
     return { profile: (inst && inst.expo) || g.profile, ter, terAuto: !(inst && inst.ter !== undefined && inst.ter !== ''), guess: g, inst };
   },
+  /** Symbole d'un instrument tel qu'il figure dans ETF_DB */
+  dbSymbol(inst) {
+    if (!inst) return '';
+    const sym = (inst.symbol || '').toUpperCase(), ysym = (inst.ysymbol || '').toUpperCase().split('.')[0];
+    return ETF_DB[sym] ? sym : ETF_DB[ysym] ? ysym : sym;
+  },
+
+  /**
+   * Coût des frais courants (TER) sur `years` ans, intérêts composés perdus compris :
+   * valeur sans frais − valeur avec frais, pour un rendement brut supposé `rate` (%).
+   */
+  feeDrag(value, ter, rate, years) {
+    if (!(value > 0) || !isFinite(ter)) return NaN;
+    const r = rate / 100;
+    return value * Math.pow(1 + r, years) - value * Math.pow((1 + r) * (1 - ter / 100), years);
+  },
+
+  /** Frais de courtage déjà payés (devise de base, au taux de chaque opération) et leur coût en ajoutant les intérêts composés perdus jusqu'à l'horizon */
+  brokerage(txs, rate, years, today = todayISO()) {
+    let paid = 0, cost = 0;
+    for (const t of txs) {
+      const f = parseNum(t.fees) || 0;
+      if (!(f > 0) || t.type === 'div' || t.type === 'split') continue;
+      const inst = Store.instrument(t.key);
+      const fx = Api.fxAt((inst && inst.currency) || Store.state.settings.baseCurrency, t.date);
+      if (!isFinite(fx)) continue;
+      const since = Math.max(0, (Date.parse(today) - Date.parse(t.date)) / (365.25 * 864e5));
+      paid += f * fx;
+      cost += f * fx * Math.pow(1 + rate / 100, since + years);
+    }
+    return { paid, cost };
+  },
+
+  /**
+   * ETF de ETF_DB au même profil d'exposition et au TER plus bas (au plus 3, du moins cher au plus cher).
+   * `pea` : seulement les ETF éligibles au PEA. Les fonds américains sont exclus.
+   */
+  cheaper(key, { pea = false } = {}) {
+    const e = this.of(key);
+    const own = this.dbSymbol(e.inst);
+    if (!isFinite(e.ter) || !EXPO_PROFILES[e.profile] || !EXPO_PROFILES[e.profile].country && !EXPO_PROFILES[e.profile].special) return [];
+    return Object.entries(ETF_DB)
+      .filter(([s, [p, ter]]) => p === e.profile && s !== own && ter < e.ter - 0.005 && !US_FUNDS.has(s) && (!pea || PEA_ELIGIBLE.has(s)))
+      .map(([s, [p, ter]]) => ({ symbol: s, ter, pea: PEA_ELIGIBLE.has(s) }))
+      .sort((a, b) => a.ter - b.ter || a.symbol.localeCompare(b.symbol)).slice(0, 3);
+  },
+
   /** Répartition d'un instrument : { country, sector, ccy } en % */
   split(key) {
     const { profile, inst } = this.of(key);
@@ -447,25 +498,62 @@ Object.assign(App, {
       el('div', { class: 'table-wrap' }, el('table', { class: 'data' },
         el('thead', {}, el('tr', {}, el('th', {}, 'Ligne · exposition'), el('th', { class: 'num' }, 'TER %'), el('th', { class: 'num' }, 'Poids'), el('th', { class: 'num' }, 'Frais / an'))),
         el('tbody', {}, ...rowsUi))),
+      this.feesLongTerm(items),
       el('p', { class: 'muted small' }, 'Répartitions approximatives des indices (ordre de grandeur 2025-2026) et TER indicatifs : vérifie-les sur la fiche de chaque ETF. Le recoupement est estimé à partir du poids des titres communs aux deux indices.'));
+  },
+});
+
+Object.assign(App, {
+  /** Coût des frais sur 10 et 20 ans (TER et courtage, intérêts composés perdus compris) et ETF équivalents moins chers */
+  feesLongTerm(items) {
+    const cur = this.base();
+    const rate = isFinite(parseNum(Store.state.feeReturn)) ? parseNum(Store.state.feeReturn) : 6;
+    const input = el('input', { type: 'number', class: 'pct-input', min: -10, max: 20, step: 0.5, value: rate, 'aria-label': 'Rendement annuel supposé' });
+    input.addEventListener('change', () => { Store.state.feeReturn = parseNum(input.value); Store.save(); this.renderExposure(); });
+    const ter10 = items.reduce((s, { r, w }) => s + (Expo.feeDrag(w, Expo.of(r.key).ter, rate, 10) || 0), 0);
+    const ter20 = items.reduce((s, { r, w }) => s + (Expo.feeDrag(w, Expo.of(r.key).ter, rate, 20) || 0), 0);
+    const txs = Portfolio.txs();
+    const b10 = Expo.brokerage(txs, rate, 10), b20 = Expo.brokerage(txs, rate, 20);
+    const accType = id => Store.account(id || Store.defaultAccount()).type;
+    const swaps = [];
+    for (const { r, w } of items) {
+      const pea = txs.some(t => t.key === r.key && accType(t.account) === 'pea');
+      const alts = Expo.cheaper(r.key, { pea });
+      if (!alts.length) continue;
+      const ter = Expo.of(r.key).ter, best = alts[0];
+      const gain = n => Expo.feeDrag(w, ter, rate, n) - Expo.feeDrag(w, best.ter, rate, n);
+      swaps.push(el('tr', {},
+        el('td', {}, el('span', { class: 'sym' }, Store.label(r.key)), el('span', { class: 'name' }, 'TER ' + fmtNum(ter, 2) + ' %' + (pea ? ' · dans un PEA' : ''))),
+        el('td', {}, ...alts.map((a, i) => el('div', { class: i ? 'small muted' : '' }, el('b', {}, a.symbol), ` · ${fmtNum(a.ter, 2)} %` + (a.pea && !pea ? ' · éligible PEA' : '')))),
+        el('td', { class: 'num up' }, fmtMoney(gain(10), cur, 0)),
+        el('td', { class: 'num up' }, fmtMoney(gain(20), cur, 0))));
+    }
+    return el('div', { class: 'fees-long' },
+      el('div', { class: 'rebal-head' }, el('h3', {}, 'Coût des frais sur le long terme'),
+        el('label', { class: 'inline small' }, 'Rendement annuel supposé', input, '%')),
+      el('div', { class: 'kpis' },
+        this.kpi('Frais des ETF sur 10 ans', fmtMoney(ter10, cur, 0), 'TER + intérêts composés perdus, à valeur actuelle'),
+        this.kpi('Frais des ETF sur 20 ans', fmtMoney(ter20, cur, 0), 'même hypothèse, sans nouveaux versements'),
+        this.kpi('Courtage déjà payé', fmtMoney(b10.paid, cur), b10.paid > 0 ? `≈ ${fmtMoney(b10.cost, cur, 0)} dans 10 ans, ${fmtMoney(b20.cost, cur, 0)} dans 20 ans s'il avait été investi` : 'aucun frais de courtage saisi')),
+      swaps.length ? el('div', {},
+        el('p', { class: 'small' }, 'ETF connus qui suivent le même type d\'indice avec des frais courants plus bas :'),
+        el('div', { class: 'table-wrap' }, el('table', { class: 'data' },
+          el('thead', {}, el('tr', {}, el('th', {}, 'Ta ligne'), el('th', {}, 'Équivalents moins chers (TER)'), el('th', { class: 'num' }, 'Écart sur 10 ans'), el('th', { class: 'num' }, 'Écart sur 20 ans'))),
+          el('tbody', {}, ...swaps)))) : el('p', { class: 'muted small' }, 'Aucun équivalent moins cher parmi les ETF connus du site pour tes lignes.'),
+      el('p', { class: 'muted small' }, 'Information, pas un conseil d\'investissement : deux ETF d\'une même catégorie peuvent suivre des indices différents (méthode de réplication, distribution, devise, encours). L\'écart ne compte ni les frais de courtage ni l\'impôt d\'une vente sur un compte-titres, et suppose des TER inchangés : vérifie-les dans le DIC.'));
   },
 });
 
 // après un rafraîchissement des cours : mise à jour des cartes « lentes » (poids, taux de change),
 // au plus toutes les 30 s et jamais pendant une saisie dans l'une d'elles
-(() => {
-  const orig = App.refresh;
-  App.refresh = async function () {
-    const res = await orig.apply(this, arguments);
-    const busy = ['#exposureCard', '#taxCard'].some(s => { const c = $(s); return c && c.contains(document.activeElement) && document.activeElement !== document.body; });
-    if (!busy && (arguments[0] || Date.now() - (this._slowAt || 0) > 30000)) {
-      this._slowAt = Date.now();
-      this.renderExposure();
-      this.renderTax();
-    }
-    return res;
-  };
-})();
+App.on('refreshed', function (manual) {
+  const busy = ['#exposureCard', '#taxCard'].some(s => { const c = $(s); return c && c.contains(document.activeElement) && document.activeElement !== document.body; });
+  if (!busy && (manual || Date.now() - (this._slowAt || 0) > 30000)) {
+    this._slowAt = Date.now();
+    this.renderExposure();
+    this.renderTax();
+  }
+});
 
 /* ==================================================================== */
 /* SYNCHRONISATION ENTRE APPAREILS (chiffrée de bout en bout)             */
@@ -539,19 +627,36 @@ const Sync = {
     if (!res.ok || j.error) throw new Error(j.error || 'erreur ' + res.status);
     return j;
   },
-  /** Fusion sans perte quand les deux appareils ont changé : on additionne les listes, l'appareil courant l'emporte en cas de doublon */
+  /** Listes fusionnées par identifiant (et filtrées des éléments supprimés) */
+  LISTS: ['transactions', 'alerts', 'accounts', 'cashMoves', 'plans', 'assets'],
+
+  /**
+   * Suppressions des deux appareils : pour chaque identifiant, la date la plus récente l'emporte entre
+   * suppression (`deleted`) et annulation (`restored`). Les entrées de plus de 180 jours sont oubliées.
+   */
+  mergeTombstones(remote, local, now = Date.now()) {
+    const limit = now - Store.TOMBSTONE_DAYS * 864e5;
+    const pick = k => { const o = {}; for (const src of [remote[k], local[k]]) for (const [id, ts] of Object.entries(src || {})) if (ts > limit && !(o[id] >= ts)) o[id] = ts; return o; };
+    const deleted = pick('deleted'), restored = pick('restored');
+    for (const id of Object.keys(deleted)) { if (restored[id] >= deleted[id]) delete deleted[id]; else delete restored[id]; }
+    return { deleted, restored };
+  },
+
+  /** Fusion sans perte quand les deux appareils ont changé : on additionne les listes, l'appareil courant l'emporte en cas de doublon ; une suppression faite sur l'un des deux est conservée */
   merge(remote, local) {
     const byId = (a = [], b = []) => { const m = new Map(); for (const x of [...a, ...b]) m.set(x.id, x); return Array.from(m.values()); };
     const out = Object.assign({}, remote, local);
+    Object.assign(out, this.mergeTombstones(remote, local));
     out.settings = Object.assign({}, remote.settings || {}, local.settings || {});
     out.instruments = Object.assign({}, remote.instruments || {}, local.instruments || {});
-    out.transactions = byId(remote.transactions, local.transactions);
-    out.alerts = byId(remote.alerts, local.alerts);
-    out.accounts = byId(remote.accounts, local.accounts);
-    out.cashMoves = byId(remote.cashMoves, local.cashMoves);
-    out.plans = byId(remote.plans, local.plans);
+    for (const k of this.LISTS) out[k] = byId(remote[k], local[k]).filter(x => !(x && out.deleted[x.id]));
+    if (!out.accounts.length) out.accounts = (local.accounts || remote.accounts || []).slice(0, 1);
+    // éléments rattachés à un compte supprimé sur l'autre appareil : déplacés vers le premier compte restant
+    const accIds = new Set(out.accounts.map(a => a.id)), first = out.accounts[0] && out.accounts[0].id;
+    if (first) for (const k of ['transactions', 'cashMoves', 'plans']) out[k] = out[k].map(x => (x.account && !accIds.has(x.account) ? Object.assign({}, x, { account: first }) : x));
     out.watchlist = Array.from(new Set([...(remote.watchlist || []), ...(local.watchlist || [])]));
     out.targets = Object.assign({}, remote.targets || {}, local.targets || {});
+    out.wealthHistory = Object.assign({}, remote.wealthHistory || {}, local.wealthHistory || {});
     return out;
   },
 };
@@ -593,8 +698,7 @@ Object.assign(App, {
       Sync.setConf(null); this._syncKeys = null; this._syncErr = null; this.renderSync();
     });
     // chaque enregistrement local déclenche un envoi (regroupé, et seulement si quelque chose a changé)
-    const origSave = Store.save.bind(Store);
-    Store.save = () => { origSave(); if (!this._syncApplying && Sync.conf()) { clearTimeout(this._syncT); this._syncT = setTimeout(() => this.syncRun(), 3000); } };
+    this.on('data:saved', () => { if (!this._syncApplying && Sync.conf()) { clearTimeout(this._syncT); this._syncT = setTimeout(() => this.syncRun(), 3000); } });
     // récupération des changements des autres appareils : au retour sur l'onglet et toutes les 2 min
     document.addEventListener('visibilitychange', () => { if (!document.hidden && Date.now() - (this._syncAt || 0) > 20000) this.syncRun(); });
     setInterval(() => { if (!document.hidden) this.syncRun(); }, 120000);

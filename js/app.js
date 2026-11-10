@@ -1,7 +1,34 @@
 /* Application : navigation, rendu des vues, rafraîchissement temps réel */
 'use strict';
 
+/*
+ * Événements de l'application : les modules (features, money, insights, mobile, wealth…) s'y abonnent avec
+ * App.on(nom, fn) au lieu d'envelopper les fonctions d'App. Chaque événement est émis APRÈS l'action ; les
+ * écouteurs sont appelés dans l'ordre d'inscription (ordre de chargement des scripts), avec this = App.
+ *
+ *   'rendered:all'                     renderAll() : tout l'écran vient d'être redessiné
+ *   'rendered:portfolio'               renderPortfolio() : indicateurs, positions, répartition (à chaque cotation)
+ *   'rendered:invest'                  renderInvest() : allocation cible et plan d'investissement
+ *   'rendered:alerts'                  renderAlerts() : liste des alertes
+ *   'rendered:accountFilter'           renderAccountFilter() : sélecteur de compte
+ *   'view:shown'        (vue)          show(vue) : changement d'onglet
+ *   'detail:selected'   (clé, avant)   selectDetail(clé) : instrument affiché dans Marchés (et clé précédente)
+ *   'refreshed'         (manuel)       refresh(manuel) terminé, y compris quand il n'y avait rien à rafraîchir
+ *   'data:saved'                       Store.save() : données enregistrées dans ce navigateur
+ */
 const App = {
+  _listeners: {},
+
+  /** Abonnement à un événement ; renvoie une fonction de désabonnement */
+  on(name, fn) {
+    (this._listeners[name] = this._listeners[name] || []).push(fn);
+    return () => { this._listeners[name] = (this._listeners[name] || []).filter(f => f !== fn); };
+  },
+
+  emit(name, ...args) {
+    for (const fn of (this._listeners[name] || []).slice()) fn.apply(this, args);
+  },
+
   view: 'portfolio',
   allocMode: 'value',
   detailKey: null,
@@ -49,7 +76,7 @@ const App = {
     const hash = location.hash.replace('#', '');
     this.show(['portfolio', 'markets', 'compare', 'world', 'invest', 'simulation', 'settings'].includes(hash) ? hash : (Api.ready() ? 'portfolio' : 'settings'));
     this.renderAll();
-    Api.detectProxy().finally(() => { this.renderAll(); this.refresh(); });
+    Api.detectProxy().finally(() => { this.renderAll(); this.refresh(); this.preloadFx(); });
     if (sessionStorage.getItem('apistock:reloaded')) {
       sessionStorage.removeItem('apistock:reloaded');
       setTimeout(() => toast('Site rechargé et à jour ✔', 'success', 3000), 300);
@@ -100,6 +127,7 @@ const App = {
     if (view === 'invest') { this.renderInvest(); this.renderAlerts(); }
     // les graphiques créés pendant que l'onglet était caché doivent être redimensionnés
     requestAnimationFrame(() => Object.values(Charts.instances).forEach(c => c.resize()));
+    this.emit('view:shown', view);
   },
 
   schedule() {
@@ -115,6 +143,16 @@ const App = {
   },
 
   /** Rafraîchissement rapide (< 30 s) : seul Yahoo suit ce rythme, Twelve Data reste limité par ses crédits */
+  /** Charge en arrière-plan les taux de change historiques des opérations, puis redessine si de nouveaux taux sont arrivés */
+  preloadFx() {
+    if (!Api.ready()) return Promise.resolve(false);
+    if (!this._fxLoading) {
+      this._fxLoading = Api.preloadFxHistory().then(changed => { if (changed) this.renderAll(); return changed; })
+        .catch(() => false).finally(() => { this._fxLoading = null; });
+    }
+    return this._fxLoading;
+  },
+
   fastMode() { const s = parseInt(Store.state.settings.refreshSec, 10); return s > 0 && s < 30; },
 
   /** Faut-il interroger cet instrument à ce tour-ci ? */
@@ -220,12 +258,19 @@ const App = {
     this.renderAlerts();
     this.renderMarketState();
     if (this.view === 'world') this.renderWorld();
+    this.emit('rendered:all');
   },
 
   /* ------------------------------------------------------------------ */
   /* Rafraîchissement des cotations                                       */
   /* ------------------------------------------------------------------ */
   async refresh(manual = false) {
+    const res = await this._refresh(manual);
+    this.emit('refreshed', manual);
+    return res;
+  },
+
+  async _refresh(manual = false) {
     if (!Api.ready()) { if (manual) toast('Configure d\'abord ta clé Twelve Data ou le relais Yahoo dans Réglages.', 'error'); return; }
     if (this.refreshing) return;
     const keys = Store.trackedKeys();
@@ -266,6 +311,7 @@ const App = {
       for (const k of keys) { const i = Store.instrument(k); if (i && i.currency) currencies.add(i.currency); }
       for (const c of currencies) { try { await Api.fxRate(c); } catch (e) { errors++; lastErr = e; } }
       this.lastRefresh = Date.now();
+      this.preloadFx(); // taux historiques des opérations : ne charge que ce qui manque (au plus toutes les 12 h)
       if (due.length) $('#lastUpdate').textContent = 'Mis à jour à ' + fmtTime(this.lastRefresh);
     } finally {
       this.refreshing = false;
@@ -381,6 +427,7 @@ const App = {
       el('span', { class: 'dot', style: 'background:' + x.color }),
       el('span', { class: 'lname', title: x.name }, x.label, el('span', { class: 'muted' }, ' ' + x.name)),
       el('b', { class: 'mono' }, fmtNum((x.v / sum) * 100, 1) + ' %'))));
+    this.emit('rendered:portfolio');
   },
 
   renderTransactions() {
@@ -409,7 +456,7 @@ const App = {
             const idx = Store.state.transactions.indexOf(t);
             Store.removeTransaction(t.id);
             this.renderAll();
-            undoToast('Opération supprimée', () => { Store.state.transactions.splice(Math.max(0, idx), 0, t); Store.save(); this.renderAll(); });
+            undoToast('Opération supprimée', () => { Store.state.transactions.splice(Math.max(0, idx), 0, t); Store.unmarkDeleted(t.id); Store.save(); this.renderAll(); });
           } }, '🗑')),
       );
     }));
@@ -428,7 +475,7 @@ const App = {
       for (const k of keys) {
         series[k] = await Api.daily(k, start);
         const inst = Store.instrument(k);
-        fx[k] = await Api.fxRate(inst ? inst.currency : this.base());
+        fx[k] = await Api.fxSeries(inst ? inst.currency : this.base(), start);
       }
       const { points } = Portfolio.replay(series, fx, Portfolio.historyEvents(txs));
       if (!points.length) throw new Error('Pas de données historiques disponibles.');
@@ -552,6 +599,7 @@ const App = {
       }
       dlg.close();
       this.renderAll();
+      this.preloadFx();
       if (!Api.cachedQuote(tx.key)) Api.quote(tx.key).then(() => Api.fxRate(Store.instrument(tx.key).currency)).then(() => this.renderPortfolio()).catch(err => toast(err.message, 'error'));
       toast('Opération enregistrée', 'success', 2000);
     });
@@ -682,10 +730,12 @@ const App = {
   },
 
   selectDetail(key) {
+    const previous = this.detailKey;
     this.detailKey = key;
     this.renderWatchlist();
     this.renderDetailHeader();
     this.loadDetailChart();
+    this.emit('detail:selected', key, previous);
   },
 
   renderDetailHeader() {
@@ -858,10 +908,10 @@ const App = {
       for (const r of s.rows) {
         series[r.key] = await Api.daily(r.key, s.start);
         const inst = Store.instrument(r.key);
-        fx[r.key] = await Api.fxRate(inst.currency);
+        fx[r.key] = await Api.fxSeries(inst.currency, s.start);
         if (!series[r.key].length) throw new Error('Aucun historique pour ' + Store.label(r.key));
         if (series[r.key][0][0] > addDaysISO(s.start, 7)) notes.push(`${Store.label(r.key)} : données disponibles à partir du ${fmtDate(series[r.key][0][0])}, l'argent reste en attente jusque-là.`);
-        if (inst.currency !== cur) notes.push(`${Store.label(r.key)} est coté en ${inst.currency} : conversion au taux actuel (${fmtNum(fx[r.key], 4)}).`);
+        if (inst.currency !== cur) notes.push(`${Store.label(r.key)} est coté en ${inst.currency} : conversion au taux de change de chaque jour.`);
       }
 
       const events = [];
@@ -1080,7 +1130,8 @@ const App = {
 
     $('#clearCache').addEventListener('click', () => {
       Api.pruneSeriesCache();
-      Api.quotes = {}; Api.fx = {}; Api.intraday = {};
+      Api.quotes = {}; Api.fx = {}; Api.intraday = {}; Api.fxHist = {};
+      Api.touch();
       localStorage.removeItem('apistock:quotes');
       localStorage.removeItem('apistock:fx');
       this.renderAll();
@@ -1134,6 +1185,7 @@ const App = {
     $('#setRefresh').value = String(st.refreshSec);
     $('#setCredits').value = st.creditsPerMin;
     $('#setRiskFree').value = st.riskFree ?? 2;
+    if (this.renderTaxSettings) this.renderTaxSettings();
   },
 };
 

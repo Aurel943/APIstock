@@ -71,9 +71,5 @@ Object.assign(App, {
   },
 });
 
-// on complète show() pour garder la barre du bas synchronisée
-const _show = App.show;
-App.show = function (view) {
-  _show.call(this, view);
-  this.syncMobileNav();
-};
+// la barre du bas suit l'onglet affiché
+App.on('view:shown', function () { this.syncMobileNav(); });

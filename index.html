@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=9197db0e25">
+  <link rel="stylesheet" href="css/style.css?v=fd38809852">
 </head>
 <body>
   <header class="topbar">
@@ -153,6 +153,14 @@
           <div class="actions"><span class="muted small">Espèces disponibles sur tes comptes</span><button class="btn small" id="cashAdd2">+ Versement / retrait</button></div>
         </div>
         <div id="cashBody"></div>
+      </div>
+
+      <div class="card" id="wealthCard">
+        <div class="card-head">
+          <h2>Patrimoine global</h2>
+          <div class="actions"><span class="muted small">Titres, espèces, épargne et immobilier</span><button class="btn small" id="assetAdd">+ Ajouter un actif</button></div>
+        </div>
+        <div id="wealthBody"></div>
       </div>
 
       <div class="card hidden" id="divCard">
@@ -351,6 +359,7 @@
           <label>Date cible<input type="date" id="goalDate"></label>
           <label><span>Versement mensuel (<span class="ccy"></span>)</span><input type="number" id="goalMonthly" min="0" step="50"></label>
           <label>Rendement annuel supposé (%)<input type="number" id="goalRate" step="0.5"></label>
+          <label class="check"><input type="checkbox" id="goalAssets"> Inclure mes autres actifs (livrets, fonds euros, compte courant, immobilier net — carte « Patrimoine global »)</label>
         </div>
         <div id="goalResult"></div>
       </div>
@@ -550,6 +559,32 @@
         <div class="chart-box wide"><canvas id="projChart"></canvas></div>
         <p class="muted small">La zone colorée contient 80 % des scénarios simulés (entre le 10<sup>e</sup> et le 90<sup>e</sup> centile) : les marchés ne montent pas en ligne droite. Le rendement saisi est le rendement médian ; la volatilité mesure l'ampleur des variations d'une année à l'autre.</p>
       </div>
+
+      <div class="card" id="retireCard">
+        <div class="card-head">
+          <div>
+            <h2>Phase de retraite : vivre de son capital</h2>
+            <p class="muted small">Retraits mensuels sur un capital qui reste placé. Combien de temps tient-il, selon les scénarios de marché ?</p>
+          </div>
+        </div>
+        <div class="form-grid">
+          <label><span>Capital de départ (<span class="ccy"></span>)</span>
+            <div class="inline wrap">
+              <input type="number" id="retInitial" min="0" step="1000" value="300000">
+              <button class="btn small" id="retFromWealth" type="button" title="Utiliser ton patrimoine financier : titres, espèces et épargne (hors immobilier)">Mon patrimoine</button>
+            </div>
+          </label>
+          <label><span>Retrait mensuel (<span class="ccy"></span>)</span><input type="number" id="retWithdraw" min="0" step="50" value="1200"></label>
+          <label>Inflation (indexation annuelle, %)<input type="number" id="retInflation" min="0" max="20" step="0.1" value="2"></label>
+          <label>Durée (années)<input type="number" id="retYears" min="1" max="60" value="30"></label>
+          <label>Rendement annuel moyen (%, net de frais)<input type="number" id="retRate" step="0.5" value="5"></label>
+          <label>Volatilité annuelle (%)<input type="number" id="retVol" min="0" max="80" step="1" value="12"></label>
+          <label>Ton âge aujourd'hui (optionnel)<input type="number" id="retAge" min="18" max="110" step="1" placeholder="ex. 62"></label>
+        </div>
+        <div class="kpis" id="retKpis"></div>
+        <div class="chart-box wide"><canvas id="retChart"></canvas></div>
+        <p class="muted small" id="retNote">Monte-Carlo, 2 000 trajectoires, mêmes hypothèses de marché que la projection. Le retrait de la première année est indexé chaque année sur l'inflation. Hors impôts sur les retraits. Une simulation, pas un conseil.</p>
+      </div>
     </section>
 
     <!-- ============ RÉGLAGES ============ -->
@@ -578,6 +613,24 @@
           <select id="accNewType"><option value="pea">PEA</option><option value="cto">Compte-titres</option><option value="av">Assurance-vie</option><option value="per">PER</option><option value="autre">Autre</option></select>
           <button class="btn primary" id="accAdd">Ajouter le compte</button>
         </div>
+      </div>
+
+      <div class="card" id="taxSettings">
+        <div class="card-head">
+          <div>
+            <h2>Fiscalité</h2>
+            <p class="muted small" id="taxSettingsInfo"></p>
+          </div>
+          <button type="button" class="btn small" id="taxDefaults">Valeurs par défaut</button>
+        </div>
+        <div class="form-grid" id="taxSettingsForm">
+          <label>Impôt sur le revenu (PFU) <div class="pct-field"><input type="number" min="0" max="100" step="0.1" inputmode="decimal" data-tax="ir"></div></label>
+          <label>Prélèvements sociaux <div class="pct-field"><input type="number" min="0" max="100" step="0.1" inputmode="decimal" data-tax="social"></div><span class="muted small">Compte-titres, PEA, PER</span></label>
+          <label>Prélèvements sociaux assurance-vie <div class="pct-field"><input type="number" min="0" max="100" step="0.1" inputmode="decimal" data-tax="socialAv"></div></label>
+          <label>Impôt assurance-vie de plus de 8 ans <div class="pct-field"><input type="number" min="0" max="100" step="0.1" inputmode="decimal" data-tax="avIr8"></div><span class="muted small">Au-delà de l'abattement annuel</span></label>
+          <label>Plafond des versements PEA <input type="number" min="0" step="1000" inputmode="decimal" data-tax="peaCap"></label>
+        </div>
+        <p class="muted small" id="taxSettingsSum"></p>
       </div>
       <div class="grid-2">
         <div class="card">
@@ -764,6 +817,39 @@
     </form>
   </dialog>
 
+  <dialog id="assetDialog">
+    <form id="assetForm" class="stack">
+      <h2 id="assetDialogTitle">Ajouter un actif</h2>
+      <div class="form-grid compact">
+        <label>Type<select id="assetType"><option value="livretA">Livret A</option><option value="ldds">LDDS</option><option value="lep">LEP</option><option value="fondsEuros">Fonds euros (assurance-vie)</option><option value="courant">Compte courant</option><option value="immo">Immobilier</option><option value="autre">Autre</option></select></label>
+        <label>Nom<input type="text" id="assetName" placeholder="ex. Livret A Banque"></label>
+        <label><span>Valeur (<span class="ccy"></span>)</span><input type="number" id="assetValue" min="0" step="0.01" inputmode="decimal" required></label>
+        <label>Date de mise à jour<input type="date" id="assetDate" required></label>
+        <label id="assetRateWrap">Taux annuel (%)<input type="number" id="assetRate" min="0" max="20" step="0.05" inputmode="decimal" placeholder="ex. taux du livret"></label>
+        <label id="assetDebtWrap" class="hidden"><span>Crédit restant dû (<span class="ccy"></span>)</span><input type="number" id="assetDebt" min="0" step="100" inputmode="decimal"></label>
+      </div>
+      <p class="muted small">Livrets et fonds euros : la valeur est estimée chaque jour avec le taux indiqué, à partir de la date de mise à jour. Mets-la à jour avec ton relevé de temps en temps.</p>
+      <div class="actions end">
+        <button type="button" class="btn" id="assetCancel">Annuler</button>
+        <button type="submit" class="btn primary">Enregistrer</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="csvDialog">
+    <form method="dialog" class="stack" id="csvForm">
+      <h2>Importer des opérations</h2>
+      <div id="csvFormat" class="small"></div>
+      <div id="csvSummary"></div>
+      <div id="csvIsins" class="csv-isins"></div>
+      <p class="muted small">Formats reconnus automatiquement : modèle APIstock, Degiro (Transactions.csv), Trade Republic (export des transactions, non vérifié). Les autres relevés (Boursorama, Fortuneo…) sont lus d'après leurs en-têtes : date, sens, ISIN ou symbole, quantité, cours, frais, montant.</p>
+      <div class="actions end">
+        <button type="button" class="btn" id="csvCancel">Annuler</button>
+        <button type="submit" class="btn primary" id="csvOk">Importer</button>
+      </div>
+    </form>
+  </dialog>
+
   <!-- Navigation mobile -->
   <button class="fab" id="fabAdd" aria-label="Ajouter une opération">
     <svg viewBox="0 0 24 24" width="26" height="26"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
@@ -787,20 +873,21 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-  <script src="js/utils.js?v=9197db0e25"></script>
-  <script src="js/store.js?v=9197db0e25"></script>
-  <script src="js/api.js?v=9197db0e25"></script>
-  <script src="js/markets.js?v=9197db0e25"></script>
-  <script src="js/portfolio.js?v=9197db0e25"></script>
-  <script src="js/charts.js?v=9197db0e25"></script>
-  <script src="js/app.js?v=9197db0e25"></script>
-  <script src="js/views.js?v=9197db0e25"></script>
-  <script src="js/compare.js?v=9197db0e25"></script>
-  <script src="js/extras.js?v=9197db0e25"></script>
-  <script src="js/mobile.js?v=9197db0e25"></script>
-  <script src="js/features.js?v=9197db0e25"></script>
-  <script src="js/money.js?v=9197db0e25"></script>
-  <script src="js/newsart.js?v=9197db0e25"></script>
-  <script src="js/insights.js?v=9197db0e25"></script>
+  <script src="js/utils.js?v=fd38809852"></script>
+  <script src="js/store.js?v=fd38809852"></script>
+  <script src="js/api.js?v=fd38809852"></script>
+  <script src="js/markets.js?v=fd38809852"></script>
+  <script src="js/portfolio.js?v=fd38809852"></script>
+  <script src="js/charts.js?v=fd38809852"></script>
+  <script src="js/app.js?v=fd38809852"></script>
+  <script src="js/views.js?v=fd38809852"></script>
+  <script src="js/compare.js?v=fd38809852"></script>
+  <script src="js/extras.js?v=fd38809852"></script>
+  <script src="js/mobile.js?v=fd38809852"></script>
+  <script src="js/features.js?v=fd38809852"></script>
+  <script src="js/money.js?v=fd38809852"></script>
+  <script src="js/newsart.js?v=fd38809852"></script>
+  <script src="js/insights.js?v=fd38809852"></script>
+  <script src="js/wealth.js?v=fd38809852"></script>
 </body>
 </html>

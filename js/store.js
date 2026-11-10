@@ -3,6 +3,41 @@
 
 const STORE_KEY = 'apistock:v1';
 
+/*
+ * Fiscalité : tous les taux utilisés par le site, au même endroit.
+ * Valeurs par défaut pour les revenus 2026, modifiables dans Réglages → Fiscalité (Store.state.settings.tax).
+ * Sources : loi n° 2025-1403 du 30 décembre 2025 de financement de la sécurité sociale pour 2026 (art. 12 : CSG sur les
+ * revenus du capital portée de 9,2 % à 10,6 %), impots.gouv.fr (PFU de 31,4 % = 12,8 % + 18,6 % ; PEA de plus de 5 ans :
+ * 18,6 % de prélèvements sociaux), rapport du Sénat sur le PLFSS 2026 (contrats d'assurance-vie rachetables maintenus à 17,2 %).
+ */
+const TAX_DEFAULTS = {
+  year: 2026,
+  source: 'LFSS 2026 (loi n° 2025-1403 du 30 déc. 2025, art. 12), impots.gouv.fr',
+  ir: 12.8,          // impôt sur le revenu au prélèvement forfaitaire unique (PFU)
+  social: 18.6,      // prélèvements sociaux sur les revenus du capital (compte-titres, PEA, PER)
+  socialAv: 17.2,    // prélèvements sociaux de l'assurance-vie (contrats rachetables : hors hausse 2026)
+  avIr8: 7.5,        // impôt sur le revenu d'une assurance-vie de plus de 8 ans, au-delà de l'abattement
+  peaCap: 150000,    // plafond des versements sur un PEA
+};
+const TAX_FIELDS = ['ir', 'social', 'socialAv', 'avIr8', 'peaCap'];
+
+/** Taux en vigueur (valeurs par défaut, remplacées par celles saisies dans Réglages) ; pfu = ir + social */
+function taxConf() {
+  const c = Object.assign({}, TAX_DEFAULTS);
+  const o = (typeof Store !== 'undefined' && Store.state && Store.state.settings && Store.state.settings.tax) || {};
+  for (const k of TAX_FIELDS) if (isFinite(parseNum(o[k])) && parseNum(o[k]) >= 0) c[k] = parseNum(o[k]);
+  c.custom = TAX_FIELDS.some(k => c[k] !== TAX_DEFAULTS[k]);
+  c.pfu = Math.round((c.ir + c.social) * 100) / 100;
+  return c;
+}
+
+/** Taux d'imposition des gains par défaut d'un type de compte */
+function taxRateFor(type, c = taxConf()) {
+  return { pea: c.social, cto: c.pfu, per: c.pfu, av: Math.round((c.avIr8 + c.socialAv) * 100) / 100 }[type] || 0;
+}
+/** Taux appliqués avant la LFSS 2026 (comptes créés avec une ancienne version) */
+const LEGACY_ACCOUNT_RATES = { pea: 17.2, cto: 30, per: 30, av: 24.7, autre: 0 };
+
 const DEFAULT_STATE = {
   settings: {
     apiKey: '',
@@ -18,8 +53,11 @@ const DEFAULT_STATE = {
   instruments: {},   // key -> { symbol, mic, exchange, name, currency, type }
   transactions: [],  // { id, key, type: 'buy'|'sell'|'div'|'split', date, qty (parité pour 'split'), price, fees, note }
   cashMoves: [],     // { id, account, type: 'deposit'|'withdraw', date, amount (devise de base), note }
+  assets: [],        // autres actifs (patrimoine global) { id, type, name, value, date, rate?, debt? }
   plans: [],         // versements programmés { id, key, account, amount, day, start, fractional, active, done: { 'AAAA-MM': idOpération | 'skip' } }
   watchlist: [],     // [key]
+  deleted: {},       // id -> horodatage de suppression (synchronisation : un élément supprimé ne réapparaît pas)
+  restored: {},      // id -> horodatage d'annulation d'une suppression (l'emporte sur une suppression plus ancienne)
   sim: null,         // derniers paramètres de simulation
   projection: null,
 };
@@ -36,6 +74,9 @@ const Store = {
     this.state.alerts = this.state.alerts || [];
     if (!Array.isArray(this.state.cashMoves)) this.state.cashMoves = [];
     if (!Array.isArray(this.state.plans)) this.state.plans = [];
+    if (!Array.isArray(this.state.assets)) this.state.assets = [];
+    for (const k of ['deleted', 'restored']) if (!this.state[k] || typeof this.state[k] !== 'object' || Array.isArray(this.state[k])) this.state[k] = {};
+    this.purgeTombstones();
     // comptes (PEA, CTO…) : migration depuis l'ancien réglage fiscal unique
     if (!Array.isArray(this.state.accounts) || !this.state.accounts.length) {
       const st = this.state.settings;
@@ -43,13 +84,34 @@ const Store = {
       this.state.accounts = [{ id: 'main', name: type === 'pea' ? 'PEA' : type === 'cto' ? 'Compte-titres' : 'Compte principal', type,
         taxRate: st.taxMode && st.taxMode !== 'none' ? parseNum(st.taxRate) || 0 : 0 }];
     }
+    this.syncAccountRates();
+    if (typeof Portfolio !== 'undefined') Portfolio.invalidate();
     if (!this.state.accountFilter || (this.state.accountFilter !== 'all' && !this.state.accounts.some(a => a.id === this.state.accountFilter))) this.state.accountFilter = 'all';
     return this.state;
   },
 
+  /**
+   * Met à jour le taux des comptes restés sur le taux par défaut de leur type quand les taux changent
+   * (nouvelle loi, ou modification dans Réglages) ; un taux personnalisé n'est jamais touché.
+   */
+  syncAccountRates() {
+    const st = this.state.settings;
+    const prev = st.taxApplied || LEGACY_ACCOUNT_RATES;
+    const now = {};
+    for (const t of Object.keys(LEGACY_ACCOUNT_RATES)) now[t] = taxRateFor(t);
+    let changed = false;
+    for (const a of this.state.accounts) {
+      if (prev[a.type] !== undefined && Math.abs(parseNum(a.taxRate) - prev[a.type]) < 1e-9 && a.taxRate !== now[a.type]) { a.taxRate = now[a.type]; changed = true; }
+    }
+    if (JSON.stringify(prev) !== JSON.stringify(now)) { st.taxApplied = now; changed = true; }
+    return changed;
+  },
+
   save() {
+    if (typeof Portfolio !== 'undefined') Portfolio.invalidate(); // données modifiées : instantanés à recalculer
     try { localStorage.setItem(STORE_KEY, JSON.stringify(this.state)); }
     catch (e) { toast('Impossible de sauvegarder localement : ' + e.message, 'error'); }
+    if (typeof App !== 'undefined' && App.emit) App.emit('data:saved');
   },
 
   key(symbol, mic) { return symbol.toUpperCase() + '@' + (mic || '').toUpperCase(); },
@@ -99,7 +161,26 @@ const Store = {
 
   removeTransaction(id) {
     this.state.transactions = this.state.transactions.filter(t => t.id !== id);
+    this.markDeleted(id);
     this.save();
+  },
+
+  /* ---- Suppressions mémorisées pour la synchronisation (opérations, espèces, versements, alertes, comptes…) ---- */
+  TOMBSTONE_DAYS: 180,
+  markDeleted(id) {
+    if (!id) return;
+    this.state.deleted[id] = Date.now();
+    delete this.state.restored[id];
+  },
+  /** « Annuler » : l'entrée est retirée, et l'annulation est datée pour l'emporter sur la suppression déjà envoyée */
+  unmarkDeleted(id) {
+    if (!id) return;
+    delete this.state.deleted[id];
+    this.state.restored[id] = Date.now();
+  },
+  purgeTombstones(now = Date.now()) {
+    const limit = now - this.TOMBSTONE_DAYS * 864e5;
+    for (const k of ['deleted', 'restored']) for (const [id, ts] of Object.entries(this.state[k] || {})) if (!(ts > limit)) delete this.state[k][id];
   },
 
   toggleWatch(key, on) {

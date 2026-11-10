@@ -360,7 +360,7 @@ Object.assign(App, {
     const series = {}, fx = {};
     for (const k of new Set(txs.map(t => t.key))) {
       series[k] = await Api.daily(k, start);
-      fx[k] = await Api.fxRate((Store.instrument(k) || {}).currency || this.base());
+      fx[k] = await Api.fxSeries((Store.instrument(k) || {}).currency || this.base(), start);
     }
     return Portfolio.replay(series, fx, Portfolio.historyEvents(txs)).points;
   },
@@ -380,13 +380,14 @@ Object.assign(App, {
     const y0 = year + '-01-01', y1 = year + '-12-31';
     const allTx = Store.state.transactions.filter(inAcc);
     const txs = allTx.filter(t => t.date >= y0 && t.date <= y1).sort((a, b) => (a.date < b.date ? -1 : 1));
-    const fxOf = k => { const i = Store.instrument(k); return Api.fxCached((i && i.currency) || cur); };
+    try { await Api.preloadFxHistory(); } catch (e) { /* repli : taux du jour */ }
+    const fxOf = (k, d) => { const i = Store.instrument(k); return Api.fxAt((i && i.currency) || cur, d); };
     const sum = (list, f) => list.reduce((s, t) => s + (isFinite(f(t)) ? f(t) : 0), 0);
     const buys = txs.filter(t => t.type === 'buy'), sells = txs.filter(t => t.type === 'sell'), divs = txs.filter(t => t.type === 'div');
-    const bought = sum(buys, t => (t.qty * t.price + (t.fees || 0)) * fxOf(t.key));
-    const sold = sum(sells, t => (t.qty * t.price - (t.fees || 0)) * fxOf(t.key));
-    const divNet = sum(divs, t => (t.qty * t.price - (t.fees || 0)) * fxOf(t.key));
-    const fees = sum(txs.filter(t => t.type !== 'div'), t => (t.fees || 0) * fxOf(t.key));
+    const bought = sum(buys, t => (t.qty * t.price + (t.fees || 0)) * fxOf(t.key, t.date));
+    const sold = sum(sells, t => (t.qty * t.price - (t.fees || 0)) * fxOf(t.key, t.date));
+    const divNet = sum(divs, t => (t.qty * t.price - (t.fees || 0)) * fxOf(t.key, t.date));
+    const fees = sum(txs.filter(t => t.type !== 'div'), t => (t.fees || 0) * fxOf(t.key, t.date));
     const moves = Store.state.cashMoves.filter(m => inAcc(m) && m.date >= y0 && m.date <= y1);
     const deposits = sum(moves.filter(m => m.type !== 'withdraw'), m => m.amount), withdrawals = sum(moves.filter(m => m.type === 'withdraw'), m => m.amount);
     let realized = 0;
@@ -404,6 +405,7 @@ Object.assign(App, {
     const taxY = ctos.length ? Tax.yearly(ctos).out[year] : null;
     const peas = accs.filter(a => a.type === 'pea');
     const snap = Portfolio.snapshot(accId);
+    const T = taxConf();
     const m = (v, d = 2) => esc(fmtMoney(v, cur, d));
     const sm = v => esc(fmtSignedMoney(v, cur));
     const cls = v => (v > 0.005 ? 'up' : v < -0.005 ? 'down' : '');
@@ -453,12 +455,12 @@ ${row('Plus-values de cession de l\'année', sm(taxY.gross))}
 ${taxY.used > 0.005 ? row('Moins-values antérieures imputées', '−' + m(taxY.used)) : ''}
 ${row(taxY.loss ? 'Moins-value (case 3VH de la 2042 C)' : 'Plus-value imposable (case 3VG de la 2042 C)', m(taxY.loss || taxY.taxable))}
 ${row('Dividendes bruts (case 2DC ou 2TR)', m(taxY.dividends))}
-${row('Impôt estimé au prélèvement forfaitaire unique de 30 %', m((taxY.taxable + taxY.dividends) * 0.30))}
+${row(`Impôt estimé au prélèvement forfaitaire unique de ${fmtNum(T.pfu, 1)} % (${fmtNum(T.ir, 1)} % + ${fmtNum(T.social, 1)} % de prélèvements sociaux)`, m((taxY.taxable + taxY.dividends) * T.pfu / 100))}
 ${taxY.carryLeft > 0.005 ? row('Moins-values reportables (10 ans)', m(taxY.carryLeft)) : ''}
 </table></section>` : ''}
 
 ${peas.map(a => { const p = Tax.pea(a); return `<section><h2>${esc(a.name)} (PEA)</h2><table>
-${row('Date d\'ouverture', esc(fmtDate(p.open)))}${row('Versements ' + (p.manual ? '(saisis)' : p.tracked ? '(enregistrés)' : '(estimés)'), m(p.deposits, 0) + ' / ' + m(PEA_CAP, 0))}
+${row('Date d\'ouverture', esc(fmtDate(p.open)))}${row('Versements ' + (p.manual ? '(saisis)' : p.tracked ? '(enregistrés)' : '(estimés)'), m(p.deposits, 0) + ' / ' + m(T.peaCap, 0))}
 ${row('Cap des 5 ans', esc(p.five ? fmtDate(p.five) + (p.five <= todayISO() ? ' (atteint)' : '') : '—'))}</table></section>`; }).join('')}
 
 ${sales.length ? `<section><h2>Cessions</h2><table><tr><th>Date</th><th>Valeur</th><th class="num">Quantité</th><th class="num">Prix de cession net</th><th class="num">Prix de revient (PMP)</th><th class="num">+/- value</th></tr>
@@ -475,7 +477,7 @@ ${txs.map(t => { const i = Store.instrument(t.key) || {}; const c = i.currency |
 ${snap.rows.map(r => row(esc(Store.label(r.key)) + `<small>${esc(r.inst ? r.inst.name : '')}</small>`, esc(fmtQty(r.qty)), esc(fmtMoney(r.pru, r.currency, 3)), m(r.costBase), m(r.valueBase), `<span class="${cls(r.pnlBase)}">${sm(r.pnlBase)}</span>`)).join('')}
 <tr class="tot"><td colspan="3">Total</td><td class="num">${m(snap.totals.cost)}</td><td class="num">${m(snap.totals.value)}</td><td class="num ${cls(snap.totals.pnl)}">${sm(snap.totals.pnl)}</td></tr></table></section>
 
-<p class="note">Document indicatif établi à partir des opérations saisies dans APIstock. Montants en devises convertis au taux de change du jour d'édition. Les plus-values sont calculées au prix moyen pondéré d'acquisition, frais inclus. L'imprimé fiscal unique (IFU) de ton courtier et ta déclaration pré-remplie font foi.</p>
+<p class="note">Document indicatif établi à partir des opérations saisies dans APIstock. Montants en devises convertis au taux de change du jour de chaque opération ; positions et valeur actuelle au taux du jour d'édition. Les plus-values sont calculées au prix moyen pondéré d'acquisition, frais inclus. Taux fiscaux : ${esc(T.custom ? 'personnalisés (Réglages)' : 'revenus ' + T.year + ' — ' + T.source)}. L'imprimé fiscal unique (IFU) de ton courtier et ta déclaration pré-remplie font foi.</p>
 </body></html>`;
   },
 
@@ -608,48 +610,21 @@ ${snap.rows.map(r => row(esc(Store.label(r.key)) + `<small>${esc(r.inst ? r.inst
 /* ==================================================================== */
 /* Branchements                                                           */
 /* ==================================================================== */
-(() => {
-  const origAll = App.renderAll;
-  App.renderAll = function () {
-    origAll.apply(this, arguments);
-    this.renderRiskCard();
-    this.renderDividends();
-    this.renderRebalance();
-  };
-  const origInvest = App.renderInvest;
-  App.renderInvest = function () {
-    origInvest.apply(this, arguments);
-    if (!$('#rebalBox').contains(document.activeElement)) this.renderRebalance();
-  };
-  const origAlerts = App.renderAlerts;
-  App.renderAlerts = function () {
-    origAlerts.apply(this, arguments);
-    this.schedulePushSync();
-  };
-  const origDetail = App.selectDetail;
-  App.selectDetail = function (key) {
-    const changed = key !== this.detailKey || !$('#detailNews').childElementCount;
-    origDetail.apply(this, arguments);
-    if (changed) this.loadDetailNews(key);
-  };
-  const origRefresh = App.refresh;
-  App.refresh = async function () {
-    const res = await origRefresh.apply(this, arguments);
-    if (this.view === 'portfolio') this.loadNews().catch(() => {});
-    return res;
-  };
-  const origShow = App.show;
-  App.show = function (view) {
-    origShow.apply(this, arguments);
-    if (view === 'portfolio') this.loadNews().catch(() => {});
-  };
-  // un changement de compte invalide le calcul de risque
-  const origFilter = App.renderAccountFilter;
-  App.renderAccountFilter = function () {
-    origFilter.apply(this, arguments);
-    if (this._riskShown && this._riskShown !== (Store.state.accountFilter || 'all')) { this._riskShown = null; this.renderRiskCard(); }
-  };
-})();
+App.on('rendered:all', function () {
+  this.renderRiskCard();
+  this.renderDividends();
+  this.renderRebalance();
+});
+App.on('rendered:invest', function () { if (!$('#rebalBox').contains(document.activeElement)) this.renderRebalance(); });
+App.on('rendered:alerts', function () { this.schedulePushSync(); });
+// actualités de l'instrument affiché (la liste est vide tant qu'elles n'ont pas été chargées)
+App.on('detail:selected', function (key, previous) { if (key !== previous || !$('#detailNews').childElementCount) this.loadDetailNews(key); });
+App.on('refreshed', function () { if (this.view === 'portfolio') this.loadNews().catch(() => {}); });
+App.on('view:shown', function (view) { if (view === 'portfolio') this.loadNews().catch(() => {}); });
+// un changement de compte invalide le calcul de risque
+App.on('rendered:accountFilter', function () {
+  if (this._riskShown && this._riskShown !== (Store.state.accountFilter || 'all')) { this._riskShown = null; this.renderRiskCard(); }
+});
 
 document.addEventListener('DOMContentLoaded', () => {
   App.bindReport();

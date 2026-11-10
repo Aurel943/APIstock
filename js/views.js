@@ -282,6 +282,7 @@ Object.assign(App, {
       el('td', {}, 'Total'), el('td'), el('td', { class: 'num' }, fmtMoney(total, cur)), el('td', { class: 'num' }, '100 %'),
       el('td', { class: 'num ' + (ok ? 'up' : 'down') }, fmtNum(tgtSum, 1) + ' %'), el('td', { colspan: 2, class: 'small ' + (ok ? 'muted' : 'down') }, ok ? '' : 'la cible doit faire 100 %')) : '');
     this.renderPlan(lines);
+    this.emit('rendered:invest');
   },
 
   renderPlan(lines) {
@@ -384,9 +385,14 @@ Object.assign(App, {
         el('td', {}, a.active ? el('span', { class: 'chip buy' }, 'Active') : el('span', { class: 'chip sell' }, 'Déclenchée ' + (a.triggeredAt ? new Date(a.triggeredAt).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) : ''))),
         el('td', { class: 'num' },
           !a.active ? el('button', { class: 'iconbtn', title: 'Réactiver', onclick: () => { a.active = true; a.triggeredAt = null; Store.save(); this.renderAlerts(); } }, '↺') : null,
-          el('button', { class: 'iconbtn', title: 'Supprimer', onclick: () => { Store.state.alerts = Store.state.alerts.filter(x => x !== a); Store.save(); this.renderAlerts(); } }, '🗑')));
+          el('button', { class: 'iconbtn', title: 'Supprimer', onclick: () => {
+            const idx = Store.state.alerts.indexOf(a);
+            Store.state.alerts = Store.state.alerts.filter(x => x !== a); Store.markDeleted(a.id); Store.save(); this.renderAlerts();
+            undoToast('Alerte supprimée', () => { Store.state.alerts.splice(Math.max(0, idx), 0, a); Store.unmarkDeleted(a.id); Store.save(); this.renderAlerts(); });
+          } }, '🗑')));
     }));
     if (!list.length) $('#alertTable tbody').append(el('tr', {}, el('td', { colspan: 5, class: 'empty' }, 'Aucune alerte. Exemple : « CW8 · Cours ≤ 650 € » pour être prévenu d\'un point d\'entrée.')));
+    this.emit('rendered:alerts');
   },
 
   checkAlerts(key, q) {

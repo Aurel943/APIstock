@@ -125,7 +125,7 @@ Object.assign(App, {
     const series = {}, fx = {};
     for (const k of keys) {
       series[k] = await Api.daily(k, first);
-      fx[k] = await Api.fxRate((Store.instrument(k) || {}).currency);
+      fx[k] = await Api.fxSeries((Store.instrument(k) || {}).currency, first);
     }
     const { points } = Portfolio.replay(series, fx, Portfolio.historyEvents(txs));
     const out = Portfolio.twr(points);
