@@ -308,22 +308,36 @@ Object.assign(App, {
       throw new Error('colonnes « date », « symbole » (ou « ISIN ») et « prix » (ou « montant ») obligatoires — format de fichier non reconnu');
     }
 
+    const records = rows.map((r, i) => (r.every(c => !c.trim()) ? undefined : Object.assign((broker ? broker.row(r, ctx) : csvGenericRow(r, ctx)) || { skip: true }, { line: 'ligne ' + (i + 2) })));
+    return this.prepareImport(records.filter(Boolean),
+      broker ? { id: broker.id, label: broker.label, verified: broker.verified, note: broker.note } : { id: 'generic', label: 'CSV générique (format APIstock ou en-têtes proches)', verified: true });
+  },
+
+  /**
+   * Prépare l'import d'opérations lues dans un fichier (CSV, avis d'opéré…). Chaque enregistrement :
+   * { line, date, type, symbol | isin, mic, name, qty, price, fees, ccy, note, account (nom) | accountId, ref } ;
+   * `skip` pour une ligne sans titre, `error` pour une ligne illisible.
+   * `dedupe` : les opérations déjà enregistrées (même référence d'ordre, ou même titre, date, sens, quantité et prix) sont écartées.
+   */
+  prepareImport(records, format, { dedupe = false } = {}) {
     const txs = [], errors = [], newInst = [], newAcc = [], accByName = {}, pendingAcc = [], pendingInst = {}, unresolved = {};
-    let skipped = 0;
+    let skipped = 0, dups = 0;
     for (const a of Store.state.accounts) accByName[a.name.toLowerCase()] = a.id;
     const byIsin = isin => Object.keys(Store.state.instruments).find(k => (Store.state.instruments[k].isin || '').toUpperCase() === isin);
-    rows.forEach((r, i) => {
-      if (r.every(c => !c.trim())) return;
-      const line = i + 2;
-      const rec = broker ? broker.row(r, ctx) : csvGenericRow(r, ctx);
-      if (!rec) { skipped++; return; } // ligne sans titre (virement, intérêts…) : ignorée
-      if (rec.error) { errors.push(`ligne ${line} : ${rec.error}`); return; }
+    const refs = new Set(Store.state.transactions.map(t => t.ref).filter(Boolean));
+    const near = (a, b) => Math.abs(a - b) < 1e-6 * Math.max(1, Math.abs(a));
+    const isDup = t => Store.state.transactions.some(x => x.key === t.key && x.type === t.type && x.date === t.date && (x.account || Store.defaultAccount()) === t.account && near(x.qty, t.qty) && near(x.price, t.price));
+    records.forEach(rec => {
+      const line = rec.line;
+      if (rec.skip) { skipped++; return; } // ligne sans titre (virement, intérêts…) : ignorée
+      if (rec.error) { errors.push(`${line} : ${rec.error}`); return; }
       const { date, type } = rec;
       const split = type === 'split';
-      if (!date) { errors.push(`ligne ${line} : date invalide`); return; }
-      if (!type) { errors.push(`ligne ${line} : type inconnu « ${rec.rawType || ''} »`); return; }
-      if (!rec.symbol && !rec.isin) { errors.push(`ligne ${line} : symbole ou ISIN manquant`); return; }
-      if ((!split && !(rec.price > 0)) || !(rec.qty > 0)) { errors.push(`ligne ${line} : ${split ? 'parité' : 'quantité ou prix'} invalide`); return; }
+      if (!date) { errors.push(`${line} : date invalide`); return; }
+      if (!type) { errors.push(`${line} : type inconnu « ${rec.rawType || ''} »`); return; }
+      if (!rec.symbol && !rec.isin) { errors.push(`${line} : symbole ou ISIN manquant`); return; }
+      if ((!split && !(rec.price > 0)) || !(rec.qty > 0)) { errors.push(`${line} : ${split ? 'parité' : 'quantité ou prix'} invalide`); return; }
+      if (dedupe && rec.ref) { if (refs.has(rec.ref)) { dups++; return; } refs.add(rec.ref); }
       let mic = (rec.mic || '').toUpperCase();
       if (mic && !MIC_TO_YAHOO_SUFFIX.hasOwnProperty(mic)) mic = YAHOO_EX_TO_MIC[mic] || CSV_PLACES[mic] || mic;
       let key = null, isin = (rec.isin || '').toUpperCase();
@@ -344,23 +358,25 @@ Object.assign(App, {
         }
       }
       let account = Store.defaultAccount();
-      const accName = rec.account;
-      if (accName) {
-        const k = accName.toLowerCase();
-        if (!accByName[k]) { const id = uid(); accByName[k] = id; pendingAcc.push({ id, name: accName }); newAcc.push(accName); }
+      if (rec.accountId) account = rec.accountId;
+      else if (rec.account) {
+        const k = rec.account.toLowerCase();
+        if (!accByName[k]) { const id = uid(); accByName[k] = id; pendingAcc.push({ id, name: rec.account }); newAcc.push(rec.account); }
         account = accByName[k];
       }
-      txs.push(Object.assign({ key, type, date, account, qty: rec.qty, price: split ? 0 : rec.price, fees: split ? 0 : rec.fees || 0 },
-        rec.note ? { note: rec.note } : {}, key ? {} : { isin }));
+      const tx = Object.assign({ key, type, date, account, qty: rec.qty, price: split ? 0 : rec.price, fees: split ? 0 : rec.fees || 0 },
+        rec.note ? { note: rec.note } : {}, rec.ref ? { ref: rec.ref } : {}, key ? {} : { isin });
+      if (dedupe && key && isDup(tx)) { dups++; return; }
+      txs.push(tx);
     });
     const res = {
-      txs, errors, skipped, newInst, newAcc,
-      format: broker ? { id: broker.id, label: broker.label, verified: broker.verified, note: broker.note } : { id: 'generic', label: 'CSV générique (format APIstock ou en-têtes proches)', verified: true },
+      txs, errors, skipped, dups, newInst, newAcc, format,
       unresolved: Object.values(unresolved),
       /** Choix du symbole pour un ISIN : résultat de Api.search, ou null pour ignorer ses lignes */
       resolve(isin, d) { const u = unresolved[isin]; if (u) u.choice = d; },
       /** Opérations réellement importées (ISIN ignorés ou non résolus exclus) */
       ready() { return txs.filter(t => t.key || (unresolved[t.isin] && unresolved[t.isin].choice)); },
+      /** Enregistre les opérations ; renvoie leur nombre (`res.dups` : doublons écartés au dernier moment) */
       commit: () => {
         for (const a of pendingAcc) {
           const t = /pea/i.test(a.name) ? 'pea' : /assurance|av\b/i.test(a.name) ? 'av' : /per\b/i.test(a.name) ? 'per' : /cto|titre/i.test(a.name) ? 'cto' : 'autre';
@@ -383,6 +399,7 @@ Object.assign(App, {
           if (!key) continue;
           const tx = Object.assign({ id: uid() }, t, { key });
           delete tx.isin;
+          if (dedupe && !t.key && isDup(tx)) { res.dups++; continue; }
           Store.state.transactions.push(tx);
           n++;
         }
@@ -400,6 +417,35 @@ Object.assign(App, {
     const prio = { XPAR: 0, XETR: 1, XAMS: 2, XMIL: 3, XLON: 4, XNYS: 5, ARCX: 5, XNAS: 6, XNGS: 6 };
     const score = d => (u.mic && d.mic === u.mic ? -20 : 0) + (u.currency && d.currency === u.currency ? -10 : 0) + (prio[d.mic] ?? 9);
     return list.filter(d => d.symbol && d.symbol.toUpperCase() !== u.isin).sort((a, b) => score(a) - score(b));
+  },
+
+  /** Aperçu des opérations prêtes à être importées */
+  renderImportPreview(res) {
+    const box = $('#csvPreview');
+    if (!box) return;
+    const txs = res.ready().slice().sort((a, b) => (a.date < b.date ? -1 : 1));
+    const multiAcc = new Set(txs.map(t => t.account)).size > 1 || res.newAcc.length > 0;
+    const accName = id => { const a = Store.state.accounts.find(x => x.id === id); return a ? a.name : res.newAcc[0] || ''; };
+    const label = t => {
+      if (t.key) return Store.instrument(t.key) ? Store.label(t.key) : t.key.split('@')[0];
+      const u = res.unresolved.find(x => x.isin === t.isin);
+      return u && u.choice ? u.choice.symbol : t.isin;
+    };
+    const ccy = t => (t.key && Store.instrument(t.key) ? Store.instrument(t.key).currency : this.base());
+    const TYPES = { buy: 'Achat', sell: 'Vente', div: 'Dividende', split: 'Division' };
+    const MAX = 50;
+    box.replaceChildren(...(txs.length ? [el('table', { class: 'data' },
+      el('thead', {}, el('tr', {}, el('th', {}, 'Date'), el('th', {}, 'Type'), el('th', {}, 'Titre'), multiAcc ? el('th', {}, 'Compte') : null,
+        el('th', { class: 'num' }, 'Qté'), el('th', { class: 'num' }, 'Cours'), el('th', { class: 'num' }, 'Frais'))),
+      el('tbody', {}, ...txs.slice(0, MAX).map(t => el('tr', {},
+        el('td', {}, fmtDate(t.date)),
+        el('td', {}, el('span', { class: 'chip ' + (t.type === 'sell' ? 'sell' : 'buy') }, TYPES[t.type] || t.type)),
+        el('td', {}, el('b', {}, label(t))),
+        multiAcc ? el('td', { class: 'muted' }, accName(t.account)) : null,
+        el('td', { class: 'num' }, t.type === 'split' ? '× ' + fmtNum(t.qty, 4) : fmtQty(t.qty)),
+        el('td', { class: 'num' }, t.type === 'split' ? '' : fmtMoney(t.price, ccy(t), 3)),
+        el('td', { class: 'num' }, t.type === 'split' ? '' : fmtMoney(t.fees || 0, ccy(t))))))),
+      txs.length > MAX ? el('p', { class: 'muted small' }, `… et ${txs.length - MAX} autre(s).`) : null].filter(Boolean) : []));
   },
 
   /** Fenêtre de confirmation de l'import (résumé, choix du symbole de chaque ISIN) */
@@ -432,10 +478,13 @@ Object.assign(App, {
       $('#csvSummary').replaceChildren(...[
         el('p', {}, el('b', {}, n + ' opération(s) à importer'), res.newInst.length ? ` · ${res.newInst.length} nouvel(s) instrument(s)` : '',
           res.newAcc.length ? ` · compte(s) créé(s) : ${res.newAcc.join(', ')}` : ''),
+        res.dups ? el('p', { class: 'muted small' }, `${res.dups} opération(s) déjà enregistrée(s), ignorée(s).`) : null,
         res.skipped ? el('p', { class: 'muted small' }, `${res.skipped} ligne(s) sans titre ignorée(s) (virements, intérêts, frais seuls…).`) : null,
         res.errors.length ? el('p', { class: 'small down' }, `${res.errors.length} ligne(s) non reconnue(s) : ${res.errors.slice(0, 3).join(' ; ')}`) : null].filter(Boolean));
       $('#csvOk').disabled = !n;
+      this.renderImportPreview(res);
     };
+    $('#csvHelp').classList.toggle('hidden', f.id === 'avis');
     summary();
     if (!dlg.open) dlg.showModal();
     return new Promise(ok => {

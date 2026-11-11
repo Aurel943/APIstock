@@ -706,6 +706,11 @@ td.num .day-spark { display: block; margin: 4px 0 0 auto; }
 .vapid-out { margin-top: 10px; padding: 12px; background: var(--surface-2); border-radius: 8px; font-size: 12px; white-space: pre-wrap; word-break: break-all; user-select: all; }
 
 /* Import CSV : choix du symbole des lignes connues par leur ISIN */
+.avis-drop { display: flex; flex-direction: row; gap: 12px; align-items: center; padding: 10px 12px; border: 1px dashed var(--border); border-radius: 10px; cursor: pointer; font-size: 13px; color: var(--muted); }
+.avis-drop .avis-ico { font-size: 22px; flex: none; }
+.avis-drop .avis-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.avis-drop b { color: var(--text); }
+.avis-drop:hover { background: var(--surface-2); }
 .csv-isins { display: flex; flex-direction: column; gap: 8px; }
 .csv-isin { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
 .csv-isin .name { display: block; }

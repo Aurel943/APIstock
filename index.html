@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=fd38809852">
+  <link rel="stylesheet" href="css/style.css?v=8724482e26">
 </head>
 <body>
   <header class="topbar">
@@ -200,6 +200,7 @@
           <h2>Opérations</h2>
           <div class="actions"><span class="muted small" id="txCount"></span>
             <button class="btn small" id="cashAdd">+ Versement / retrait</button>
+            <label class="btn small" title="Sélectionne un ou plusieurs avis d'opéré PDF de ton courtier">📄 Importer des avis d'opéré <input type="file" class="avisImport" accept="application/pdf,.pdf" multiple hidden></label>
             <button class="btn small" id="reportBtn">Rapport annuel (PDF)</button>
             <button class="btn small" id="txExport">Exporter en CSV</button></div>
         </div>
@@ -731,6 +732,10 @@
               <label class="btn">Importer un CSV… <input type="file" id="csvImport" accept=".csv,text/csv,text/plain" hidden></label>
               <button class="btn" id="csvTemplate">Télécharger un modèle</button>
             </div>
+            <p class="muted">Avis d'opéré PDF (Boursorama et présentations proches) : sélectionne-les tous d'un coup, chaque achat ou vente est reconnu (titre retrouvé par son ISIN, frais compris). Un avis déjà importé est ignoré.</p>
+            <div class="actions">
+              <label class="btn">Importer des avis d'opéré (PDF)… <input type="file" class="avisImport" accept="application/pdf,.pdf" multiple hidden></label>
+            </div>
             <hr>
             <div class="actions">
               <button class="btn" id="clearCache">Vider le cache des cours</button>
@@ -746,6 +751,7 @@
   <dialog id="txDialog">
     <form method="dialog" id="txForm" class="stack">
       <h2 id="txDialogTitle">Nouvelle opération</h2>
+      <label class="avis-drop" id="txAvis"><span class="avis-ico" aria-hidden="true">📄</span><span class="avis-txt"><b>Importer depuis un avis d'opéré (PDF)</b><span>Titre, date, quantité, cours et frais remplis tout seuls. Tu peux en choisir plusieurs d'un coup.</span></span> <input type="file" class="avisImport" accept="application/pdf,.pdf" multiple hidden></label>
       <div id="txInstrument"></div>
       <div class="form-grid compact">
         <label>Type
@@ -842,7 +848,8 @@
       <div id="csvFormat" class="small"></div>
       <div id="csvSummary"></div>
       <div id="csvIsins" class="csv-isins"></div>
-      <p class="muted small">Formats reconnus automatiquement : modèle APIstock, Degiro (Transactions.csv), Trade Republic (export des transactions, non vérifié). Les autres relevés (Boursorama, Fortuneo…) sont lus d'après leurs en-têtes : date, sens, ISIN ou symbole, quantité, cours, frais, montant.</p>
+      <div id="csvPreview" class="table-wrap"></div>
+      <p class="muted small" id="csvHelp">Formats reconnus automatiquement : modèle APIstock, Degiro (Transactions.csv), Trade Republic (export des transactions, non vérifié). Les autres relevés (Boursorama, Fortuneo…) sont lus d'après leurs en-têtes : date, sens, ISIN ou symbole, quantité, cours, frais, montant.</p>
       <div class="actions end">
         <button type="button" class="btn" id="csvCancel">Annuler</button>
         <button type="submit" class="btn primary" id="csvOk">Importer</button>
@@ -873,21 +880,22 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-  <script src="js/utils.js?v=fd38809852"></script>
-  <script src="js/store.js?v=fd38809852"></script>
-  <script src="js/api.js?v=fd38809852"></script>
-  <script src="js/markets.js?v=fd38809852"></script>
-  <script src="js/portfolio.js?v=fd38809852"></script>
-  <script src="js/charts.js?v=fd38809852"></script>
-  <script src="js/app.js?v=fd38809852"></script>
-  <script src="js/views.js?v=fd38809852"></script>
-  <script src="js/compare.js?v=fd38809852"></script>
-  <script src="js/extras.js?v=fd38809852"></script>
-  <script src="js/mobile.js?v=fd38809852"></script>
-  <script src="js/features.js?v=fd38809852"></script>
-  <script src="js/money.js?v=fd38809852"></script>
-  <script src="js/newsart.js?v=fd38809852"></script>
-  <script src="js/insights.js?v=fd38809852"></script>
-  <script src="js/wealth.js?v=fd38809852"></script>
+  <script src="js/utils.js?v=8724482e26"></script>
+  <script src="js/store.js?v=8724482e26"></script>
+  <script src="js/api.js?v=8724482e26"></script>
+  <script src="js/markets.js?v=8724482e26"></script>
+  <script src="js/portfolio.js?v=8724482e26"></script>
+  <script src="js/charts.js?v=8724482e26"></script>
+  <script src="js/app.js?v=8724482e26"></script>
+  <script src="js/views.js?v=8724482e26"></script>
+  <script src="js/compare.js?v=8724482e26"></script>
+  <script src="js/extras.js?v=8724482e26"></script>
+  <script src="js/mobile.js?v=8724482e26"></script>
+  <script src="js/features.js?v=8724482e26"></script>
+  <script src="js/money.js?v=8724482e26"></script>
+  <script src="js/newsart.js?v=8724482e26"></script>
+  <script src="js/insights.js?v=8724482e26"></script>
+  <script src="js/wealth.js?v=8724482e26"></script>
+  <script src="js/avis.js?v=8724482e26"></script>
 </body>
 </html>

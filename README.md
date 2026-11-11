@@ -26,6 +26,7 @@ Site personnel (100 % statique, sans serveur ni compte) pour suivre ses ETF et l
 - Calendrier des performances mois par mois (hors versements)
 - Mode discret 👁 : masque tous les montants en un clic
 - Import / export CSV des opérations : modèle APIstock, **relevés Degiro** (Transactions.csv, en anglais ou en français) et **Trade Republic** (export des transactions, format non vérifié sur un vrai fichier) reconnus automatiquement ; autres relevés (Boursorama, Fortuneo…) lus d'après leurs en-têtes (date, sens, ISIN ou symbole, quantité, cours, frais, montant). Les lignes connues seulement par leur ISIN sont associées à un symbole par la recherche ISIN, à confirmer avant l'import
+- **Import des avis d'opéré PDF** (Boursorama et présentations proches) : sélectionne tous tes avis d'un coup (bouton « 📄 Importer des avis d'opéré » des Opérations, ou en haut de la fenêtre « Nouvelle opération ») ; sens, date, quantité, cours, frais (net − brut), ISIN, place et compte (PEA / compte-titres) sont lus, aperçu avant l'import, et un avis déjà importé (même référence d'ordre) ou une opération déjà saisie est ignoré. Lecture locale avec pdf.js, chargé à la demande : le PDF ne quitte pas l'appareil
 
 **Comparer**
 - Compare jusqu'à 5 valeurs sur la même base : indices (S&P 500, Nasdaq, Nasdaq 100, Dow Jones, CAC 40, DAX, Euro Stoxx 50, Nikkei…), tes ETF, n'importe quelle action, l'or, le Bitcoin… et **ton propre portefeuille** (performance pondérée dans le temps, pour savoir si tu bats le marché)
@@ -184,6 +185,7 @@ js/features.js    temps réel, exposition & frais (coût long terme, équivalent
 js/money.js       versements programmés, liquidités, divisions, ISIN, carte « À faire »
 js/insights.js    risque, rééquilibrage, dividendes à venir, actualités, rapport annuel, alertes push
 js/wealth.js      patrimoine global (autres actifs), phase de retraite
+js/avis.js        import des avis d'opéré PDF (lecture du texte avec pdf.js)
 sw.js, manifest.webmanifest, icons/   application installable (PWA)
 js/app.js         interface et bus d'événements (App.on / App.emit, liste des événements en tête du fichier)
 api/yahoo.js      relais Yahoo Finance (fonction Vercel)

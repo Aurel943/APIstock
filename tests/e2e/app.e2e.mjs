@@ -168,3 +168,29 @@ test('affichage mobile : aucun défilement horizontal, quel que soit l\'onglet',
   }
   assert.ok(await page.locator('#bottomNav').isVisible(), 'barre de navigation basse');
 }));
+
+test('import d\'avis d\'opéré PDF : aperçu, import sur le PEA, réimport ignoré', () => run({ state: sampleState() }, async ({ page }) => {
+  await page.evaluate(() => {
+    Store.instrument('ESE@XPAR').isin = 'FR0011550193';
+    // lecture du PDF simulée (pdf.js vient d'un CDN, bloqué dans les tests) : texte d'un avis Boursorama fictif
+    Avis.lines = async file => ['OPERATION DE BOURSE', 'Références de votre compte titres', '00000 00000 00000000000   Compte PEA', 'ACHAT COMPTANT   000000',
+      `27/10/2026   ${file.name.match(/\d+/)[0]}   BNP PAR.EASY STOX.EU.600 U.ETF   Référence :   0101000${file.name.match(/\d+/)[0]}`,
+      'Code ISIN :   FR0011550193   Cours exécuté :   21,155 EUR', 'Lieu d\'exécution :   EURONEXT PARIS',
+      'Montant brut   Commission   Frais (¨)   Montant net au débit de votre compte', '359,64 EUR   1,80 EUR   361,44 EUR'];
+  });
+  const files = [17, 3].map(n => ({ name: `avis-${n}.pdf`, mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4') }));
+  await page.click('#addTxBtn');
+  await page.setInputFiles('#txAvis input', files);
+  await page.waitForSelector('#csvDialog[open] #csvPreview tbody tr');
+  assert.equal(await page.locator('#csvPreview tbody tr').count(), 2);
+  assert.match(await page.textContent('#csvSummary'), /2 opération\(s\) à importer/);
+  await page.click('#csvOk');
+  const s = await state(page);
+  const imported = s.transactions.filter(t => t.ref);
+  assert.deepEqual(imported.map(t => [t.key, t.account, t.qty, t.price, t.fees, t.date]).sort(),
+    [['ESE@XPAR', 'pea', 17, 21.155, 1.8, '2026-10-27'], ['ESE@XPAR', 'pea', 3, 21.155, 1.8, '2026-10-27']]);
+  // mêmes avis sélectionnés à nouveau : rien n'est ajouté
+  await page.setInputFiles('#txCount ~ label input.avisImport', files);
+  await page.waitForFunction(() => /déjà enregistrés/.test(document.querySelector('#toast').textContent));
+  assert.equal((await state(page)).transactions.length, s.transactions.length);
+}));
