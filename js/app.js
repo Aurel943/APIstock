@@ -608,6 +608,7 @@ const App = {
   openTx(tx = null) {
     this.editingTx = tx;
     $('#txDialogTitle').textContent = tx ? 'Modifier l\'opération' : 'Nouvelle opération';
+    if ($('#txAvis')) $('#txAvis').classList.toggle('hidden', !!tx);
     $('#txType').value = tx ? tx.type : 'buy';
     $('#txDate').value = tx ? tx.date : todayISO();
     $('#txQty').value = tx ? tx.qty : '';
