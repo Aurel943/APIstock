@@ -223,7 +223,7 @@ Object.assign(App, {
   /** Sujet de recherche d'actualités d'un instrument : { fr, en, label } */
   newsQuery(key) {
     const inst = Store.instrument(key);
-    if (!inst) return null;
+    if (!inst || inst.provider === 'manual') return null;
     const clean = n => (n || '').replace(/\(.*?\)/g, '').replace(/\b(UCITS|ETF|Acc|Dist|EUR|USD|Inc|Corp|Corporation|Ltd|plc|S\.?A|SE|N\.?V|AG|Class [A-C])\b\.?/gi, '').replace(/[,.]+$/, '').replace(/\s+/g, ' ').trim();
     const prof = typeof Expo !== 'undefined' ? Expo.of(key).profile : 'none';
     const theme = NEWS_THEME_BY_PROFILE[prof] || newsTheme(inst.name, 'markets');

@@ -154,8 +154,9 @@ Object.assign(App, {
       if (token !== this.cmpToken) return;
     }
     this.cmpData = { loaded, start, errors };
-    $('#cmpStatus').textContent = '';
-    if (errors.length) toast(errors.join(' · '), 'error', 8000);
+    $('#cmpStatus').textContent = errors.length ? '⚠ Indisponible : ' + errors.map(e => e.split(' : ')[0]).join(', ') : '';
+    $('#cmpStatus').title = errors.join('\n');
+    $('#cmpStatus').classList.toggle('warn-text', errors.length > 0);
     this.drawCompare();
   },
 

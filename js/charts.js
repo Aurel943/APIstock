@@ -117,6 +117,7 @@ const Charts = {
         datasets: [
           { label: opts.valueLabel || 'Valeur', data: value, borderColor: accent, backgroundColor: accent + '22', fill: '+1', borderWidth: 2, tension: 0.1 },
           { label: opts.investedLabel || 'Montant investi', data: invested, borderColor: muted, borderDash: [5, 4], borderWidth: 1.5, fill: false, stepped: opts.stepped ? 'before' : false },
+          ...(opts.bench ? [{ label: opts.benchLabel || 'Indice de référence', data: opts.bench, borderColor: '#d97706', borderWidth: 1.5, fill: false, tension: 0.1, spanGaps: true }] : []),
         ],
       },
       options: o,

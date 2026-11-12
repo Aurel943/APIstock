@@ -204,3 +204,18 @@ test('snapshot : résultat mis en cache, recalculé après un changement de donn
   near(Portfolio.snapshot('all').totals.value, 1320);     // Store.save invalide le cache
   near(Portfolio.snapshot('cto').totals.value, 0);        // un cache par compte
 });
+
+test('indice de référence : mêmes versements aux mêmes dates', () => {
+  const { Portfolio } = loadApp(base());
+  const points = [
+    { date: '2024-01-02', invested: 1000, value: 1000 },
+    { date: '2024-01-03', invested: 1000, value: 1010 },
+    { date: '2024-01-04', invested: 1500, value: 1600 },
+  ];
+  const bench = [['2024-01-02', 100], ['2024-01-03', 110], ['2024-01-04', 110]];
+  const b = Portfolio.benchmark(points, bench);
+  near(b[0], 1000);        // 10 parts à 100
+  near(b[1], 1100);        // l'indice prend 10 %
+  near(b[2], 1600);        // + 500 € investis à 110
+  assert.equal(Portfolio.benchmark(points, []).every(v => v === null), true);
+});

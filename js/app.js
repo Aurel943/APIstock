@@ -1,6 +1,9 @@
 /* Application : navigation, rendu des vues, rafraîchissement temps réel */
 'use strict';
 
+/* Indice de référence du graphique d'évolution (ETF Yahoo coté en euros) */
+const HIST_BENCH = { ysym: 'IWDA.AS', ccy: 'EUR', name: 'MSCI World' };
+
 /*
  * Événements de l'application : les modules (features, money, insights, mobile, wealth…) s'y abonnent avec
  * App.on(nom, fn) au lieu d'envelopper les fonctions d'App. Chaque événement est émis APRÈS l'action ; les
@@ -60,10 +63,12 @@ const App = {
     this.bindPrivacy();
     this.bindCsv();
     this.bindMobile();
+    this.bindManual();
     this.bindInteractionGuard();
     if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
     Api.onUsage((used, limit) => {
       const c = $('#credits');
+      if (!c) return;
       c.textContent = used + '/' + limit;
       c.classList.toggle('warn', used >= limit);
     });
@@ -76,7 +81,13 @@ const App = {
     const hash = location.hash.replace('#', '');
     this.show(['portfolio', 'markets', 'compare', 'world', 'invest', 'simulation', 'settings'].includes(hash) ? hash : (Api.ready() ? 'portfolio' : 'settings'));
     this.renderAll();
-    Api.detectProxy().finally(() => { this.renderAll(); this.refresh(); this.preloadFx(); });
+    Api.detectProxy().finally(() => { if (!Api.ready() && $('#advancedSources')) $('#advancedSources').open = true; this.renderAll(); Promise.resolve(this.refresh()).finally(() => this.autoHistory()); this.preloadFx(); });
+    // opérations modifiées : le graphique d'évolution déjà affiché est recalculé (sans bruit)
+    this.on('data:saved', () => {
+      if (!this.historyLoaded) return;
+      clearTimeout(this._histT);
+      this._histT = setTimeout(() => this.loadHistory({ quiet: true }), 1500);
+    });
     if (sessionStorage.getItem('apistock:reloaded')) {
       sessionStorage.removeItem('apistock:reloaded');
       setTimeout(() => toast('Site rechargé et à jour ✔', 'success', 3000), 300);
@@ -91,7 +102,10 @@ const App = {
   /* Navigation & thème                                                   */
   /* ------------------------------------------------------------------ */
   bindNav() {
-    $$('.tab').forEach(b => b.addEventListener('click', () => this.show(b.dataset.view)));
+    $$('.tab').forEach(b => b.addEventListener('click', () => { this.show(b.dataset.view); this.toggleTabMenu(false); }));
+    $('#tabMoreBtn').addEventListener('click', e => { e.stopPropagation(); this.toggleTabMenu(); });
+    document.addEventListener('click', e => { if (!e.target.closest('#tabMore')) this.toggleTabMenu(false); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') this.toggleTabMenu(false); });
     $$('[data-goto]').forEach(b => b.addEventListener('click', () => this.show(b.dataset.goto)));
     $('#refreshBtn').addEventListener('click', () => this.refresh(true));
     $('#themeBtn').addEventListener('click', () => {
@@ -112,6 +126,7 @@ const App = {
   show(view) {
     this.view = view;
     $$('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === view));
+    $('#tabMoreBtn').classList.toggle('active', !!$('#tabMenu .tab.active'));
     $$('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + view));
     history.replaceState(null, '', '#' + view);
     clearInterval(this._globalTimer);
@@ -190,10 +205,6 @@ const App = {
     const total = (d.yahoo || 0) + (d.twelve || 0);
     const QUOTA = 100000; // forfait gratuit Cloudflare Workers, partagé par tous les visiteurs du relais
     const pct = Math.min(100, ((d.yahoo || 0) / QUOTA) * 100);
-    const pill = $('#reqToday');
-    pill.textContent = nf.format(total) + ' req.';
-    pill.title = `Requêtes envoyées aujourd'hui depuis ce navigateur — relais Yahoo : ${nf.format(d.yahoo || 0)} · Twelve Data : ${nf.format(d.twelve || 0)}`;
-    pill.classList.toggle('warn', pct >= 80);
     if (!$('#reqTotal')) return;
     $('#reqTotal').textContent = nf.format(total);
     $('#reqBar').style.width = pct + '%';
@@ -317,17 +328,25 @@ const App = {
       $('#refreshBtn').classList.remove('spin');
       if (changed) this.renderQuotes();
     }
+    const warn = $('#refreshWarn');
     if (errors && lastErr) {
-      // pas de pluie de messages : en automatique, une même erreur n'est signalée qu'une fois par minute
-      const now = Date.now();
-      if (manual || lastErr.message !== this._lastErrMsg || now - (this._lastErrAt || 0) > 60000) {
-        this._lastErrMsg = lastErr.message; this._lastErrAt = now;
-        toast(lastErr.message, 'error', 6000);
-      }
+      const txt = errors > 1 ? `${errors} cours non mis à jour` : 'Un cours non mis à jour';
+      if (warn) { warn.textContent = '⚠'; warn.title = txt + ' : ' + lastErr.message; warn.classList.remove('hidden'); }
+      // le bandeau n'apparaît que si tu as demandé la mise à jour toi-même, ou si la clé est refusée
+      if (manual || lastErr.code === 401) toast(txt + ' : ' + lastErr.message, 'error', 6000);
     } else {
-      this._lastErrMsg = '';
+      if (warn) warn.classList.add('hidden');
       if (manual) toast('Cours mis à jour', 'success', 2000);
     }
+  },
+
+  /** Menu « Plus » de la barre du haut (Comparer, Simulation, Réglages) */
+  toggleTabMenu(open) {
+    const box = $('#tabMore');
+    if (!box) return;
+    const on = open === undefined ? !box.classList.contains('open') : open;
+    box.classList.toggle('open', on);
+    $('#tabMoreBtn').setAttribute('aria-expanded', on);
   },
 
   /* ------------------------------------------------------------------ */
@@ -352,6 +371,14 @@ const App = {
       this.renderPortfolio();
     }));
     $('#loadHistoryBtn').addEventListener('click', () => this.loadHistory());
+    const hb = $('#histBench');
+    if (hb) {
+      hb.checked = this.histBenchOn();
+      hb.addEventListener('change', () => {
+        try { localStorage.setItem('apistock:histBench', hb.checked ? '1' : '0'); } catch (e) { /* stockage indisponible */ }
+        if (this.historyLoaded || this.historyPoints) this.loadHistory({ quiet: true });
+      });
+    }
   },
 
   kpi(label, value, sub, cls = '') {
@@ -472,9 +499,27 @@ const App = {
     if (!txs.length) $('#txTable tbody').append(el('tr', {}, el('td', { colspan: 9, class: 'empty' }, 'Aucune opération enregistrée.')));
   },
 
-  async loadHistory() {
+  /**
+   * Graphique d'évolution affiché sans clic : seulement quand ça ne coûte rien
+   * (relais Yahoo, valeurs saisies, ou historique Twelve Data déjà en cache).
+   */
+  histBenchOn() {
+    try { return localStorage.getItem('apistock:histBench') !== '0'; } catch (e) { return true; }
+  },
+
+  autoHistory() {
     const txs = Portfolio.txs();
-    if (!txs.length) { toast('Ajoute d\'abord des opérations.'); return; }
+    if (this.historyLoaded || !txs.length || !Api.hasProxy()) return;
+    const keys = Array.from(new Set(txs.map(t => t.key)));
+    const free = keys.every(k => Api.provider(k) !== 'twelve' || localStorage.getItem('apistock:daily:' + k));
+    if (free) this.loadHistory({ quiet: true });
+  },
+
+  async loadHistory({ quiet = false } = {}) {
+    const txs = Portfolio.txs();
+    if (!txs.length) { if (!quiet) toast('Ajoute d\'abord des opérations.'); return; }
+    if (this._histLoading) return;
+    this._histLoading = true;
     const btn = $('#loadHistoryBtn');
     btn.disabled = true; btn.textContent = 'Chargement…';
     try {
@@ -489,17 +534,29 @@ const App = {
       const { points } = Portfolio.replay(series, fx, Portfolio.historyEvents(txs));
       if (!points.length) throw new Error('Pas de données historiques disponibles.');
       this.historyPoints = points;
-      Charts.investedVsValue('historyChart', points.map(p => fmtDate(p.date)), points.map(p => p.invested), points.map(p => p.value), this.base(), { stepped: true });
+      let bench = null;
+      if (this.histBenchOn() && Api.hasProxy()) {
+        try {
+          const b = await Api.daily('Y:' + HIST_BENCH.ysym, start);
+          bench = Portfolio.benchmark(points, b, d => Api.fxAt(HIST_BENCH.ccy, d));
+        } catch (e) { bench = null; /* indice indisponible : graphique sans comparaison */ }
+      }
+      Charts.investedVsValue('historyChart', points.map(p => fmtDate(p.date)), points.map(p => p.invested), points.map(p => p.value), this.base(),
+        { stepped: true, bench, benchLabel: 'Mêmes versements dans le ' + HIST_BENCH.name });
       $('#historyChart').parentElement.classList.add('ready');
       this.renderCalendar(Portfolio.twr(points));
+      if (this.renderTodo) this.renderTodo(true);
       if (this.renderRisk) this.renderRisk(Portfolio.twr(points), start);
       const lastP = points[points.length - 1];
-      $('#historyInfo').textContent = `Depuis le ${fmtDate(start)} · dernier point : ${fmtMoney(lastP.value, this.base())}`;
+      const lastB = bench ? bench[bench.length - 1] : null;
+      $('#historyInfo').textContent = `Depuis le ${fmtDate(start)}` + (isFinite(lastB) && lastB > 0
+        ? ` · vs ${HIST_BENCH.name} : ${fmtSignedMoney(lastP.value - lastB, this.base())}` : '');
       return points;
     } catch (e) {
-      toast(e.message, 'error', 6000);
+      if (!quiet) toast(e.message, 'error', 6000);
       return null;
     } finally {
+      this._histLoading = false;
       btn.disabled = false; btn.textContent = 'Recharger';
     }
   },
@@ -563,10 +620,12 @@ const App = {
     btn.addEventListener('click', run);
     input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); run(); } });
     renderKnown();
+    const manual = el('button', { type: 'button', class: 'link small picker-manual', onclick: () => this.openManualCreate(k => { renderKnown(); onPick(k); }) },
+      'Introuvable ? Ajouter un placement à valeur saisie à la main');
     container.replaceChildren(el('div', { class: 'picker' },
       el('div', { class: 'inline' }, input, btn),
       el('label', { class: 'check', style: 'align-self:start;padding:0' }, etfOnly, 'ETF uniquement'),
-      known, results));
+      known, results, manual));
     return { input, refresh: renderKnown };
   },
 
@@ -772,6 +831,7 @@ const App = {
       ['Clôture veille', fmtNum(q.previousClose, 3)], ['52 sem. bas', fmtNum(q.low52, 2)], ['52 sem. haut', fmtNum(q.high52, 2)],
       ['Volume', isFinite(q.volume) ? new Intl.NumberFormat('fr-FR').format(q.volume) : '—'],
     ].map(([a, b]) => el('div', {}, el('span', {}, a), el('b', {}, b))) : []));
+    this.renderManualPanel(k);
   },
 
   async loadDetailChart() {

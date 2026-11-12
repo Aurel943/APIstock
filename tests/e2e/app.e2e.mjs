@@ -214,3 +214,28 @@ test('portefeuille en sous-onglets et bulles d\'information', () => run({ state:
   await page.click('#kpis');
   assert.equal(await page.locator('.info-bubble').count(), 0);
 }));
+
+test('placement à valeur saisie : création, achat, mise à jour de la valeur', () => run({ state: sampleState() }, async ({ page }) => {
+  await page.click('#addTxBtn');
+  await page.click('#txInstrument .picker-manual');
+  await page.fill('#manualName', 'GS Luxury Leaders 2038');
+  await page.fill('#manualPrice', '1000');
+  await page.fill('#manualDate', '2026-01-15');
+  await page.click('#manualForm button[type=submit]');
+  await page.selectOption('#txAccount', 'cto');
+  await page.fill('#txDate', '2026-01-15');
+  await page.fill('#txQty', '3');
+  await page.fill('#txPrice', '1000');
+  await page.click('#txSave');
+  const key = await page.evaluate(() => Object.keys(Store.state.instruments).find(k => Store.instrument(k).provider === 'manual'));
+  assert.ok(key, 'instrument créé');
+  await page.waitForFunction(k => { const p = Portfolio.snapshot().rows.find(r => r.key === k); return p && Math.abs(p.valueBase - 3000) < 0.01; }, key);
+  // mise à jour depuis la fiche (onglet Marchés)
+  await page.evaluate(k => { App.show('markets'); App.selectDetail(k); }, key);
+  await page.waitForSelector('#detailManual form');
+  await page.fill('#detailManual input[type=date]', '2026-04-15');
+  await page.fill('#detailManual input[type=number]', '1100');
+  await page.click('#detailManual button[type=submit]');
+  await page.waitForFunction(k => { const p = Portfolio.snapshot().rows.find(r => r.key === k); return p && Math.abs(p.valueBase - 3300) < 0.01; }, key);
+  assert.equal(await page.locator('#detailManual tbody tr').count(), 2);
+}));
