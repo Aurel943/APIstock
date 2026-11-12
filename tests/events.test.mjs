@@ -19,7 +19,7 @@ test('les modules sont abonnés aux événements documentés en haut de js/app.j
   assert.equal(n('rendered:all'), 4);         // fiscalité/exposition, espèces/versements/à faire, risque/dividendes/rééquilibrage, patrimoine
   assert.equal(n('rendered:portfolio'), 3);   // variations du jour, à faire, patrimoine
   assert.equal(n('refreshed'), 3);            // cartes lentes, dividendes et divisions, actualités
-  assert.equal(n('view:shown'), 3);           // barre mobile, actualités, retraite
+  assert.equal(n('view:shown'), 4);           // barre mobile, actualités, retraite, météo du labo quant
   for (const e of ['rendered:invest', 'rendered:alerts', 'rendered:accountFilter', 'detail:selected']) assert.equal(n(e), 1, e);
 });
 

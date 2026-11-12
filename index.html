@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=e931738c05">
+  <link rel="stylesheet" href="css/style.css?v=0af5f0c70a">
 </head>
 <body>
   <header class="topbar">
@@ -34,6 +34,7 @@
           <button class="tab" data-view="world" role="menuitem">Monde et horaires</button>
           <button class="tab" data-view="compare" role="menuitem">Comparer</button>
           <button class="tab" data-view="simulation" role="menuitem">Simulation</button>
+          <button class="tab" data-view="quant" role="menuitem">Labo quant <span class="q-new">nouveau</span></button>
           <button class="tab" data-view="settings" role="menuitem">Réglages</button>
           <button class="tab-action" type="button" id="wrappedOpen" role="menuitem">🎉 Mon année en bourse</button>
         </div>
@@ -657,6 +658,57 @@
     </section>
 
     <!-- ============ RÉGLAGES ============ -->
+    <!-- ============ LABO QUANT ============ -->
+    <section id="view-quant" class="view">
+      <div class="card q-hero">
+        <div>
+          <h2>Labo quant</h2>
+          <p class="muted">Les outils des gérants institutionnels, appliqués à <b>ton</b> portefeuille et calculés dans ton navigateur : crash-tests sur les vraies crises, scénarios conditionnels multi-facteurs, anatomie du risque, détection de régime de marché et audit de tes propres décisions.</p>
+        </div>
+        <button class="btn primary" id="qAllRun" type="button">Tout analyser</button>
+      </div>
+
+      <div class="card" id="qRegimeCard">
+        <div class="card-head">
+          <h2>Météo des marchés<button type="button" class="info" aria-label="Explication" data-tip="Un modèle de Markov caché découvre seul, dans 15 ans de rendements du MSCI World, deux régimes de marché : calme (hausse régulière, faible volatilité) et agité (volatilité forte, krachs). Il estime dans lequel on se trouve aujourd'hui.">i</button></h2>
+          <button class="btn small" id="qRegimeRun" type="button">Analyser</button>
+        </div>
+        <div id="qRegimeBody"><p class="muted">Calme ou tempête ? Lance l'analyse pour voir dans quel régime se trouve le marché mondial.</p></div>
+      </div>
+
+      <div class="card" id="qCrashCard">
+        <div class="card-head">
+          <h2>Crash-test historique<button type="button" class="info" aria-label="Explication" data-tip="Ton portefeuille d'aujourd'hui, avec ses poids actuels, rejoué dans les cinq grandes crises depuis 2000 : combien tu aurais perdu, combien de temps la chute aurait duré, et quand tu serais revenu au plus haut.">i</button></h2>
+          <button class="btn small" id="qCrashRun" type="button">Lancer</button>
+        </div>
+        <div id="qCrashBody"><p class="muted">Bulle internet, subprimes, zone euro, Covid, inflation 2022 : et si ton portefeuille actuel les avait traversées ?</p></div>
+      </div>
+
+      <div class="card" id="qScenCard">
+        <div class="card-head">
+          <h2>Scénarios « et si… »<button type="button" class="info" aria-label="Explication" data-tip="Impose un choc (« la tech perd 30 % », « le dollar chute de 15 % ») : les autres facteurs suivent selon leurs corrélations historiques, et l'impact est calculé ligne par ligne d'après la sensibilité réelle de chacune.">i</button></h2>
+          <button class="btn small" id="qScenRun" type="button">Préparer</button>
+        </div>
+        <div id="qScenBody"><p class="muted">Mesure la sensibilité de chaque ligne aux actions mondiales, à la tech, à l'Europe, au dollar et à l'or, puis teste n'importe quel scénario.</p></div>
+      </div>
+
+      <div class="card" id="qRiskCard">
+        <div class="card-head">
+          <h2>Anatomie du risque<button type="button" class="info" aria-label="Explication" data-tip="D'où vient vraiment ton risque : part de chaque ligne (décomposition d'Euler), nombre de paris réellement indépendants, perte probable sur un mois (VaR et Expected Shortfall) et répartition à risque égal.">i</button></h2>
+          <button class="btn small" id="qRiskRun" type="button">Analyser</button>
+        </div>
+        <div id="qRiskBody"><p class="muted">Tes lignes sont-elles vraiment diversifiées, ou bougent-elles toutes ensemble ?</p></div>
+      </div>
+
+      <div class="card" id="qBehavCard">
+        <div class="card-head">
+          <h2>Audit de tes décisions<button type="button" class="info" aria-label="Explication" data-tip="Tes vraies opérations passées au crible : ce que ton choix des dates t'a rapporté ou coûté, si tu achètes après les hausses, si tu vends dans les baisses, et l'écart entre ton rendement et celui de tes placements.">i</button></h2>
+          <button class="btn small" id="qBehavRun" type="button">Auditer</button>
+        </div>
+        <div id="qBehavBody"><p class="muted">Le premier risque d'un investisseur, c'est lui-même. Voyons ce que disent tes opérations.</p></div>
+      </div>
+    </section>
+
     <section id="view-settings" class="view">
       <div class="card reload-card">
         <div>
@@ -958,6 +1010,7 @@
     <button data-view="catalog"><svg viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="18" cy="19" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/></svg><div><b>Catalogue d'ETF</b><span>Portefeuilles types, ETF par zone et par frais</span></div></button>
     <button data-view="compare"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><div><b>Comparer</b><span>Nasdaq vs S&amp;P 500, ton portefeuille vs le marché…</span></div></button>
     <button data-view="simulation"><svg viewBox="0 0 24 24"><path d="M12 3v3M12 18v3M4.2 7.5l2.6 1.5M17.2 15l2.6 1.5M4.2 16.5l2.6-1.5M17.2 9l2.6-1.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/></svg><div><b>Simulation</b><span>« Et si j'avais investi… », projection future</span></div></button>
+    <button data-view="quant"><svg viewBox="0 0 24 24"><path d="M3 20h18M5 16l4-6 4 3 6-9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="19" cy="4" r="1.6" fill="currentColor"/></svg><div><b>Labo quant</b><span>Crash-tests, scénarios, risque caché, météo des marchés</span></div></button>
     <button data-view="settings"><svg viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="16" cy="6" r="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="10" cy="12" r="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="18" r="2" fill="none" stroke="currentColor" stroke-width="2"/></svg><div><b>Réglages</b><span>Clé API, relais Yahoo, comptes, sauvegarde</span></div></button>
     <button data-action="wrapped"><svg viewBox="0 0 24 24"><path d="M12 3l2.6 5.6 6 .8-4.4 4.2 1.1 6-5.3-2.9-5.3 2.9 1.1-6L3.4 9.4l6-.8z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><div><b>Mon année en bourse</b><span>Ton récap animé : performance, ligne star, meilleur mois…</span></div></button>
     <button data-action="theme"><svg viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><div><b>Thème clair / sombre</b><span>Changer l'apparence</span></div></button>
@@ -966,32 +1019,33 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-  <script src="js/utils.js?v=e931738c05"></script>
-  <script src="js/store.js?v=e931738c05"></script>
-  <script src="js/api.js?v=e931738c05"></script>
-  <script src="js/markets.js?v=e931738c05"></script>
-  <script src="js/portfolio.js?v=e931738c05"></script>
-  <script src="js/charts.js?v=e931738c05"></script>
-  <script src="js/app.js?v=e931738c05"></script>
-  <script src="js/views.js?v=e931738c05"></script>
-  <script src="js/compare.js?v=e931738c05"></script>
-  <script src="js/extras.js?v=e931738c05"></script>
-  <script src="js/mobile.js?v=e931738c05"></script>
-  <script src="js/features.js?v=e931738c05"></script>
-  <script src="js/money.js?v=e931738c05"></script>
-  <script src="js/newsart.js?v=e931738c05"></script>
-  <script src="js/insights.js?v=e931738c05"></script>
-  <script src="js/wealth.js?v=e931738c05"></script>
-  <script src="js/avis.js?v=e931738c05"></script>
-  <script src="js/manual.js?v=e931738c05"></script>
-  <script src="js/health.js?v=e931738c05"></script>
-  <script src="js/agenda.js?v=e931738c05"></script>
-  <script src="js/catalog.js?v=e931738c05"></script>
-  <script src="js/goals.js?v=e931738c05"></script>
-  <script src="js/optimizer.js?v=e931738c05"></script>
-  <script src="js/treemap.js?v=e931738c05"></script>
-  <script src="js/wrapped.js?v=e931738c05"></script>
-  <script src="js/lab.js?v=e931738c05"></script>
-  <script src="js/share.js?v=e931738c05"></script>
+  <script src="js/utils.js?v=0af5f0c70a"></script>
+  <script src="js/store.js?v=0af5f0c70a"></script>
+  <script src="js/api.js?v=0af5f0c70a"></script>
+  <script src="js/markets.js?v=0af5f0c70a"></script>
+  <script src="js/portfolio.js?v=0af5f0c70a"></script>
+  <script src="js/charts.js?v=0af5f0c70a"></script>
+  <script src="js/app.js?v=0af5f0c70a"></script>
+  <script src="js/views.js?v=0af5f0c70a"></script>
+  <script src="js/compare.js?v=0af5f0c70a"></script>
+  <script src="js/extras.js?v=0af5f0c70a"></script>
+  <script src="js/mobile.js?v=0af5f0c70a"></script>
+  <script src="js/features.js?v=0af5f0c70a"></script>
+  <script src="js/money.js?v=0af5f0c70a"></script>
+  <script src="js/newsart.js?v=0af5f0c70a"></script>
+  <script src="js/insights.js?v=0af5f0c70a"></script>
+  <script src="js/wealth.js?v=0af5f0c70a"></script>
+  <script src="js/avis.js?v=0af5f0c70a"></script>
+  <script src="js/manual.js?v=0af5f0c70a"></script>
+  <script src="js/health.js?v=0af5f0c70a"></script>
+  <script src="js/agenda.js?v=0af5f0c70a"></script>
+  <script src="js/catalog.js?v=0af5f0c70a"></script>
+  <script src="js/goals.js?v=0af5f0c70a"></script>
+  <script src="js/optimizer.js?v=0af5f0c70a"></script>
+  <script src="js/treemap.js?v=0af5f0c70a"></script>
+  <script src="js/wrapped.js?v=0af5f0c70a"></script>
+  <script src="js/lab.js?v=0af5f0c70a"></script>
+  <script src="js/share.js?v=0af5f0c70a"></script>
+  <script src="js/quant.js?v=0af5f0c70a"></script>
 </body>
 </html>

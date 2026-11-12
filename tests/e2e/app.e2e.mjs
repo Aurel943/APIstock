@@ -6,7 +6,7 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { chromium, startServer, openApp, sampleState, realCharts } from './helpers.mjs';
 
-const VIEWS = ['portfolio', 'markets', 'agenda', 'catalog', 'compare', 'world', 'invest', 'simulation', 'settings'];
+const VIEWS = ['portfolio', 'markets', 'agenda', 'catalog', 'compare', 'world', 'invest', 'simulation', 'quant', 'settings'];
 let server, url, browser;
 
 before(async () => { ({ server, url } = await startServer()); browser = await chromium.launch(); });
@@ -454,3 +454,35 @@ test('laboratoire de stratégies et répartition partagée par lien', { skip: !r
     assert.deepEqual(t, { 'CW8@XPAR': 88, 'ESE@XPAR': 12 });
   });
 });
+
+test('labo quant : météo des marchés, anatomie du risque, scénarios, crash-test et audit', { skip: !realCharts && 'Chart.js non installé' }, () => run({ state: sampleState() }, async ({ page }) => {
+  await page.evaluate(() => App.show('quant'));
+  // la météo se lance seule à l'ouverture (MSCI World enregistré)
+  await page.waitForSelector('#qRegimeBody .q-weather', { timeout: 20000 });
+  assert.ok(await page.evaluate(() => !!Chart.getChart('qRegimeChart')));
+  assert.match(await page.locator('#qRegimeBody .q-weather').innerText(), /Marché (calme|agité)/);
+
+  await page.click('#qRiskRun');
+  await page.waitForSelector('#qRiskBody .q-kpis', { timeout: 20000 });
+  assert.match(await page.locator('#qRiskBody .q-lead').innerText(), /risque/);
+  assert.ok(await page.evaluate(() => Chart.getChart('qRiskChart').data.datasets[1].data.reduce((a, b) => a + b, 0)) > 99.9, 'contributions = 100 %');
+  assert.equal(await page.locator('#qRiskBody .q-parity button', { hasText: 'Utiliser comme cible' }).count(), 1);
+
+  // scénarios : seuls les facteurs enregistrés (MSCI World, dollar) sont disponibles, les autres sont ignorés
+  await page.click('#qScenRun');
+  await page.waitForSelector('#qScenBody .q-factors', { timeout: 20000 });
+  assert.equal(await page.locator('#qScenBody .q-factors label').count(), 2);
+  await page.locator('#qScenBody .q-factors input').first().fill('-20');
+  await page.waitForSelector('#qScenBody .q-big');
+  assert.match(await page.locator('#qScenBody .q-big').innerText(), /−|-/);
+  assert.ok(await page.locator('#qScenBody .q-table tbody tr').count() >= 3);
+
+  // crash-test : pas d'historique enregistré pour les crises passées → message, sans erreur
+  await page.click('#qCrashRun');
+  await page.waitForFunction(() => !document.querySelector('#qCrashRun').disabled, null, { timeout: 30000 });
+  assert.ok(await page.locator('#qCrashBody').innerText());
+
+  await page.click('#qBehavRun');
+  await page.waitForSelector('#qBehavBody .q-kpis', { timeout: 20000 });
+  assert.match(await page.locator('#qBehavBody').innerText(), /Ton timing/);
+}));

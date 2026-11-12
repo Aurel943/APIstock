@@ -55,6 +55,13 @@ Site personnel (100 % statique, sans serveur ni compte) pour suivre ses ETF et l
 - *Projection dans le futur* : intérêts composés avec versements mensuels, rendement et frais annuels.
 - *Phase de retraite* : retraits mensuels indexés sur l'inflation sur un capital placé (bouton « Mon patrimoine ») → probabilité que le capital tienne jusqu'au bout, âge ou date d'épuisement dans les scénarios défavorable / médian / favorable, retrait maximal soutenable à 90 %, graphique en éventail (Monte-Carlo).
 
+**Labo quant** (menu Plus) — les outils des gérants institutionnels, calculés dans le navigateur
+- **Météo des marchés** : modèle de Markov caché à deux régimes (calme / agité) estimé par Baum-Welch sur les rendements hebdomadaires du MSCI World → probabilité d'être aujourd'hui (et la semaine prochaine) en régime agité, rendement, volatilité et durée moyenne de chaque régime
+- **Crash-test historique** : ton portefeuille actuel rejoué dans la bulle internet, les subprimes, la crise de l'euro, le Covid et l'inflation 2022 (indice suivi quand l'ETF est trop récent) → perte en € et en %, durée de la chute, date de retour au plus haut
+- **Scénarios « et si… »** : régression de chaque ligne sur cinq facteurs (actions mondiales, tech, Europe, dollar, or) ; impose un choc sur un ou plusieurs facteurs, les autres suivent leur espérance conditionnelle (loi normale multivariée) → impact ligne par ligne, avec la fiabilité (R²)
+- **Anatomie du risque** : contribution de chaque ligne au risque (décomposition d'Euler), nombre effectif de paris indépendants (composantes principales, Meucci), ratio de diversification, perte à un mois (VaR historique 95 %, Expected Shortfall, VaR de Cornish-Fisher) et répartition à risque égal (risk parity) applicable comme cible
+- **Audit de tes décisions** : ce que tes dates d'achat t'ont rapporté ou coûté face à un achat le 1er du mois (et face au meilleur / pire jour possible), tendance à acheter après les hausses, ventes dans les baisses et leur manque à gagner, écart comportemental (rendement de l'investisseur XIRR − rendement des placements TWR)
+
 **Temps réel**
 - Rafraîchissement automatique réglable de **1 seconde** à 15 min, mis en pause quand l'onglet est caché
 - Prix qui s'allument brièvement en vert ou en rouge quand ils changent
@@ -185,6 +192,7 @@ js/features.js    temps réel, exposition & frais (coût long terme, équivalent
 js/money.js       versements programmés, liquidités, divisions, ISIN, carte « À faire »
 js/insights.js    risque, rééquilibrage, dividendes à venir, actualités, rapport annuel, alertes push
 js/wealth.js      patrimoine global (autres actifs), phase de retraite
+js/quant.js       labo quant : crash-tests, scénarios à facteurs, risque, régimes (HMM), audit comportemental
 js/avis.js        import des avis d'opéré PDF (lecture du texte avec pdf.js)
 sw.js, manifest.webmanifest, icons/   application installable (PWA)
 js/app.js         interface et bus d'événements (App.on / App.emit, liste des événements en tête du fichier)
