@@ -66,6 +66,7 @@ const App = {
     this.bindManual();
     $('#optRun').addEventListener('click', () => this.runOptimizer());
     this.bindLab();
+    this.bindQuant();
     $('#tgtShare').addEventListener('click', () => this.shareAllocation());
     $('#wrappedOpen').addEventListener('click', () => { this.toggleTabMenu(false); this.openWrapped(); });
     $$('#mapMode button').forEach(b => b.addEventListener('click', () => {
@@ -97,7 +98,7 @@ const App = {
 
     const sharedHash = location.hash; // lu avant que la navigation ne réécrive l'adresse
     const hash = location.hash.replace('#', '');
-    this.show(['portfolio', 'markets', 'agenda', 'catalog', 'compare', 'world', 'invest', 'simulation', 'settings'].includes(hash) ? hash : (Api.ready() ? 'portfolio' : 'settings'));
+    this.show(['portfolio', 'markets', 'agenda', 'catalog', 'compare', 'world', 'invest', 'simulation', 'quant', 'settings'].includes(hash) ? hash : (Api.ready() ? 'portfolio' : 'settings'));
     this.renderAll();
     this.openSharedFromHash(sharedHash); // lien de répartition partagée (#share=…)
     Api.detectProxy().finally(() => { if (!Api.ready() && $('#advancedSources')) $('#advancedSources').open = true; this.renderAll(); Promise.resolve(this.refresh()).finally(() => this.autoHistory()); this.preloadFx(); });
