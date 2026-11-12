@@ -29,6 +29,14 @@ export function startServer() {
   return new Promise(ok => server.listen(0, '127.0.0.1', () => ok({ server, url: `http://127.0.0.1:${server.address().port}/` })));
 }
 
+/*
+ * Chart.js : la vraie bibliothèque si elle est installée pour les tests (npm install --no-save chart.js@4.4.1),
+ * pour vérifier le rendu des graphiques ; sinon une imitation minimale (tests/fixtures/chart-stub.js).
+ */
+let CHART_JS = null;
+try { CHART_JS = readFileSync(join(root, 'node_modules', 'chart.js', 'dist', 'chart.umd.js'), 'utf8'); } catch (e) { CHART_JS = null; }
+export const realCharts = !!CHART_JS;
+
 const slug = s => s.replace(/[^A-Za-z0-9]+/g, '_');
 const fixture = name => { const f = join(FIX, 'relay', name + '.json'); return existsSync(f) ? readFileSync(f, 'utf8') : null; };
 
@@ -61,7 +69,7 @@ export async function openApp(browser, baseUrl, { state, device, theme, hash = '
     const url = route.request().url();
     if (url.startsWith(baseUrl)) return route.continue();
     if (url.startsWith(RELAY)) return route.fulfill(relayResponse(url, calls));
-    if (/cdnjs\.cloudflare\.com\/.*chart/i.test(url)) return route.fulfill({ status: 200, contentType: 'text/javascript', body: readFileSync(join(FIX, 'chart-stub.js'), 'utf8') });
+    if (/cdnjs\.cloudflare\.com\/.*chart/i.test(url)) return route.fulfill({ status: 200, contentType: 'text/javascript', body: CHART_JS || readFileSync(join(FIX, 'chart-stub.js'), 'utf8') });
     if (!/fonts\.(googleapis|gstatic)\.com/.test(url)) blocked.push(url);
     return route.abort();
   });

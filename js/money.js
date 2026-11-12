@@ -407,6 +407,7 @@ Object.assign(App, {
     if (this.rebalanceTodo) { const r = this.rebalanceTodo(); if (r) items.push(r); }
     const recap = this.recapTodo();
     if (recap) items.unshift(recap);
+    items.unshift(...this.backupTodos());
     return items;
   },
 
@@ -472,6 +473,60 @@ Object.assign(App, {
     const opts = { body, icon: 'icons/icon-192.png', tag: 'recap-' + r.month };
     if (navigator.serviceWorker && navigator.serviceWorker.ready) navigator.serviceWorker.ready.then(reg => reg.showNotification(title, opts)).catch(() => {});
     else { try { new Notification(title, opts); } catch (e) { /* notifications indisponibles */ } }
+  },
+
+  /** Sauvegarde complète (JSON) téléchargée ; la date est retenue pour le rappel de sauvegarde */
+  exportBackup() {
+    const blob = new Blob([Store.exportJSON()], { type: 'application/json' });
+    const a = el('a', { href: URL.createObjectURL(blob), download: 'apistock-' + todayISO() + '.json' });
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    try { localStorage.setItem('apistock:lastBackup', String(Date.now())); } catch (e) { /* stockage indisponible */ }
+    if (this.renderTodo) this.renderTodo(true);
+  },
+
+  /** iPhone / iPad dans Safari, site non installé sur l'écran d'accueil */
+  isIosBrowser() {
+    const ua = navigator.userAgent || '';
+    const ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+    const standalone = navigator.standalone === true || (typeof matchMedia === 'function' && matchMedia('(display-mode: standalone)').matches);
+    return ios && !standalone;
+  },
+
+  /**
+   * Protection des données : elles ne vivent que dans ce navigateur. Sans synchronisation, rappel d'export
+   * tous les 30 jours, et sur iPhone conseil d'installer le site (Safari efface les sites non visités pendant 7 jours).
+   */
+  backupTodos(now = Date.now()) {
+    const out = [];
+    const info = typeof document !== 'undefined' && $('#lastBackupInfo');
+    if (info) {
+      let t = 0;
+      try { t = +localStorage.getItem('apistock:lastBackup') || 0; } catch (e) { t = 0; }
+      info.textContent = t ? 'Dernière sauvegarde sur cet appareil : ' + fmtDate(new Date(t).toISOString().slice(0, 10)) : 'Aucune sauvegarde depuis cet appareil.';
+    }
+    const txs = Store.state.transactions || [];
+    if (!txs.length || (typeof Sync !== 'undefined' && Sync.conf())) return out;
+    const dismissed = Store.state.dismissed || {};
+    if (this.isIosBrowser() && !dismissed['ios-install']) {
+      out.push({ id: 'ios-install', icon: '📲', cls: 'backup', title: 'Ajoute APIstock à ton écran d\'accueil',
+        sub: 'Safari efface les données d\'un site non visité pendant 7 jours. Installé (Partager → « Sur l\'écran d\'accueil »), il les garde.',
+        actions: [{ label: 'Compris', fn: () => this.dismiss('ios-install') }] });
+    }
+    let last = 0;
+    try { last = +localStorage.getItem('apistock:lastBackup') || 0; } catch (e) { last = 0; }
+    const first = txs.reduce((m, t) => (t.date < m ? t.date : m), todayISO());
+    const oldEnough = now - Date.parse(first + 'T00:00:00Z') > 3 * 864e5; // pas dès la toute première saisie
+    const month = new Date(now).toISOString().slice(0, 7);
+    if (oldEnough && now - last > 30 * 864e5 && !dismissed['backup:' + month]) {
+      const days = last ? Math.floor((now - last) / 864e5) : null;
+      out.push({ id: 'backup:' + month, icon: '💾', cls: 'backup', title: 'Sauvegarde tes données',
+        sub: (days ? `Dernière sauvegarde il y a ${days} jours.` : 'Aucune sauvegarde pour l\'instant.') + ' Tes opérations ne sont enregistrées que dans ce navigateur : exporte-les ou active la synchronisation.',
+        actions: [{ label: 'Exporter maintenant', primary: true, fn: () => this.exportBackup() },
+          { label: 'Synchronisation…', fn: () => { this.show('settings'); setTimeout(() => $('#syncCard').scrollIntoView({ behavior: 'smooth', block: 'center' }), 50); } },
+          { label: 'Plus tard', fn: () => this.dismiss('backup:' + month) }] });
+    }
+    return out;
   },
 
   renderTodo(force = false) {

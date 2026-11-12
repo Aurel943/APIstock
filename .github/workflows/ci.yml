@@ -28,10 +28,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      # Playwright n'est pas une dépendance du site : installé seulement pour ce test (sans modifier package.json)
+      # Playwright et Chart.js ne sont pas des dépendances du site : installés seulement pour ce test (sans modifier package.json).
+      # Chart.js remplace la copie du CDN, bloqué pendant les tests, pour vérifier le rendu réel des graphiques.
       - name: Installation de Playwright et Chromium
         run: |
-          npm install --no-save playwright@1.63.0
+          npm install --no-save playwright@1.63.0 chart.js@4.4.1
           npx playwright install --with-deps chromium
       - name: Tests de bout en bout (relais simulé, aucun appel réseau)
         run: npm run test:e2e

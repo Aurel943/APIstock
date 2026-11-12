@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=6c5386e4ef">
+  <link rel="stylesheet" href="css/style.css?v=6a09fc41b1">
 </head>
 <body>
   <header class="topbar">
@@ -721,6 +721,7 @@
               <button class="btn" id="exportBtn">Exporter (JSON)</button>
               <label class="btn">Importer… <input type="file" id="importFile" accept="application/json,.json" hidden></label>
             </div>
+            <span class="muted small" id="lastBackupInfo"></span>
             <hr>
             <h4 class="sub-title">Opérations en CSV (Excel)<button type="button" class="info" aria-label="Explication" data-tip="Pour retravailler tes opérations, ou importer l&#x27;historique exporté de ton courtier. Colonnes reconnues : date, type (achat / vente / dividende / division), compte, symbole, place, nom, quantité (ou parité pour une division), prix, frais, devise, note.">i</button></h4>
             <div class="actions">
@@ -765,7 +766,7 @@
         <label><span id="txPriceLabel">Prix unitaire</span>
           <input type="number" id="txPrice" step="any" min="0" required>
         </label>
-        <label><span id="txFeesLabel">Frais</span>
+        <label><span class="lbl"><span id="txFeesLabel">Frais</span><span id="txFeesAuto" class="tag hidden" title="Calculés avec le barème du compte (Réglages → Mes comptes)">auto</span></span>
           <input type="number" id="txFees" step="any" min="0" value="0">
         </label>
         <label><span id="txTotalLabel">Montant total</span>
@@ -890,23 +891,23 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-  <script src="js/utils.js?v=6c5386e4ef"></script>
-  <script src="js/store.js?v=6c5386e4ef"></script>
-  <script src="js/api.js?v=6c5386e4ef"></script>
-  <script src="js/markets.js?v=6c5386e4ef"></script>
-  <script src="js/portfolio.js?v=6c5386e4ef"></script>
-  <script src="js/charts.js?v=6c5386e4ef"></script>
-  <script src="js/app.js?v=6c5386e4ef"></script>
-  <script src="js/views.js?v=6c5386e4ef"></script>
-  <script src="js/compare.js?v=6c5386e4ef"></script>
-  <script src="js/extras.js?v=6c5386e4ef"></script>
-  <script src="js/mobile.js?v=6c5386e4ef"></script>
-  <script src="js/features.js?v=6c5386e4ef"></script>
-  <script src="js/money.js?v=6c5386e4ef"></script>
-  <script src="js/newsart.js?v=6c5386e4ef"></script>
-  <script src="js/insights.js?v=6c5386e4ef"></script>
-  <script src="js/wealth.js?v=6c5386e4ef"></script>
-  <script src="js/avis.js?v=6c5386e4ef"></script>
-  <script src="js/manual.js?v=6c5386e4ef"></script>
+  <script src="js/utils.js?v=6a09fc41b1"></script>
+  <script src="js/store.js?v=6a09fc41b1"></script>
+  <script src="js/api.js?v=6a09fc41b1"></script>
+  <script src="js/markets.js?v=6a09fc41b1"></script>
+  <script src="js/portfolio.js?v=6a09fc41b1"></script>
+  <script src="js/charts.js?v=6a09fc41b1"></script>
+  <script src="js/app.js?v=6a09fc41b1"></script>
+  <script src="js/views.js?v=6a09fc41b1"></script>
+  <script src="js/compare.js?v=6a09fc41b1"></script>
+  <script src="js/extras.js?v=6a09fc41b1"></script>
+  <script src="js/mobile.js?v=6a09fc41b1"></script>
+  <script src="js/features.js?v=6a09fc41b1"></script>
+  <script src="js/money.js?v=6a09fc41b1"></script>
+  <script src="js/newsart.js?v=6a09fc41b1"></script>
+  <script src="js/insights.js?v=6a09fc41b1"></script>
+  <script src="js/wealth.js?v=6a09fc41b1"></script>
+  <script src="js/avis.js?v=6a09fc41b1"></script>
+  <script src="js/manual.js?v=6a09fc41b1"></script>
 </body>
 </html>

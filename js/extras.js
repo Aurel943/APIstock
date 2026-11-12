@@ -110,6 +110,23 @@ Object.assign(App, {
       const rate = el('input', { type: 'number', min: 0, max: 100, step: 0.1, value: a.taxRate, title: 'Taux d\'imposition des plus-values (%)' });
       type.addEventListener('change', () => { a.type = type.value; a.taxRate = ACCOUNT_TYPES[a.type].rate; rate.value = a.taxRate; Store.save(); this.renderAll(); });
       rate.addEventListener('change', () => { a.taxRate = parseNum(rate.value) || 0; Store.save(); this.renderAll(); });
+      const f = a.fees || {};
+      const feeTxt = () => {
+        const g = a.fees || {};
+        const parts = [parseNum(g.pct) ? fmtNum(parseNum(g.pct), 2) + ' %' : '', parseNum(g.min) ? 'min ' + fmtMoney(parseNum(g.min), this.base()) : '', parseNum(g.fixed) ? '+ ' + fmtMoney(parseNum(g.fixed), this.base()) : ''].filter(Boolean);
+        return parts.length ? 'Courtage : ' + parts.join(' · ') : 'Courtage : non renseigné';
+      };
+      const feeBtn = el('button', { type: 'button', class: 'link small' }, feeTxt());
+      const num = (key, ph, step) => {
+        const i = el('input', { type: 'number', min: 0, step, inputmode: 'decimal', placeholder: ph, value: f[key] ?? '' });
+        i.addEventListener('change', () => { a.fees = Object.assign({}, a.fees, { [key]: i.value === '' ? '' : parseNum(i.value) }); Store.save(); feeBtn.textContent = feeTxt(); });
+        return i;
+      };
+      const feeForm = el('div', { class: 'acc-fee-form hidden' },
+        el('label', {}, '% de l\'ordre', num('pct', 'ex. 0,5', 0.01)),
+        el('label', {}, 'Minimum (' + this.base() + ')', num('min', 'ex. 1,99', 0.01)),
+        el('label', {}, 'Fixe par ordre (' + this.base() + ')', num('fixed', 'ex. 0', 0.01)));
+      feeBtn.addEventListener('click', () => feeForm.classList.toggle('hidden'));
       return el('div', { class: 'acc-row' }, name, type,
         el('div', { class: 'pct' }, rate),
         el('span', { class: 'muted small' }, n + ' op.'),
@@ -123,7 +140,10 @@ Object.assign(App, {
           Store.markDeleted(a.id);
           if (Store.state.accountFilter === a.id) Store.state.accountFilter = 'all';
           Store.save(); this.renderAccountsSettings(); this.renderAll();
-        } }, '🗑') : el('span'));
+        } }, '🗑') : el('span'),
+        el('div', { class: 'acc-fees' }, feeBtn,
+          infoTip('Barème de ton courtier pour ce compte : les frais d\'un achat ou d\'une vente sont alors calculés tout seuls (tu peux toujours les corriger). Ex. 0,5 % avec 1,99 € minimum.'),
+          feeForm));
     }));
   },
 

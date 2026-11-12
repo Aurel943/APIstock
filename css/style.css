@@ -795,3 +795,18 @@ details.advanced > summary::before { content: "▸"; color: var(--muted); transi
 details.advanced[open] > summary::before { transform: rotate(90deg); }
 details.advanced[open] > .stack { margin-top: 12px; }
 .tab-badge { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; margin-left: 6px; border-radius: 9px; background: var(--accent); color: #fff; font-size: 11px; font-weight: 600; line-height: 1; vertical-align: 1px; }
+.kpi-line { display: block; color: var(--muted); }
+.kpi-line.down { color: var(--down); }
+.kpi .label { display: flex; align-items: center; }
+@media (max-width: 760px) { #kpis .kpi:nth-child(even):last-child { grid-column: 1 / -1; } }
+.expo-detail { margin-top: 14px; }
+
+/* Barème de courtage par compte */
+.acc-fees { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin: -4px 0 6px; }
+.acc-fee-form { flex-basis: 100%; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 4px; }
+.acc-fee-form label { font-size: 12px; }
+@media (max-width: 640px) { .acc-fee-form { grid-template-columns: 1fr; } }
+#txFeesAuto { margin-left: 6px; }
+.tax-edit label.check { display: flex; flex-direction: row; align-items: center; gap: 8px; font-size: 13px; text-align: left; }
+.tax-edit label.check input { width: auto; flex: none; margin: 0; }
+.tax-edit label.check { justify-content: flex-start; align-self: stretch; }

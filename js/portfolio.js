@@ -3,6 +3,20 @@
 
 const Portfolio = {
   /**
+   * Frais de courtage d'un ordre selon le barème du compte { pct, min, fixed } (minimum et fixe en devise de base).
+   * `amount` : montant brut de l'ordre en devise de l'instrument ; `fx` : taux de cette devise vers la devise de base.
+   * Renvoie null si le compte n'a pas de barème.
+   */
+  brokerFee(acc, amount, fx = 1) {
+    const f = acc && acc.fees;
+    if (!f || !(amount > 0) || !(fx > 0)) return null;
+    const pct = parseNum(f.pct) || 0, min = parseNum(f.min) || 0, fixed = parseNum(f.fixed) || 0;
+    if (!pct && !min && !fixed) return null;
+    const fee = Math.max(amount * pct / 100, min / fx) + fixed / fx;
+    return Math.round(fee * 100) / 100;
+  },
+
+  /**
    * Portefeuille « témoin » : chaque variation du montant investi (achat, vente au prix de revient) est placée
    * dans l'indice de référence le même jour. Renvoie la valeur du témoin à chaque point (null avant le premier cours).
    * `bench` : [[date, cours]] trié ; `fx(date)` : taux de la devise de l'indice vers la devise de base.
