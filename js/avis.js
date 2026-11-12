@@ -64,7 +64,7 @@ const Avis = {
    */
   parse(lines) {
     const text = lines.join('\n');
-    const num = s => parseNum(String(s || '').replace(/[\s  ]/g, '').replace(/\.(?=\d{3}(\D|$))/g, ''));
+    const num = s => parseNum(String(s || '').replace(/[\s\u00a0\u202f]/g, '').replace(/\.(?=\d{3}(\D|$))/g, ''));
     const sens = text.match(/\b(ACHAT|VENTE|SOUSCRIPTION|RACHAT)\b/i);
     const type = !sens ? null : /vente|rachat/i.test(sens[1]) ? 'sell' : 'buy';
     const isinM = text.match(/ISIN\s*:?\s*([A-Z]{2}[A-Z0-9]{9}\d)\b/) || text.match(/\b([A-Z]{2}[A-Z0-9]{9}\d)\b/);
@@ -88,7 +88,7 @@ const Avis = {
     const hi = lines.findIndex(l => /Montant\s+brut/i.test(l));
     if (hi >= 0) {
       for (const l of lines.slice(hi, hi + 5)) {
-        const amts = Array.from(l.matchAll(/(\d[\d\s  .]*,\d{2})\s*(?:EUR|USD|GBP|CHF|€)/g), m => num(m[1]));
+        const amts = Array.from(l.matchAll(/(\d[\d\s\u00a0\u202f.]*,\d{2})\s*(?:EUR|USD|GBP|CHF|€)/g), m => num(m[1]));
         if (amts.length >= 2) { gross = amts[0]; net = amts[amts.length - 1]; break; }
       }
     }

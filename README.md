@@ -199,11 +199,19 @@ tests/fixtures/              réponses Yahoo enregistrées, relevés CSV d'exemp
 
 ## Développement
 
-Aucune dépendance à installer (Node 20 ou plus) :
+Le site lui-même n'a aucune dépendance : pas de framework ni d'étape de compilation, les fichiers sont servis tels quels. Les outils de développement (ESLint, Playwright, Chart.js pour les tests) sont déclarés dans `package.json` (Node 20 ou plus) :
 
 ```bash
-npm test
+npm install
 ```
+
+Vérification complète (code avec ESLint, version du cache, tests unitaires) :
+
+```bash
+npm run check
+```
+
+ESLint seul : `npm run lint`. Les scripts du site partagent leurs déclarations de premier niveau (pas de modules) : `eslint.config.mjs` les relève automatiquement, ce qui permet de signaler toute variable inconnue.
 
 Après avoir modifié un fichier du site, mets à jour la version du cache de l'application installée (sinon les tests et l'intégration continue échouent) :
 
@@ -211,7 +219,7 @@ Après avoir modifié un fichier du site, mets à jour la version du cache de l'
 npm run sw-version
 ```
 
-Tests de bout en bout (navigateur Chromium) : ils servent le site en local et simulent le relais Yahoo avec les réponses de `tests/fixtures/relay/` — aucun appel réseau, et toute requête externe fait échouer le test. Playwright n'est pas une dépendance du projet : il faut l'avoir sur la machine (`npm install --no-save playwright && npx playwright install chromium`).
+Tests de bout en bout (navigateur Chromium) : ils servent le site en local et simulent le relais Yahoo avec les réponses de `tests/fixtures/relay/` — aucun appel réseau, et toute requête externe fait échouer le test. Après `npm install`, installe une fois le navigateur : `npx playwright install chromium`. Chart.js est servi aux tests depuis `node_modules`, ce qui vérifie le rendu réel des graphiques.
 
 ```bash
 npm run test:e2e
