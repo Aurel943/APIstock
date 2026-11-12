@@ -171,12 +171,13 @@ Object.assign(App, {
   /* ================================================================== */
   /* DIVIDENDES À VENIR                                                   */
   /* ================================================================== */
-  renderDividends() {
-    const card = $('#divCard');
-    if (!card) return;
-    const cur = this.base();
-    const { rows, totals } = Portfolio.snapshot();
-    const today = todayISO(), limit = addDaysISO(today, 366);
+  /**
+   * Dividendes attendus dans les 12 prochains mois : chaque détachement des 12 derniers mois est supposé se
+   * répéter un an plus tard, au même montant, avec le nombre de parts actuel (montant en devise de base).
+   */
+  divForecast(today = todayISO(), account) {
+    const { rows } = Portfolio.snapshot(account);
+    const limit = addDaysISO(today, 366);
     const items = [];
     for (const r of rows) {
       const ev = (this.eventsData || {})[r.key];
@@ -184,13 +185,21 @@ Object.assign(App, {
       const fx = Api.fxCached(ev.currency || r.currency);
       for (const d of ev.divs || []) {
         if (d.date <= addDaysISO(today, -366)) continue;
-        let next = addYearsISO(d.date, 1);
-        if (next <= today) continue;
-        if (next > limit) continue;
+        const next = addYearsISO(d.date, 1);
+        if (next <= today || next > limit) continue;
         items.push({ key: r.key, date: next, last: d.date, perShare: d.amount, qty: r.qty, currency: ev.currency || r.currency, amount: d.amount * r.qty * (isFinite(fx) ? fx : NaN) });
       }
     }
-    items.sort((a, b) => (a.date < b.date ? -1 : 1));
+    return items.sort((a, b) => (a.date < b.date ? -1 : 1));
+  },
+
+  renderDividends() {
+    const card = $('#divCard');
+    if (!card) return;
+    const cur = this.base();
+    const { totals } = Portfolio.snapshot();
+    const today = todayISO();
+    const items = this.divForecast(today);
     card.classList.toggle('hidden', !items.length);
     if (!items.length) return;
     const total = items.reduce((s, i) => s + (isFinite(i.amount) ? i.amount : 0), 0);

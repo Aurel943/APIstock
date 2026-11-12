@@ -428,6 +428,21 @@ const Expo = {
     if (inst.mic && MIC_COUNTRY[inst.mic] && inst.name && !/etf|ucits|fund|fonds|tracker|index|indice|trust|ishares|vanguard|amundi|lyxor|xtrackers|spdr|invesco/i.test(inst.name)) return { profile: 'stock', ter: 0, auto: true };
     return { profile: 'none', ter: NaN, auto: true };
   },
+  /** Répartition pondérée { country, sector, ccy } en % d'une liste [{ key, w }] (w : valeur de la ligne) */
+  aggregate(list) {
+    const total = list.reduce((s, x) => s + x.w, 0);
+    const agg = { country: {}, sector: {}, ccy: {} };
+    if (!(total > 0)) return agg;
+    for (const { key, w } of list) {
+      const sp = this.split(key);
+      for (const dim of ['country', 'sector', 'ccy']) {
+        const d = sp[dim] || {}, sum = Object.values(d).reduce((a, b) => a + b, 0) || 1;
+        for (const [k, v] of Object.entries(d)) agg[dim][k] = (agg[dim][k] || 0) + (w / total) * (v / sum) * 100;
+      }
+    }
+    return agg;
+  },
+
   of(key) {
     const inst = Store.instrument(key);
     const g = this.guess(inst);
@@ -506,14 +521,7 @@ Object.assign(App, {
     if (!items.length) return;
     const total = items.reduce((s, x) => s + x.w, 0);
 
-    const agg = { country: {}, sector: {}, ccy: {} };
-    for (const { r, w } of items) {
-      const sp = Expo.split(r.key);
-      for (const dim of ['country', 'sector', 'ccy']) {
-        const d = sp[dim] || {}, sum = Object.values(d).reduce((a, b) => a + b, 0) || 1;
-        for (const [k, v] of Object.entries(d)) agg[dim][k] = (agg[dim][k] || 0) + (w / total) * (v / sum) * 100;
-      }
-    }
+    const agg = Expo.aggregate(items.map(x => ({ key: x.r.key, w: x.w })));
     const label = { country: k => COUNTRY_FR[k] || k, sector: k => SECT[k] || k, ccy: k => (k === 'other' ? 'Autres devises' : k) };
     const bars = (dim, title, top) => {
       const entries = Object.entries(agg[dim]).sort((a, b) => b[1] - a[1]);

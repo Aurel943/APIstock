@@ -840,3 +840,31 @@ details.advanced[open] > .stack { margin-top: 12px; }
 .sale-line.sale-net { background: color-mix(in srgb, var(--accent) 12%, var(--surface)); }
 .alert-shortcut { margin-left: auto; }
 .kpi-line.up { color: var(--up); }
+
+/* Bilan de santé */
+.health-top { display: flex; align-items: center; gap: 18px; margin-bottom: 14px; }
+.health-ring { --c: var(--up); width: 86px; height: 86px; border-radius: 50%; flex: none; display: grid; place-content: center; text-align: center;
+  background: radial-gradient(closest-side, var(--surface) 78%, transparent 79%), conic-gradient(var(--c) calc(var(--p) * 1%), var(--surface-2) 0); }
+.health-ring.warn { --c: #d97706; } .health-ring.bad { --c: var(--down); }
+.health-ring b { font: 600 26px/1 "JetBrains Mono", monospace; } .health-ring span { font-size: 11px; color: var(--muted); }
+.health-word { font-weight: 600; font-size: 17px; } .health-word.ok { color: var(--up); } .health-word.warn { color: #d97706; } .health-word.bad { color: var(--down); }
+.health-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px; }
+.health-item { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 10px; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); }
+.health-icon { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700; color: #fff; background: var(--up); }
+.health-item.st-warn .health-icon { background: #d97706; } .health-item.st-bad .health-icon { background: var(--down); } .health-item.st-info .health-icon { background: var(--muted); font-style: italic; font-family: Georgia, serif; }
+.health-head { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 2px; }
+.health-go { margin-left: 4px; }
+@media (max-width: 640px) { .health-list { grid-template-columns: 1fr; } }
+
+/* Agenda */
+.agenda-kinds { margin-bottom: 14px; max-width: 100%; }
+.agenda-month h3 { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; text-transform: capitalize; }
+.agenda-month h3 .muted { text-transform: none; letter-spacing: 0; font-weight: 400; }
+.agenda-list { list-style: none; margin: 0; padding: 0; }
+.agenda-item { display: grid; grid-template-columns: 44px 26px minmax(0, 1fr); gap: 10px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--border); }
+.agenda-item:last-child { border-bottom: 0; }
+.agenda-item.today .agenda-date b { color: var(--accent); }
+.agenda-date { display: flex; flex-direction: column; align-items: center; line-height: 1.1; }
+.agenda-date b { font: 600 18px/1 "JetBrains Mono", monospace; } .agenda-date span { font-size: 11px; color: var(--muted); }
+.agenda-icon { font-size: 18px; text-align: center; }
+.agenda-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
