@@ -412,6 +412,8 @@ Object.assign(App, {
     if (this.rebalanceTodo) { const r = this.rebalanceTodo(); if (r) items.push(r); }
     const recap = this.recapTodo();
     if (recap) items.unshift(recap);
+    const wrapped = this.wrappedTodo ? this.wrappedTodo() : null;
+    if (wrapped) items.unshift(wrapped);
     items.unshift(...this.backupTodos());
     items.push(...this.manualTodos());
     return items;

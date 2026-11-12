@@ -406,3 +406,28 @@ test('objectifs multiples et alerte « sous mon prix de revient »', () => run({
   assert.equal(alerts[0].kind, 'belowPru');
   await page.waitForFunction(() => /prix de revient \(/.test(document.querySelector('#alertTable').innerText));
 }));
+
+test('carte du portefeuille, optimiseur de répartition et « Ton année en bourse »', { skip: !realCharts && 'Chart.js non installé' }, () => run({ state: sampleState() }, async ({ page }) => {
+  await page.click('#pfSubnav [data-tab=analyse]');
+  // carte : une tuile par ligne, qui ouvre la fiche
+  await page.waitForSelector('#mapCard:not(.hidden) .map-tile');
+  assert.equal(await page.locator('.map-tile').count(), 3);
+  await page.click('#mapMode [data-mode=gain]');
+  assert.match(await page.locator('.map-tile').first().getAttribute('title'), /plus-value/);
+  // optimiseur : nuage, trois répartitions, application comme cible
+  await page.click('#optRun');
+  await page.waitForFunction(() => Chart.getChart('optChart') && Chart.getChart('optChart').data.datasets.length === 4, null, { timeout: 20000 });
+  assert.equal(await page.locator('.opt-col').count(), 3);
+  await page.locator('.opt-col.minvol button').click();
+  await page.waitForFunction(() => App.view === 'invest');
+  const sum = await page.evaluate(() => Object.values(Store.state.targets).reduce((a, b) => a + b, 0));
+  assert.ok(Math.abs(sum - 100) < 0.5, 'cible à 100 % : ' + sum);
+  // récap de l'année depuis le menu « Plus »
+  await page.click('#tabMoreBtn');
+  await page.click('#wrappedOpen');
+  await page.waitForSelector('.wrapped .w-big', { timeout: 20000 });
+  for (let i = 0; i < 10; i++) await page.keyboard.press('ArrowRight');
+  await page.waitForSelector('.wrapped .w-summary');
+  await page.keyboard.press('Escape');
+  assert.equal(await page.locator('.wrapped').count(), 0);
+}));
