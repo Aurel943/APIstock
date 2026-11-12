@@ -182,7 +182,7 @@ Object.assign(App, {
     const ex = inst && Markets.forMic(inst.mic);
     if (!ex) return null;
     const st = Markets.status(ex);
-    return el('span', { class: 'mkt ' + st.state, title: ex.name }, Markets.summary(st));
+    return el('span', { class: 'mkt ' + st.state, title: ex.name + ' : ' + Markets.summary(st), 'aria-label': ex.name + ' : ' + Markets.summary(st) });
   },
 
   /* ================================================================== */

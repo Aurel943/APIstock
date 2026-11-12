@@ -67,8 +67,7 @@ Object.assign(App, {
     card.classList.toggle('hidden', !has);
     if (!has || this._riskShown === (Store.state.accountFilter || 'all')) return;
     $('#riskBody').replaceChildren(el('div', { class: 'actions' },
-      el('button', { class: 'btn', onclick: () => this.loadHistory() }, 'Calculer le risque'),
-      el('span', { class: 'muted small' }, 'Volatilité, pire baisse, ratio de Sharpe et bêta face au MSCI World, à partir de l\'historique de tes opérations (le graphique d\'évolution est chargé en même temps).')));
+      el('button', { class: 'btn', onclick: () => this.loadHistory() }, 'Calculer le risque')));
   },
 
   async renderRisk(twr, start) {
@@ -95,8 +94,8 @@ Object.assign(App, {
         this.kpi('Ratio de Sharpe', fmtNum(st.sharpe, 2), sharpeTxt, isFinite(st.sharpe) ? (st.sharpe >= 0.5 ? 'up' : st.sharpe < 0 ? 'down' : '') : ''),
         this.kpi('Ratio de Sortino', fmtNum(st.sortino, 2), 'comme Sharpe, mais ne compte que les baisses'),
         bench && isFinite(bench.beta) ? this.kpi('Bêta vs MSCI World', fmtNum(bench.beta, 2), betaTxt + ' · corrélation ' + fmtNum(bench.corr, 2)) : null),
-      el('p', { class: 'muted small' }, `Sur ${fmtSpan(twr[0][0], twr[twr.length - 1][0])} · ${fmtPct(st.positiveDays * 100, 0, false)} de jours en hausse · taux sans risque ${fmtNum(Store.state.settings.riskFree ?? 2, 1)} % (Réglages)`
-        + (bench && isFinite(bench.beta) ? ` · indice de référence : ${RISK_BENCH.name}` : '') + '. Les mesures passées ne prédisent pas les variations futures.'));
+      noteTip(`Sur ${fmtSpan(twr[0][0], twr[twr.length - 1][0])} · ${fmtPct(st.positiveDays * 100, 0, false)} de jours en hausse · taux sans risque ${fmtNum(Store.state.settings.riskFree ?? 2, 1)} % (Réglages)`
+        + (bench && isFinite(bench.beta) ? ` · indice de référence : ${RISK_BENCH.name}` : '') + '. Les mesures passées ne prédisent pas les variations futures.', 'Période et méthode'));
   },
 
   /* ================================================================== */
@@ -131,9 +130,9 @@ Object.assign(App, {
     const input = el('input', { type: 'number', min: 0, max: 50, step: 0.5, value: r.threshold, class: 'pct-input' });
     input.addEventListener('change', () => { r.threshold = Math.max(0, parseNum(input.value) || 0); Store.save(); this.renderRebalance(); this.renderTodo(true); });
     const head = el('div', { class: 'rebal-head' },
-      el('h3', {}, 'Rééquilibrage sans vente'),
-      el('label', { class: 'inline small' }, 'Me prévenir au-delà de', input, 'pt d\'écart (0 = jamais)'));
-    if (!info) { box.replaceChildren(head, el('p', { class: 'muted small' }, 'Fixe une allocation cible à 100 % pour voir comment revenir à la cible en achetant seulement (pas de vente, donc pas d\'impôt sur un compte-titres).')); return; }
+      el('h3', {}, 'Rééquilibrage sans vente', infoTip('Comment revenir à ta cible en achetant seulement : pas de vente, donc pas d\'impôt sur un compte-titres. L\'alerte apparaît dans « À faire » quand une ligne s\'écarte de sa cible de plus du seuil (0 = jamais).')),
+      el('label', { class: 'inline small' }, 'Alerte à', input, 'pt d\'écart'));
+    if (!info) { box.replaceChildren(head, el('p', { class: 'muted small' }, 'Disponible dès que ta cible fait 100 %.')); return; }
     const worst = info.drift.lines.slice().sort((a, b) => Math.abs(b.gap) - Math.abs(a.gap))[0];
     const off = r.threshold > 0 && info.drift.max >= r.threshold;
     const buys = info.plan ? info.plan.lines.filter(o => o.trade > 0.5) : [];
@@ -215,8 +214,7 @@ Object.assign(App, {
         el('tbody', {}, ...items.map(i => el('tr', {},
           el('td', {}, fmtDate(i.date)), el('td', {}, el('span', { class: 'sym' }, Store.label(i.key))),
           el('td', { class: 'num' }, fmtMoney(i.perShare, i.currency, 3)), el('td', { class: 'num' }, fmtQty(i.qty)),
-          el('td', { class: 'num up' }, fmtMoney(i.amount, cur)), el('td', { class: 'muted' }, fmtDate(i.last))))))),
-      el('p', { class: 'muted small' }, 'Estimation : chaque détachement des 12 derniers mois est supposé se répéter à la même date et au même montant, avec ton nombre de parts actuel. Les ETF capitalisants (CW8, ESE, IWDA…) ne versent rien : ils réinvestissent.'));
+          el('td', { class: 'num up' }, fmtMoney(i.amount, cur)), el('td', { class: 'muted' }, fmtDate(i.last))))))));
   },
 
   /* ================================================================== */
@@ -549,7 +547,7 @@ ${snap.rows.map(r => row(esc(Store.label(r.key)) + `<small>${esc(Store.code(r.ke
     $('#pushOn').classList.toggle('hidden', !!c);
     $('#pushOff').classList.toggle('hidden', !c);
     $('#pushTest').classList.toggle('hidden', !c);
-    const base = 'Ton relais Cloudflare vérifie tes alertes toutes les 5 minutes et t\'envoie une notification push, même téléphone verrouillé et site fermé. Sur iPhone : ajoute d\'abord le site à l\'écran d\'accueil (iOS 16.4 ou plus).';
+    const base = '';
     $('#pushInfo').textContent = err ? '⚠ ' + err : c ? `✔ Activées sur cet appareil · ${c.count ?? 0} alerte(s) surveillée(s) par le worker` + (c.syncedAt ? ' · synchronisé ' + fmtAgo(c.syncedAt) : '') + '.' : base;
     $('#pushInfo').className = 'small ' + (err ? 'down' : c ? 'up' : 'muted');
   },

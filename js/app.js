@@ -198,8 +198,7 @@ const App = {
     $('#reqTotal').textContent = nf.format(total);
     $('#reqBar').style.width = pct + '%';
     $('#reqBar').classList.toggle('warn', pct >= 80);
-    $('#reqDetail').textContent = `Relais Yahoo : ${nf.format(d.yahoo || 0)} (${fmtNum(pct, pct < 1 ? 2 : 1)} % du quota gratuit de 100 000/jour du worker, partagé avec tous les visiteurs)`
-      + ` · Twelve Data : ${nf.format(d.twelve || 0)}${Api.hasKey() ? ' (800/jour sur le forfait gratuit)' : ''}. Remis à zéro à minuit.`;
+    $('#reqDetail').textContent = `Yahoo : ${nf.format(d.yahoo || 0)} (${fmtNum(pct, pct < 1 ? 2 : 1)} % du quota) · Twelve Data : ${nf.format(d.twelve || 0)}`;
   },
 
   /** Total des requêtes reçues aujourd'hui par le worker Cloudflare (tous visiteurs), via son point « stats » */
@@ -334,8 +333,19 @@ const App = {
   /* ------------------------------------------------------------------ */
   /* PORTEFEUILLE                                                         */
   /* ------------------------------------------------------------------ */
+  // Sous-onglets du portefeuille (Synthèse, Analyse…) : un seul groupe de cartes visible à la fois
+  portfolioTab(tab) {
+    $('#view-portfolio').dataset.sub = tab;
+    $$('#pfSubnav button').forEach(x => x.classList.toggle('active', x.dataset.tab === tab));
+    try { localStorage.setItem('apistock:pfTab', tab); } catch (e) { /* stockage indisponible */ }
+  },
+
   bindPortfolio() {
     $('#addTxBtn').addEventListener('click', () => this.openTx());
+    $$('#pfSubnav button').forEach(b => b.addEventListener('click', () => this.portfolioTab(b.dataset.tab)));
+    let saved = null;
+    try { saved = localStorage.getItem('apistock:pfTab'); } catch (e) { /* stockage indisponible */ }
+    if (saved && $('#pfSubnav [data-tab="' + saved + '"]')) this.portfolioTab(saved);
     $$('#allocMode button').forEach(b => b.addEventListener('click', () => {
       this.allocMode = b.dataset.mode;
       $$('#allocMode button').forEach(x => x.classList.toggle('active', x === b));
@@ -389,9 +399,8 @@ const App = {
       const sameCcy = r.currency === cur;
       return el('tr', { onclick: () => { this.show('markets'); this.selectDetail(r.key); } },
         el('td', {},
-          el('span', { class: 'sym' }, el('span', { class: 'dot', style: `display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;background:${PALETTE[i % PALETTE.length]}` }), Store.label(r.key)),
-          el('span', { class: 'name', title: r.inst ? r.inst.name : '' }, Store.code(r.key)),
-          this.marketBadge(r.key)),
+          el('span', { class: 'sym' }, el('span', { class: 'dot', style: `display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;background:${PALETTE[i % PALETTE.length]}` }), Store.label(r.key), this.marketBadge(r.key)),
+          el('span', { class: 'name', title: r.inst ? r.inst.name : '' }, Store.code(r.key))),
         el('td', { class: 'num' }, fmtQty(r.qty)),
         el('td', { class: 'num' }, fmtMoney(r.pru, r.currency, 3)),
         el('td', { class: 'num' }, fmtMoney(r.costBase, cur), sameCcy ? null : el('div', { class: 'muted small' }, fmtMoney(r.cost, r.currency))),

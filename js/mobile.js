@@ -55,7 +55,7 @@ Object.assign(App, {
         el('div', { class: 'pos-top' },
           el('div', { class: 'pos-id' },
             el('span', { class: 'pos-dot', style: 'background:' + PALETTE[i % PALETTE.length] }),
-            el('div', {}, el('div', { class: 'sym' }, Store.label(r.key)), el('div', { class: 'name' }, Store.code(r.key)))),
+            el('div', {}, el('div', { class: 'sym' }, Store.label(r.key), this.marketBadge(r.key)), el('div', { class: 'name' }, Store.code(r.key)))),
           el('div', { class: 'pos-val' },
             el('div', { class: 'mono' }, fmtMoney(r.valueBase, cur)),
             el('div', { class: 'small mono ' + trendClass(r.pnl) }, fmtSignedMoney(r.pnlBase, cur) + ' · ' + fmtPct(r.pnlPct)))),
@@ -65,8 +65,7 @@ Object.assign(App, {
           el('div', {}, el('span', {}, 'Parts · PRU'), el('b', {}, fmtQty(r.qty) + ' · ' + fmtMoney(r.pru, r.currency, 2, true))),
           el('div', {}, el('span', {}, 'Investi'), el('b', {}, fmtMoney(r.costBase, cur, 0))),
           el('div', {}, el('span', {}, '% actuel'), el('b', {}, fmtPct(r.weightValue, 1, false))),
-          el('div', {}, el('span', {}, '% investi'), el('b', {}, fmtPct(r.weightCost, 1, false)))),
-        this.marketBadge(r.key));
+          el('div', {}, el('span', {}, '% investi'), el('b', {}, fmtPct(r.weightCost, 1, false)))));
     }));
   },
 });

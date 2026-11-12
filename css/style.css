@@ -258,10 +258,10 @@ dialog::backdrop { background: rgba(10, 14, 22, .55); backdrop-filter: blur(2px)
 /* ---------- Pastille marché (cliquable) ---------- */
 button.pill { border: 0; font: inherit; font-size: 12px; cursor: pointer; }
 button.pill:hover { filter: brightness(.97); }
-.mkt { display: block; font-size: 11px; margin-top: 2px; color: var(--muted); }
-.mkt.open { color: var(--up); }
-.mkt.open::before, .mkt.break::before, .mkt.closed::before { content: "● "; }
-.mkt.break { color: #d97706; }
+.mkt { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-left: 6px; vertical-align: middle; background: var(--muted); cursor: help; }
+.mkt.open { background: var(--up); }
+
+.mkt.break { background: #d97706; }
 .warn-text { color: #d97706; }
 
 /* ---------- Monde : indicateurs ---------- */
@@ -730,3 +730,32 @@ td.num .day-spark { display: block; margin: 4px 0 0 auto; }
 .inline.wrap { flex-wrap: wrap; }
 .inline.wrap input { flex: 1 1 110px; min-width: 0; }
 .fees-long { margin-top: 16px; }
+
+/* Bulle d'information « i » */
+.info {
+  display: inline-grid; place-items: center; width: 16px; height: 16px; margin-left: 6px; padding: 0;
+  border: 1px solid var(--border); border-radius: 50%; background: var(--surface-2); color: var(--muted);
+  font: italic 600 10px/1 Georgia, serif; cursor: help; vertical-align: middle; flex: none;
+}
+.info:hover, .info:focus-visible { color: var(--text); border-color: var(--muted); outline: none; }
+.info-bubble {
+  position: absolute; z-index: 1000; padding: 8px 10px; border-radius: 8px;
+  background: var(--text); color: var(--surface); font-size: 12.5px; line-height: 1.45; font-weight: 400;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, .18); pointer-events: none; white-space: pre-line;
+}
+/* Sous-onglets du portefeuille */
+.subnav { margin: 4px 0 16px; }
+#view-portfolio[data-sub="synthese"] [data-sub]:not([data-sub~="synthese"]),
+#view-portfolio[data-sub="analyse"] [data-sub]:not([data-sub~="analyse"]),
+#view-portfolio[data-sub="revenus"] [data-sub]:not([data-sub~="revenus"]),
+#view-portfolio[data-sub="patrimoine"] [data-sub]:not([data-sub~="patrimoine"]),
+#view-portfolio[data-sub="operations"] [data-sub]:not([data-sub~="operations"]) { display: none; }
+.subnav { display: flex; width: fit-content; max-width: 100%; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+.subnav::-webkit-scrollbar { display: none; }
+.subnav button { font-size: 13.5px; padding: 7px 14px; white-space: nowrap; }
+
+.sub-title { margin: 6px 0 0; font-size: 13px; font-weight: 600; display: flex; align-items: center; }
+h2 .info, h3 .info, h4 .info { margin-left: 6px; }
+label > .info { margin-left: 4px; }
+.note-tip { display: flex; align-items: center; justify-content: flex-end; margin: 10px 0 0; }
+.lbl { display: inline-flex; align-items: center; }

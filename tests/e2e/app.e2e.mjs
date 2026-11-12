@@ -38,7 +38,8 @@ test('ajout, modification et suppression d\'une opération, avec « Annuler »',
   assert.ok(tx, 'opération ajoutée');
   assert.equal(tx.qty, 7);
 
-  // modification depuis le tableau des opérations
+  // modification depuis le tableau des opérations (sous-onglet « Opérations » du portefeuille)
+  await page.click('#pfSubnav [data-tab=operations]');
   const row = page.locator('#txTable tbody tr', { hasText: 'test e2e' });
   await row.locator('button[title=Modifier]').click();
   assert.equal(await page.inputValue('#txQty'), '7');
@@ -94,11 +95,13 @@ test('versement programmé confirmé depuis « À faire »', () => run({ state: 
 }));
 
 test('mouvement d\'espèces : le solde du compte apparaît', () => run({ state: sampleState() }, async ({ page }) => {
+  await page.click('#pfSubnav [data-tab=operations]');
   await page.click('#cashAdd');
   await page.selectOption('#cashAcc', 'pea');
   await page.fill('#cashDate', '2024-01-02');
   await page.fill('#cashAmount', '5000');
   await page.click('#cashForm button[type=submit]');
+  await page.click('#pfSubnav [data-tab=patrimoine]');
   await page.waitForSelector('#cashCard:not(.hidden)');
   const s = await state(page);
   assert.equal(s.cashMoves.length, 1);
@@ -124,6 +127,7 @@ test('recherche par ISIN dans l\'onglet Marchés', () => run({ state: sampleStat
 }));
 
 test('rapport annuel généré dans une nouvelle fenêtre', () => run({ state: sampleState() }, async ({ page, context }) => {
+  await page.click('#pfSubnav [data-tab=operations]');
   await page.click('#reportBtn');
   await page.selectOption('#reportYear', '2025');
   const [popup] = await Promise.all([context.waitForEvent('page'), page.click('#reportForm button[type=submit]')]);
@@ -193,4 +197,20 @@ test('import d\'avis d\'opéré PDF : aperçu, import sur le PEA, réimport igno
   await page.setInputFiles('#txCount ~ label input.avisImport', files);
   await page.waitForFunction(() => /déjà enregistrés/.test(document.querySelector('#toast').textContent));
   assert.equal((await state(page)).transactions.length, s.transactions.length);
+}));
+
+test('portefeuille en sous-onglets et bulles d\'information', () => run({ state: sampleState() }, async ({ page }) => {
+  assert.ok(await page.locator('#positionsTable').isVisible(), 'positions visibles dans la synthèse');
+  assert.ok(!(await page.locator('#txTable').isVisible()), 'opérations masquées dans la synthèse');
+  await page.click('#pfSubnav [data-tab=operations]');
+  assert.ok(await page.locator('#txTable').isVisible(), 'opérations visibles dans leur sous-onglet');
+  assert.ok(!(await page.locator('#positionsTable').isVisible()));
+  assert.equal(await page.evaluate(() => localStorage.getItem('apistock:pfTab')), 'operations', 'sous-onglet mémorisé');
+  // bulle « i » : s'ouvre au clic, se ferme au clic ailleurs
+  await page.click('#pfSubnav [data-tab=synthese]');
+  await page.locator('#view-portfolio .info:visible').first().click();
+  assert.equal(await page.locator('.info-bubble').count(), 1);
+  assert.ok((await page.locator('.info-bubble').innerText()).length > 10);
+  await page.click('#kpis');
+  assert.equal(await page.locator('.info-bubble').count(), 0);
 }));
