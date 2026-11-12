@@ -2,6 +2,37 @@
 'use strict';
 
 const Portfolio = {
+  /** Moyenne mobile simple sur `n` points (null tant qu'il n'y a pas assez de points) */
+  movingAverage(closes, n) {
+    const out = new Array(closes.length).fill(null);
+    let sum = 0;
+    for (let i = 0; i < closes.length; i++) {
+      sum += closes[i];
+      if (i >= n) sum -= closes[i - n];
+      if (i >= n - 1) out[i] = sum / n;
+    }
+    return out;
+  },
+
+  /**
+   * Indicateurs d'une série journalière [[date, cours]] (avec au moins ~1 an d'historique pour la MM200) :
+   * moyennes mobiles 50 et 200 jours, baisse depuis le plus haut sur 1 an, tendance (MM50 au-dessus de la MM200).
+   */
+  indicators(series) {
+    const closes = series.map(v => v[1]);
+    const ma50 = this.movingAverage(closes, 50), ma200 = this.movingAverage(closes, 200);
+    const last = closes[closes.length - 1];
+    const year = closes.slice(-252);
+    const high = Math.max(...year);
+    const m50 = ma50[ma50.length - 1], m200 = ma200[ma200.length - 1];
+    return {
+      ma50, ma200,
+      fromHigh: high > 0 ? (last / high - 1) * 100 : NaN,
+      vsMa200: m200 ? (last / m200 - 1) * 100 : NaN,
+      trend: m50 && m200 ? (m50 >= m200 ? 'up' : 'down') : null,
+    };
+  },
+
   /**
    * Vente simulée de `qty` parts d'une ligne sur un compte, au cours actuel : produit, frais (barème du compte),
    * plus-value (prix moyen pondéré) et impôt estimé au taux du compte. Montants en devise de base.

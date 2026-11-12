@@ -6,7 +6,7 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { chromium, startServer, openApp, sampleState, realCharts } from './helpers.mjs';
 
-const VIEWS = ['portfolio', 'markets', 'agenda', 'compare', 'world', 'invest', 'simulation', 'settings'];
+const VIEWS = ['portfolio', 'markets', 'agenda', 'catalog', 'compare', 'world', 'invest', 'simulation', 'settings'];
 let server, url, browser;
 
 before(async () => { ({ server, url } = await startServer()); browser = await chromium.launch(); });
@@ -312,6 +312,7 @@ test('menu « Plus » au clavier et indicateur hors ligne', () => run({ state: s
   assert.equal(await page.evaluate(() => document.activeElement.dataset.view), 'agenda');
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
   assert.equal(await page.evaluate(() => App.view), 'simulation');
   assert.equal(await page.locator('#tabMore.open').count(), 0);
@@ -360,4 +361,22 @@ test('agenda (filtres, export .ics) et bilan de santé', () => run({ state: samp
   assert.deepEqual(kinds, ['market']);
   const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#agendaExport')]);
   assert.equal(dl.suggestedFilename(), 'apistock-agenda.ics');
+}));
+
+test('catalogue : portefeuille type appliqué comme cible ; moyennes mobiles sur la fiche', { skip: !realCharts && 'Chart.js non installé' }, () => run({ state: sampleState({ instruments: Object.assign({}, sampleState().instruments, {
+  'DCAM@XPAR': { symbol: 'DCAM', mic: 'XPAR', exchange: 'Paris', name: 'Amundi PEA Monde (MSCI World) UCITS ETF', currency: 'EUR', type: 'ETF', provider: 'yahoo', ysymbol: 'DCAM.PA' } }) }) }, async ({ page }) => {
+  await page.evaluate(() => App.show('catalog'));
+  await page.waitForSelector('#catalogBody .model-card');
+  assert.ok(await page.locator('#catalogBody input[type=checkbox]').isChecked(), 'PEA coché par défaut (un PEA existe)');
+  assert.ok(await page.locator('#catalogBody tbody tr').count() >= 2);
+  await page.locator('.model-card', { hasText: 'Monde, un seul ETF' }).locator('button').click();
+  await page.waitForFunction(() => App.view === 'invest');
+  const targets = await page.evaluate(() => Object.fromEntries(Object.entries(Store.state.targets).filter(([, v]) => v > 0)));
+  assert.deepEqual(targets, { 'DCAM@XPAR': 100 });
+  // fiche : moyennes mobiles et indicateurs
+  await page.evaluate(() => { App.show('markets'); App.selectDetail('CW8@XPAR'); });
+  await page.check('#detailInd');
+  await page.waitForFunction(() => { const c = Chart.getChart('detailChart'); return c && c.data.datasets.some(d => d.label === 'Moyenne 200 jours' && d.data.some(v => v !== null)); });
+  await page.waitForFunction(() => /tendance/i.test(document.querySelector('#detailStats').innerText));
+  assert.equal(await page.evaluate(() => localStorage.getItem('apistock:ind')), '1');
 }));

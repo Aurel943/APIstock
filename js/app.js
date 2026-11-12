@@ -64,6 +64,11 @@ const App = {
     this.bindCsv();
     this.bindMobile();
     this.bindManual();
+    $('#detailInd').checked = this.indicatorsOn();
+    $('#detailInd').addEventListener('change', e => {
+      try { localStorage.setItem('apistock:ind', e.target.checked ? '1' : '0'); } catch (err) { /* stockage indisponible */ }
+      this.loadDetailChart();
+    });
     this.bindAgenda();
     this.bindInteractionGuard();
     if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
@@ -80,7 +85,7 @@ const App = {
     setInterval(() => { Api.emitUsage(); Api.emitDaily(); }, 5000);
 
     const hash = location.hash.replace('#', '');
-    this.show(['portfolio', 'markets', 'agenda', 'compare', 'world', 'invest', 'simulation', 'settings'].includes(hash) ? hash : (Api.ready() ? 'portfolio' : 'settings'));
+    this.show(['portfolio', 'markets', 'agenda', 'catalog', 'compare', 'world', 'invest', 'simulation', 'settings'].includes(hash) ? hash : (Api.ready() ? 'portfolio' : 'settings'));
     this.renderAll();
     Api.detectProxy().finally(() => { if (!Api.ready() && $('#advancedSources')) $('#advancedSources').open = true; this.renderAll(); Promise.resolve(this.refresh()).finally(() => this.autoHistory()); this.preloadFx(); });
     // opérations modifiées : le graphique d'évolution déjà affiché est recalculé (sans bruit)
@@ -140,6 +145,7 @@ const App = {
 
   show(view) {
     if (view === 'agenda') setTimeout(() => this.renderAgenda(), 0);
+    if (view === 'catalog') setTimeout(() => this.renderCatalog(), 0);
     this.view = view;
     $$('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === view));
     $('#tabMoreBtn').classList.toggle('active', !!$('#tabMenu .tab.active'));
@@ -981,7 +987,16 @@ const App = {
       ['Ouverture', fmtNum(q.open, 3)], ['Plus haut', fmtNum(q.high, 3)], ['Plus bas', fmtNum(q.low, 3)],
       ['Clôture veille', fmtNum(q.previousClose, 3)], ['52 sem. bas', fmtNum(q.low52, 2)], ['52 sem. haut', fmtNum(q.high52, 2)],
       ['Volume', isFinite(q.volume) ? new Intl.NumberFormat('fr-FR').format(q.volume) : '—'],
-    ].map(([a, b]) => el('div', {}, el('span', {}, a), el('b', {}, b))) : []));
+    ].map(([a, b]) => el('div', {}, el('span', {}, a), el('b', {}, b))) : []),
+    ...(() => {
+      const ind = this.detailInd && this.detailInd.key === k ? this.detailInd : null;
+      if (!ind) return [];
+      return [
+        el('div', {}, el('span', {}, 'Depuis le plus haut 1 an'), el('b', { class: ind.fromHigh < -10 ? 'down' : '' }, fmtPct(ind.fromHigh))),
+        isFinite(ind.vsMa200) ? el('div', {}, el('span', {}, 'Écart à la moyenne 200 j'), el('b', { class: trendClass(ind.vsMa200) }, fmtPct(ind.vsMa200))) : null,
+        ind.trend ? el('div', {}, el('span', {}, 'Tendance (50 j / 200 j)'), el('b', { class: ind.trend === 'up' ? 'up' : 'down' }, ind.trend === 'up' ? 'haussière' : 'baissière')) : null,
+      ].filter(Boolean);
+    })());
     this.renderManualPanel(k);
     this.renderSalePanel(k);
     this.renderAlertShortcut(k);
@@ -1030,6 +1045,10 @@ const App = {
     } }, '🔔 M\'alerter'));
   },
 
+  indicatorsOn() {
+    try { return localStorage.getItem('apistock:ind') === '1'; } catch (e) { return false; }
+  },
+
   async loadDetailChart() {
     const k = this.detailKey;
     if (!k) return;
@@ -1040,8 +1059,23 @@ const App = {
       if (k !== this.detailKey || range !== this.range) return;
       const inst = Store.instrument(k);
       const intraday = range === '1J' || range === '5J';
+      let overlays = null;
+      if (!intraday && values.length > 1) {
+        try {
+          // un an de plus en amont, pour que la moyenne 200 jours couvre toute la période affichée
+          const full = await Api.daily(k, addDaysISO(values[0][0], -300));
+          if (k !== this.detailKey || range !== this.range) return;
+          const ind = Portfolio.indicators(full);
+          this.detailInd = { key: k, fromHigh: ind.fromHigh, vsMa200: ind.vsMa200, trend: ind.trend };
+          if (this.indicatorsOn()) {
+            const at = new Map(full.map((v, i) => [v[0], i]));
+            const pick = arr => values.map(v => (at.has(v[0]) ? arr[at.get(v[0])] : null));
+            overlays = [{ label: 'Moyenne 50 jours', data: pick(ind.ma50), color: '#6366f1' }, { label: 'Moyenne 200 jours', data: pick(ind.ma200), color: '#f59e0b' }];
+          }
+        } catch (e) { /* indicateurs facultatifs */ }
+      }
       Charts.line('detailChart', values.map(v => (intraday ? v[0] : fmtDate(v[0]))), values.map(v => v[1]),
-        Object.assign({ currency: inst.currency }, intraday ? {} : this.detailMarks(k, values)));
+        Object.assign({ currency: inst.currency, overlays }, intraday ? {} : this.detailMarks(k, values)));
       if (values.length > 1) {
         this.detailPerf = { key: k, range, value: (values[values.length - 1][1] / values[0][1] - 1) * 100 };
         this.renderDetailHeader();

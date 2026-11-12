@@ -83,6 +83,7 @@ const Charts = {
         pointRadius: data.map(v => (v === null ? 0 : 6)), pointHoverRadius: 8, pointBackgroundColor: color, pointBorderColor: this.css('--surface'), borderWidth: 1 }];
     };
     const extra = [
+      ...(opts.overlays || []).map(ov => ({ label: ov.label, data: ov.data, borderColor: ov.color, borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 0, fill: false, tension: 0.1, spanGaps: true })),
       ...(isFinite(opts.pru) ? [{ label: 'Ton prix de revient', data: new Array(n).fill(opts.pru), borderColor: this.css('--muted'), borderDash: [6, 4], borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 0, fill: false }] : []),
       ...marks('buy', this.css('--up'), 'triangle'),
       ...marks('sell', this.css('--down'), 'triangle'),
