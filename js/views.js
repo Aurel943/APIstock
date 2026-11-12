@@ -268,7 +268,7 @@ Object.assign(App, {
       const input = el('input', { type: 'number', min: 0, max: 100, step: 0.5, value: l.target, class: 'pct-input' });
       input.addEventListener('change', () => { Store.state.targets[l.key] = parseNum(input.value) || 0; Store.save(); this.renderInvest(); });
       return el('tr', {},
-        el('td', {}, el('span', { class: 'sym' }, Store.label(l.key)), el('span', { class: 'name' }, l.inst.name)),
+        el('td', {}, el('span', { class: 'sym' }, Store.label(l.key)), el('span', { class: 'name', title: l.inst.name }, Store.code(l.key))),
         el('td', { class: 'num' }, l.quote ? fmtMoney(l.quote.price, l.inst.currency, 3) : '—'),
         el('td', { class: 'num' }, fmtMoney(l.value, cur)),
         el('td', { class: 'num' }, fmtPct(w, 1, false)),
@@ -302,7 +302,7 @@ Object.assign(App, {
       el('div', { class: 'table-wrap' }, el('table', { class: 'data' },
         el('thead', {}, el('tr', {}, ...['ETF', 'Action', 'Parts', 'Cours', 'Montant', '% avant', '% après', '% cible'].map((h, i) => el('th', { class: i > 1 ? 'num' : '' }, h)))),
         el('tbody', {}, ...rows.map(o => el('tr', {},
-          el('td', {}, el('span', { class: 'sym' }, Store.label(o.key))),
+          el('td', {}, el('span', { class: 'sym' }, Store.label(o.key)), el('span', { class: 'name' }, Store.code(o.key))),
           el('td', {}, o.shares > 0 ? el('span', { class: 'chip buy' }, 'Acheter') : o.shares < 0 ? el('span', { class: 'chip sell' }, 'Vendre') : el('span', { class: 'muted' }, '—')),
           el('td', { class: 'num' }, fmtQty(Math.abs(o.shares))),
           el('td', { class: 'num' }, fmtMoney(o.quote.price, o.inst.currency, 3)),
@@ -368,7 +368,7 @@ Object.assign(App, {
     const sel = $('#alertKey');
     const prev = sel.value;
     const keys = Object.keys(Store.state.instruments);
-    sel.replaceChildren(...keys.map(k => el('option', { value: k }, Store.label(k) + ' — ' + (Store.instrument(k).name || ''))));
+    sel.replaceChildren(...keys.map(k => el('option', { value: k }, Store.label(k) + ' — ' + Store.code(k))));
     if (keys.includes(prev)) sel.value = prev;
     const btn = $('#notifBtn');
     const perm = 'Notification' in window ? Notification.permission : 'unsupported';
@@ -379,7 +379,7 @@ Object.assign(App, {
       const inst = Store.instrument(a.key);
       const q = Api.cachedQuote(a.key);
       return el('tr', {},
-        el('td', {}, el('span', { class: 'sym' }, Store.label(a.key))),
+        el('td', {}, el('span', { class: 'sym' }, Store.label(a.key)), el('span', { class: 'name' }, Store.code(a.key))),
         el('td', {}, this.alertText(a)),
         el('td', { class: 'num' }, q ? fmtMoney(q.price, inst.currency, 3) : '—', q ? el('div', { class: 'small ' + trendClass(q.percentChange) }, fmtPct(q.percentChange)) : null),
         el('td', {}, a.active ? el('span', { class: 'chip buy' }, 'Active') : el('span', { class: 'chip sell' }, 'Déclenchée ' + (a.triggeredAt ? new Date(a.triggeredAt).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) : ''))),

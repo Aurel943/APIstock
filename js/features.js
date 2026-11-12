@@ -462,7 +462,7 @@ Object.assign(App, {
       if (isFinite(cost)) { fees += cost; feeBase += w; } else unknownFee += w;
       const save = patch => { Object.assign(Store.instrument(r.key), patch); Store.save(); this.renderExposure(); };
       return el('tr', {},
-        el('td', {}, el('span', { class: 'sym' }, Store.label(r.key)), el('span', { class: 'name', title: r.inst ? r.inst.name : '' }, r.inst ? r.inst.name : ''),
+        el('td', {}, el('span', { class: 'sym' }, Store.label(r.key)), el('span', { class: 'name', title: r.inst ? r.inst.name : '' }, Store.code(r.key)),
           el('select', { class: 'expo-select', 'aria-label': 'Exposition de ' + Store.label(r.key), onchange: ev => save({ expo: ev.target.value === e.guess.profile ? '' : ev.target.value }) },
           ...Object.entries(EXPO_PROFILES).map(([id, P]) => el('option', { value: id, selected: id === e.profile }, P.label + (id === e.guess.profile && e.guess.profile !== 'none' ? ' (auto)' : ''))))),
         el('td', { class: 'num' }, el('input', { type: 'number', class: 'ter-input', min: 0, max: 5, step: 0.01, inputmode: 'decimal',

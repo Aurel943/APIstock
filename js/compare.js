@@ -108,7 +108,7 @@ Object.assign(App, {
     const sel = $('#cmpAdd');
     const groups = Object.entries(CMP_PRESETS).map(([g, list]) => el('optgroup', { label: g }, ...list.map(p => el('option', { value: 'y:' + p.y }, p.name))));
     const mine = Object.keys(Store.state.instruments);
-    if (mine.length) groups.push(el('optgroup', { label: 'Mes ETF' }, ...mine.map(k => el('option', { value: 'inst:' + k }, Store.label(k) + ' — ' + (Store.instrument(k).name || '')))));
+    if (mine.length) groups.push(el('optgroup', { label: 'Mes ETF' }, ...mine.map(k => el('option', { value: 'inst:' + k }, Store.label(k) + ' — ' + Store.code(k)))));
     if (Store.state.transactions.length) groups.push(el('optgroup', { label: 'Portefeuille' }, el('option', { value: 'pf:pf' }, 'Mon portefeuille (performance pondérée dans le temps)')));
     sel.replaceChildren(el('option', { value: '' }, 'Ajouter une valeur…'), ...groups);
 

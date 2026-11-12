@@ -55,7 +55,7 @@ Object.assign(App, {
         el('div', { class: 'pos-top' },
           el('div', { class: 'pos-id' },
             el('span', { class: 'pos-dot', style: 'background:' + PALETTE[i % PALETTE.length] }),
-            el('div', {}, el('div', { class: 'sym' }, Store.label(r.key)), el('div', { class: 'name' }, r.inst ? r.inst.name : ''))),
+            el('div', {}, el('div', { class: 'sym' }, Store.label(r.key)), el('div', { class: 'name' }, Store.code(r.key)))),
           el('div', { class: 'pos-val' },
             el('div', { class: 'mono' }, fmtMoney(r.valueBase, cur)),
             el('div', { class: 'small mono ' + trendClass(r.pnl) }, fmtSignedMoney(r.pnlBase, cur) + ' · ' + fmtPct(r.pnlPct)))),

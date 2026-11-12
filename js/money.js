@@ -124,7 +124,7 @@ Object.assign(App, {
     const sel = $('#planKey');
     const prev = sel.value;
     const keys = Object.keys(Store.state.instruments);
-    sel.replaceChildren(...keys.map(k => el('option', { value: k }, Store.label(k) + ' — ' + (Store.instrument(k).name || ''))));
+    sel.replaceChildren(...keys.map(k => el('option', { value: k }, Store.label(k) + ' — ' + Store.code(k))));
     if (keys.includes(prev)) sel.value = prev;
     const accs = Store.state.accounts;
     const accSel = $('#planAcc');
@@ -139,7 +139,7 @@ Object.assign(App, {
       const next = Portfolio.planNext(p);
       const active = p.active !== false;
       return el('tr', {},
-        el('td', {}, el('span', { class: 'sym' }, Store.label(p.key)), el('span', { class: 'name' }, (Store.instrument(p.key) || {}).name || '')),
+        el('td', {}, el('span', { class: 'sym' }, Store.label(p.key)), el('span', { class: 'name', title: (Store.instrument(p.key) || {}).name || '' }, Store.code(p.key))),
         el('td', { class: 'muted' }, Store.account(p.account).name),
         el('td', { class: 'num' }, fmtMoney(p.amount, cur), p.fractional ? el('div', { class: 'small muted' }, 'parts fractionnées') : null),
         el('td', { class: 'num' }, 'le ' + p.day),

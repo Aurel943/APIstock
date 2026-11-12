@@ -140,10 +140,18 @@ const Store = {
   defaultAccount() { return this.state.accounts[0].id; },
   account(id) { return this.state.accounts.find(a => a.id === id) || this.state.accounts[0]; },
 
+  // Libellé lisible : « Amundi PEA S&P 500 » plutôt que « PSP5 · XPAR ».
   label(key) {
     const i = this.instrument(key);
     if (!i) return key;
     if (i.short) return i.short;
+    return friendlyName(i.name, i.symbol) || this.code(key);
+  },
+
+  // Code technique (ticker · place de cotation), affiché en complément du libellé.
+  code(key) {
+    const i = this.instrument(key);
+    if (!i) return key;
     return i.symbol + (i.mic ? ' · ' + i.mic : '');
   },
 
