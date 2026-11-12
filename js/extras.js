@@ -250,7 +250,7 @@ Object.assign(App, {
 
   /** Découpe un texte CSV (séparateur ; , ou tabulation détecté sur la première ligne, guillemets gérés) */
   csvRows(text) {
-    text = text.replace(/^﻿/, '').replace(/\r\n?/g, '\n').trim();
+    text = text.replace(/^\ufeff/, '').replace(/\r\n?/g, '\n').trim();
     const first = text.split('\n')[0];
     const count = c => first.split(c).length - 1;
     const sep = first.includes('\t') && count('\t') > Math.max(count(';'), count(',')) ? '\t' : count(';') >= count(',') ? ';' : ',';
@@ -314,7 +314,7 @@ Object.assign(App, {
       if ((!split && !(rec.price > 0)) || !(rec.qty > 0)) { errors.push(`${line} : ${split ? 'parité' : 'quantité ou prix'} invalide`); return; }
       if (dedupe && rec.ref) { if (refs.has(rec.ref)) { dups++; return; } refs.add(rec.ref); }
       let mic = (rec.mic || '').toUpperCase();
-      if (mic && !MIC_TO_YAHOO_SUFFIX.hasOwnProperty(mic)) mic = YAHOO_EX_TO_MIC[mic] || CSV_PLACES[mic] || mic;
+      if (mic && !Object.hasOwn(MIC_TO_YAHOO_SUFFIX, mic)) mic = YAHOO_EX_TO_MIC[mic] || CSV_PLACES[mic] || mic;
       let key = null, isin = (rec.isin || '').toUpperCase();
       if (rec.symbol) {
         const symbol = rec.symbol.toUpperCase().split('.')[0];
@@ -357,7 +357,7 @@ Object.assign(App, {
           const t = /pea/i.test(a.name) ? 'pea' : /assurance|av\b/i.test(a.name) ? 'av' : /per\b/i.test(a.name) ? 'per' : /cto|titre/i.test(a.name) ? 'cto' : 'autre';
           Store.state.accounts.push({ id: a.id, name: a.name, type: t, taxRate: ACCOUNT_TYPES[t].rate });
         }
-        for (const [key, info] of Object.entries(pendingInst)) {
+        for (const info of Object.values(pendingInst)) {
           const useYahoo = Api.hasProxy() && MIC_TO_YAHOO_SUFFIX[info.mic] !== undefined && !(US_MICS.has(info.mic) && Api.hasKey());
           Store.upsertInstrument(Object.assign(info, useYahoo ? { provider: 'yahoo', ysymbol: info.symbol + MIC_TO_YAHOO_SUFFIX[info.mic] } : { provider: 'twelve' }));
         }
@@ -475,7 +475,7 @@ Object.assign(App, {
 /* Formats CSV des courtiers                                              */
 /* ==================================================================== */
 const csvNorm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z]/g, '');
-const csvNum = v => parseNum(String(v ?? '').replace(/[^\d,.\-]/g, '').replace(/\.(?=.*[.,])/g, ''));
+const csvNum = v => parseNum(String(v ?? '').replace(/[^\d,.-]/g, '').replace(/\.(?=.*[.,])/g, ''));
 const csvDate = v => {
   v = String(v || '').trim();
   let m = v.match(/^(\d{4})-(\d{2})-(\d{2})/); if (m) return `${m[1]}-${m[2]}-${m[3]}`;
