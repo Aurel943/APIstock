@@ -384,13 +384,18 @@ Object.assign(App, {
       const q = Api.cachedQuote(d.plan.key);
       const fx = inst ? Api.fxCached(inst.currency) : NaN;
       const est = q ? Portfolio.planShares(d.plan.amount, q.price, fx, d.plan.fractional) : 0;
-      items.push({ id: 'plan:' + d.plan.id + ':' + d.month, icon: '🗓', cls: 'plan',
+      items.push({ id: 'plan:' + d.plan.id + ':' + d.month, icon: '🗓', cls: 'plan', group: due.length > 1 ? 'plans' : undefined,
         title: `Versement programmé · ${Store.label(d.plan.key)} · ${fmtMoney(d.plan.amount, cur, 0)}`,
         sub: `Échéance du ${fmtDate(d.date)}` + (Store.state.accounts.length > 1 ? ' · ' + Store.account(d.plan.account).name : '') + (est ? ` · ≈ ${fmtQty(est)} part(s) au cours actuel` : ''),
         actions: [{ label: 'Enregistrer…', primary: true, fn: () => this.confirmPlan(d) }, { label: 'Ignorer', fn: () => this.skipPlan(d) }] });
     }
-    if (due.length > 1) items.unshift({ id: 'plan:all', icon: '⚡', cls: 'plan', title: `${due.length} achats programmés en attente`, sub: 'Les enregistrer tous au cours de clôture de chaque échéance',
-      actions: [{ label: 'Tout enregistrer', primary: true, fn: () => this.confirmAllPlans(due) }] });
+    if (due.length > 1) {
+      const total = due.reduce((s, d) => s + (parseNum(d.plan.amount) || 0), 0);
+      items.unshift({ id: 'plan:all', icon: '🗓', cls: 'plan', title: `${due.length} versements programmés à enregistrer`,
+        sub: `${fmtMoney(total, cur, 0)} au total, du ${fmtDate(due[0].date)} au ${fmtDate(due[due.length - 1].date)}`,
+        actions: [{ label: 'Tout enregistrer', primary: true, fn: () => this.confirmAllPlans(due) },
+          { label: this._todoPlansOpen ? 'Masquer le détail' : 'Détail', fn: () => { this._todoPlansOpen = !this._todoPlansOpen; this.renderTodo(true); } }] });
+    }
 
     for (const s of this.splitSuggestions()) {
       const tot = s.accounts.reduce((a, x) => a + x.qty, 0);
@@ -560,20 +565,29 @@ Object.assign(App, {
     if (!force && sig === this._todoSig) return;
     this._todoSig = sig;
     card.classList.toggle('hidden', !items.length);
-    $('#todoInfo').textContent = items.length ? items.length + ' élément(s)' : '';
     // pastille sur le sous-onglet « Synthèse », visible depuis les autres sous-onglets
     const tab = $('#pfSubnav [data-tab="synthese"]');
     if (tab) {
       let badge = tab.querySelector('.tab-badge');
       if (!badge) { badge = el('span', { class: 'tab-badge' }); tab.append(badge); }
-      badge.textContent = items.length || '';
-      badge.classList.toggle('hidden', !items.length);
-      badge.title = items.length ? items.length + ' élément(s) à faire' : '';
+      const n = items.filter(i => !i.group).length;
+      badge.textContent = n || '';
+      badge.classList.toggle('hidden', !n);
+      badge.title = n ? n + ' élément(s) à faire' : '';
     }
-    $('#todoList').replaceChildren(...items.map(i => el('li', { class: 'todo-item ' + (i.cls || '') },
+    const shown = items.filter(i => !i.group || this._todoPlansOpen);
+    const top = items.filter(i => !i.group).length;
+    const LIMIT = 3;
+    const visible = this._todoAllOpen || this._todoPlansOpen || shown.length <= LIMIT + 1 ? shown : shown.slice(0, LIMIT);
+    const row = i => el('li', { class: 'todo-item ' + (i.cls || '') + (i.group ? ' todo-sub' : '') },
       el('span', { class: 'todo-icon', 'aria-hidden': 'true' }, i.icon),
       el('div', { class: 'todo-text' }, el('b', {}, i.title), el('span', { class: 'muted small' }, i.sub)),
-      el('div', { class: 'todo-actions' }, ...i.actions.map(a => el('button', { class: 'btn small' + (a.primary ? ' primary' : ''), onclick: a.fn }, a.label))))));
+      el('div', { class: 'todo-actions' }, ...i.actions.map(a => el('button', { class: 'btn small' + (a.primary ? ' primary' : ''), onclick: a.fn }, a.label))));
+    $('#todoInfo').textContent = top + ' élément(s)';
+    $('#todoList').replaceChildren(...[...visible.map(row),
+      visible.length < shown.length ? el('li', { class: 'todo-more' }, el('button', { type: 'button', class: 'link small', onclick: () => { this._todoAllOpen = true; this.renderTodo(true); } }, `Voir les ${shown.length - visible.length} autres`))
+        : this._todoAllOpen && shown.length > LIMIT + 1 ? el('li', { class: 'todo-more' }, el('button', { type: 'button', class: 'link small', onclick: () => { this._todoAllOpen = false; this.renderTodo(true); } }, 'Réduire')) : null].filter(Boolean));
+
   },
 });
 

@@ -79,6 +79,8 @@ test('division : le nombre de parts est multiplié, le prix de revient total ne 
 test('versement programmé confirmé depuis « À faire »', () => run({ state: sampleState({
   plans: [{ id: 'p1', key: 'CW8@XPAR', account: 'pea', amount: 1500, day: 5, start: monthStart(-1), fractional: false, active: true, done: {} }],
 }) }, async ({ page }) => {
+  // deux échéances : une ligne récapitulative, le détail se déplie
+  await page.locator('#todoList .todo-item', { hasText: 'versements programmés à enregistrer' }).locator('button', { hasText: 'Détail' }).click();
   const item = page.locator('#todoList .todo-item.plan', { hasText: 'Versement programmé · Amundi MSCI World' }).first();
   await item.waitFor();
   await item.locator('button', { hasText: 'Enregistrer…' }).click();
@@ -101,7 +103,7 @@ test('mouvement d\'espèces : le solde du compte apparaît', () => run({ state: 
   await page.fill('#cashDate', '2024-01-02');
   await page.fill('#cashAmount', '5000');
   await page.click('#cashForm button[type=submit]');
-  await page.click('#pfSubnav [data-tab=patrimoine]');
+  await page.click('#pfSubnav [data-tab=synthese]');
   await page.waitForSelector('#cashCard:not(.hidden)');
   const s = await state(page);
   assert.equal(s.cashMoves.length, 1);
@@ -309,7 +311,7 @@ test('opérations filtrées, contribution des lignes et vente simulée', () => r
 test('menu « Plus » au clavier et indicateur hors ligne', () => run({ state: sampleState() }, async ({ page, context }) => {
   await page.focus('#tabMoreBtn');
   await page.keyboard.press('ArrowDown');
-  assert.equal(await page.evaluate(() => document.activeElement.dataset.view), 'agenda');
+  assert.equal(await page.evaluate(() => document.activeElement.dataset.view), 'catalog');
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');
@@ -351,9 +353,8 @@ test('agenda (filtres, export .ics) et bilan de santé', () => run({ state: samp
   const score = +(await page.locator('.health-ring b').innerText());
   assert.ok(score >= 0 && score <= 100, String(score));
   assert.ok(await page.locator('.health-item').count() >= 5);
-  // agenda depuis le menu « Plus »
-  await page.click('#tabMoreBtn');
-  await page.click('#tabMenu [data-view=agenda]');
+  // agenda : onglet principal
+  await page.click('.tabs > .tab[data-view=agenda]');
   await page.waitForSelector('#agendaList .agenda-item');
   assert.ok(await page.locator('#agendaList .agenda-item.plan').count() >= 11, 'versements des 12 prochains mois');
   await page.locator('#agendaKinds button', { hasText: 'Bourse' }).click();

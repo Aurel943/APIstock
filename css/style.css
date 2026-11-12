@@ -748,7 +748,6 @@ td.num .day-spark { display: block; margin: 4px 0 0 auto; }
 #view-portfolio[data-sub="synthese"] [data-sub]:not([data-sub~="synthese"]),
 #view-portfolio[data-sub="analyse"] [data-sub]:not([data-sub~="analyse"]),
 #view-portfolio[data-sub="revenus"] [data-sub]:not([data-sub~="revenus"]),
-#view-portfolio[data-sub="patrimoine"] [data-sub]:not([data-sub~="patrimoine"]),
 #view-portfolio[data-sub="operations"] [data-sub]:not([data-sub~="operations"]) { display: none; }
 .subnav { display: flex; width: fit-content; max-width: 100%; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
 .subnav::-webkit-scrollbar { display: none; }
@@ -887,3 +886,44 @@ details.advanced[open] > .stack { margin-top: 12px; }
 /* Fiche : moyennes mobiles */
 .detail-ind { margin-left: auto; margin-right: 8px; white-space: nowrap; }
 #view-catalog .tag { margin-left: 8px; }
+
+/* « À faire » : détail des versements en retrait, lien « Voir les autres » */
+.todo-item.todo-sub { padding-left: 18px; }
+.todo-item.todo-sub .todo-icon { opacity: .5; }
+.todo-more { list-style: none; padding: 8px 0 0; text-align: center; }
+
+/* Synthèse : évolution et répartition côte à côte */
+.grid-2.grid-evo { grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); }
+@media (max-width: 1000px) { .grid-2.grid-evo { grid-template-columns: minmax(0, 1fr); } }
+
+/* Fiche : séance du jour repliée */
+.session-details { margin-top: 10px; }
+.session-details > summary { cursor: pointer; font-size: 13px; color: var(--muted); list-style: none; }
+.session-details > summary::-webkit-details-marker { display: none; }
+.session-details > summary::before { content: "▸ "; }
+.session-details[open] > summary::before { content: "▾ "; }
+.session-details .stats { margin-top: 8px; }
+@media (max-width: 640px) { .sale-grid { grid-template-columns: 1fr 1fr; } .sale-line.sale-net { grid-column: 1 / -1; } }
+
+/* Changement d'écran fluide */
+@keyframes viewIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.view.active { animation: viewIn .18s ease-out; }
+@media (prefers-reduced-motion: reduce) { .view.active { animation: none; } }
+
+/* Sous-onglets du portefeuille sur téléphone : pleine largeur, libellés courts */
+.lbl-short { display: none; }
+@media (max-width: 640px) {
+  .subnav { width: 100%; }
+  .subnav button { flex: 1 1 0; padding: 7px 4px; font-size: 13px; }
+  .lbl-long { display: none; } .lbl-short { display: inline; }
+}
+
+/* Investir sur téléphone : les colonnes utiles d'abord, le champ « % cible » toujours visible */
+@media (max-width: 640px) {
+  #tgtTable th:nth-child(6), #tgtTable td:nth-child(6) { display: none; }
+  #tgtTable input { width: 64px; }
+  #tgtTable td, #tgtTable th { padding-left: 6px; padding-right: 6px; }
+  #plansTable th:nth-child(2), #plansTable td:nth-child(2),
+  #plansTable th:nth-child(4), #plansTable td:nth-child(4) { display: none; }
+  #alertTable th:nth-child(3), #alertTable td:nth-child(3) { display: none; }
+}

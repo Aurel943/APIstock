@@ -132,7 +132,8 @@ Object.assign(App, {
     const head = el('div', { class: 'rebal-head' },
       el('h3', {}, 'Rééquilibrage sans vente', infoTip('Comment revenir à ta cible en achetant seulement : pas de vente, donc pas d\'impôt sur un compte-titres. L\'alerte apparaît dans « À faire » quand une ligne s\'écarte de sa cible de plus du seuil (0 = jamais).')),
       el('label', { class: 'inline small' }, 'Alerte à', input, 'pt d\'écart'));
-    if (!info) { box.replaceChildren(head, el('p', { class: 'muted small' }, 'Disponible dès que ta cible fait 100 %.')); return; }
+    box.classList.toggle('hidden', !info);
+    if (!info) { box.replaceChildren(); return; }
     const worst = info.drift.lines.slice().sort((a, b) => Math.abs(b.gap) - Math.abs(a.gap))[0];
     const off = r.threshold > 0 && info.drift.max >= r.threshold;
     const buys = info.plan ? info.plan.lines.filter(o => o.trade > 0.5) : [];
