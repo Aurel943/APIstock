@@ -12,6 +12,7 @@ Object.assign(Api, {
    * Mis en cache 12 h. Renvoie { divs: [{date, amount}], splits: [{date, ratio}], currency }.
    */
   async events(key, startISO) {
+    if (Manual.is(key)) return { divs: [], splits: [], currency: (Store.instrument(key) || {}).currency };
     const ck = 'apistock:events:' + key;
     const from = [startISO || todayISO(), addDaysISO(todayISO(), -400)].sort()[0];
     let c = null;
@@ -404,7 +405,73 @@ Object.assign(App, {
           { label: 'Ignorer', fn: () => this.dismiss(d.id) }] });
     }
     if (this.rebalanceTodo) { const r = this.rebalanceTodo(); if (r) items.push(r); }
+    const recap = this.recapTodo();
+    if (recap) items.unshift(recap);
     return items;
+  },
+
+  /**
+   * Bilan du mois écoulé (performance, achats, dividendes, versements prévus) : affiché dans « À faire »
+   * pendant les 15 premiers jours du mois, jusqu'à ce que tu le marques comme vu.
+   */
+  monthRecap(today = todayISO()) {
+    const [y, m] = today.split('-').map(Number);
+    const prev = m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`;
+    const from = prev + '-01', to = prev + '-31';
+    const txs = Portfolio.txs();
+    if (!txs.some(t => t.date <= to)) return null; // rien à résumer avant ce mois-là
+    const fxOf = t => { const inst = Store.instrument(t.key); return Api.fxAt(inst ? inst.currency : this.base(), t.date); };
+    const inMonth = txs.filter(t => t.date >= from && t.date <= to);
+    const buys = inMonth.filter(t => t.type === 'buy');
+    const bought = buys.reduce((a, t) => a + (parseNum(t.qty) * parseNum(t.price) + (parseNum(t.fees) || 0)) * fxOf(t), 0);
+    const divs = inMonth.filter(t => t.type === 'div').reduce((a, t) => a + (parseNum(t.qty) * parseNum(t.price) - (parseNum(t.fees) || 0)) * fxOf(t), 0);
+    const planned = Store.state.plans.filter(p => p.active !== false).reduce((a, p) => a + (parseNum(p.amount) || 0), 0);
+    let perf = null, gain = null;
+    const pts = this.historyPoints;
+    if (pts && pts.length) {
+      const before = pts.filter(p => p.date < from).pop(), end = pts.filter(p => p.date <= to).pop();
+      if (end && end.date >= from) {
+        const v0 = before ? before.value : 0, i0 = before ? before.invested : 0;
+        gain = (end.value - v0) - (end.invested - i0);
+        const mr = Portfolio.monthlyReturns(Portfolio.twr(pts));
+        const yr = mr[prev.slice(0, 4)];
+        perf = yr ? yr.months[+prev.slice(5)] : null;
+      }
+    }
+    const label = new Date(from + 'T12:00:00Z').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+    return { month: prev, label, perf, gain, buys: buys.length, bought, divs, planned };
+  },
+
+  recapText(r) {
+    const cur = this.base();
+    const parts = [];
+    if (isFinite(r.gain)) parts.push(`${isFinite(r.perf) ? fmtPct(r.perf) + ' · ' : ''}${fmtSignedMoney(r.gain, cur)} sur le mois`);
+    parts.push(r.buys ? `${r.buys} achat(s) pour ${fmtMoney(r.bought, cur, 0)}` : 'aucun achat');
+    if (r.divs > 0) parts.push(`${fmtMoney(r.divs, cur)} de dividendes`);
+    if (r.planned > 0) parts.push(`${fmtMoney(r.planned, cur, 0)} de versements programmés ce mois-ci`);
+    return parts.join(' · ');
+  },
+
+  recapTodo(today = todayISO()) {
+    if (+today.slice(8, 10) > 15) return null;
+    const r = this.monthRecap(today);
+    if (!r) return null;
+    const id = 'recap:' + r.month;
+    if ((Store.state.dismissed || {})[id]) return null;
+    const title = 'Bilan de ' + r.label;
+    const text = this.recapText(r);
+    this.notifyRecap(r, title, text);
+    return { id, icon: '📊', cls: 'recap', title, sub: text + (isFinite(r.gain) ? '' : ' · performance affichée une fois l\'historique chargé'),
+      actions: [{ label: 'Vu', fn: () => this.dismiss(id) }] };
+  },
+
+  /** Notification du bilan, une fois par mois, si tu as autorisé les notifications (site ouvert) */
+  notifyRecap(r, title, body) {
+    if (!isFinite(r.gain) || typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+    try { if (localStorage.getItem('apistock:recapNotified') === r.month) return; localStorage.setItem('apistock:recapNotified', r.month); } catch (e) { return; }
+    const opts = { body, icon: 'icons/icon-192.png', tag: 'recap-' + r.month };
+    if (navigator.serviceWorker && navigator.serviceWorker.ready) navigator.serviceWorker.ready.then(reg => reg.showNotification(title, opts)).catch(() => {});
+    else { try { new Notification(title, opts); } catch (e) { /* notifications indisponibles */ } }
   },
 
   renderTodo(force = false) {
@@ -416,6 +483,15 @@ Object.assign(App, {
     this._todoSig = sig;
     card.classList.toggle('hidden', !items.length);
     $('#todoInfo').textContent = items.length ? items.length + ' élément(s)' : '';
+    // pastille sur le sous-onglet « Synthèse », visible depuis les autres sous-onglets
+    const tab = $('#pfSubnav [data-tab="synthese"]');
+    if (tab) {
+      let badge = tab.querySelector('.tab-badge');
+      if (!badge) { badge = el('span', { class: 'tab-badge' }); tab.append(badge); }
+      badge.textContent = items.length || '';
+      badge.classList.toggle('hidden', !items.length);
+      badge.title = items.length ? items.length + ' élément(s) à faire' : '';
+    }
     $('#todoList').replaceChildren(...items.map(i => el('li', { class: 'todo-item ' + (i.cls || '') },
       el('span', { class: 'todo-icon', 'aria-hidden': 'true' }, i.icon),
       el('div', { class: 'todo-text' }, el('b', {}, i.title), el('span', { class: 'muted small' }, i.sub)),

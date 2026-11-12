@@ -2,6 +2,24 @@
 'use strict';
 
 const Portfolio = {
+  /**
+   * Portefeuille « témoin » : chaque variation du montant investi (achat, vente au prix de revient) est placée
+   * dans l'indice de référence le même jour. Renvoie la valeur du témoin à chaque point (null avant le premier cours).
+   * `bench` : [[date, cours]] trié ; `fx(date)` : taux de la devise de l'indice vers la devise de base.
+   */
+  benchmark(points, bench, fx = () => 1) {
+    if (!bench || !bench.length) return points.map(() => null);
+    let j = -1, units = 0, prevInv = 0;
+    return points.map(p => {
+      while (j + 1 < bench.length && bench[j + 1][0] <= p.date) j++;
+      const px = j >= 0 ? bench[j][1] * fx(p.date) : (bench[0][1] * fx(bench[0][0]));
+      if (!(px > 0)) return null;
+      units += (p.invested - prevInv) / px;
+      prevInv = p.invested;
+      return Math.max(0, units * px);
+    });
+  },
+
   /** Opérations du compte sélectionné (ou de tous les comptes) */
   txs(account) {
     const acc = account === undefined ? Store.state.accountFilter || 'all' : account;

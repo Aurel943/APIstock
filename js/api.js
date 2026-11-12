@@ -47,6 +47,16 @@ function yahooSymbolFor(inst) {
   return suf === undefined ? null : inst.symbol + suf;
 }
 
+/** Message lisible pour une erreur technique (Yahoo, réseau) */
+function friendlyError(msg) {
+  const m = String(msg || '');
+  if (/no data found|delisted|not found|symbole introuvable|aucune donnée/i.test(m)) return 'cours indisponible (valeur inconnue ou retirée de la cote)';
+  if (/too many requests|429|rate limit/i.test(m)) return 'trop de requêtes, nouvel essai dans une minute';
+  if (/failed to fetch|networkerror|load failed|network request failed|err_internet|timeout|timed out/i.test(m)) return 'pas de connexion (internet ou relais indisponible)';
+  if (/invalid (symbol|range|interval)|unprocessable/i.test(m)) return 'demande refusée par Yahoo (symbole ou période non gérés)';
+  return m;
+}
+
 class ApiError extends Error {
   constructor(message, code) { super(message); this.code = code; }
 }
@@ -85,6 +95,7 @@ const Api = {
   ready() { return this.hasKey() || this.hasProxy(); },
   provider(key) {
     const i = Store.instrument(key);
+    if (i && i.provider === 'manual') return 'manual';
     if (i && i.provider !== 'yahoo' && !this.hasKey() && this.hasProxy()) this.switchToYahoo(key);
     return i && i.provider === 'yahoo' ? 'yahoo' : 'twelve';
   },
@@ -130,10 +141,10 @@ const Api = {
       const res = await fetch(url.toString());
       json = await res.json();
     } catch (e) {
-      throw new ApiError('Relais Yahoo injoignable : ' + e.message, 0);
+      throw new ApiError('Relais Yahoo injoignable : ' + friendlyError(e.message), 0);
     }
-    if (json && json.error) throw new ApiError('Yahoo : ' + (json.error.description || json.error.message || json.error), 0);
-    if (json && json.chart && json.chart.error) throw new ApiError('Yahoo : ' + (json.chart.error.description || 'symbole introuvable'), 404);
+    if (json && json.error) throw new ApiError(friendlyError(json.error.description || json.error.message || json.error), 0);
+    if (json && json.chart && json.chart.error) throw new ApiError(friendlyError(json.chart.error.description || 'symbole introuvable'), 404);
     return json;
   },
 
@@ -143,7 +154,7 @@ const Api = {
     if (!ysym) throw new ApiError('Symbole Yahoo inconnu pour ' + Store.label(key), 404);
     const json = await this.yahoo(Object.assign({ type: 'chart', symbol: ysym }, params));
     const r = json.chart && json.chart.result && json.chart.result[0];
-    if (!r) throw new ApiError('Yahoo : aucune donnée pour ' + ysym, 404);
+    if (!r) throw new ApiError('cours indisponible pour ' + ysym, 404);
     return r;
   },
 
@@ -190,7 +201,7 @@ const Api = {
           res = await fetch(url.toString());
           json = await res.json();
         } catch (e) {
-          throw new ApiError('Erreur réseau : ' + e.message, 0);
+          throw new ApiError(friendlyError(e.message), 0);
         }
         if (json && json.status === 'error') {
           if (json.code === 429 && attempt === 0) {
@@ -276,6 +287,12 @@ const Api = {
 
   /** Cotation temps réel (dernier prix, variation du jour…) */
   async quote(key) {
+    if (this.provider(key) === 'manual') {
+      const data = Manual.quote(key);
+      this.quotes[key] = { data, ts: Date.now() };
+      this.touch();
+      return data;
+    }
     if (this.provider(key) === 'yahoo') return this.yahooQuote(key);
     let q;
     try {
@@ -316,7 +333,7 @@ const Api = {
     if (c && Date.now() - c.ts < 30000) return c.data;
     const json = await this.yahoo({ type: 'chart', symbol: ysym, range: '1d', interval: '5m' });
     const r = json.chart && json.chart.result && json.chart.result[0];
-    if (!r) throw new ApiError('Yahoo : aucune donnée pour ' + ysym, 404);
+    if (!r) throw new ApiError('cours indisponible pour ' + ysym, 404);
     const data = this.parseYahoo(r);
     this.quotes[ck] = { data, ts: Date.now() };
     return data;
@@ -501,6 +518,7 @@ const Api = {
    * Mis en cache dans localStorage (6 h) pour économiser les crédits.
    */
   async daily(key, startDate) {
+    if (!key.startsWith('Y:') && this.provider(key) === 'manual') return Manual.daily(key, startDate);
     const cacheKey = 'apistock:daily:' + key;
     let cached = null;
     try { cached = JSON.parse(localStorage.getItem(cacheKey) || 'null'); } catch (e) { cached = null; }
@@ -517,7 +535,7 @@ const Api = {
       if (rawY) {
         const json = await this.yahoo(Object.assign({ type: 'chart', symbol: rawY }, params));
         r = json.chart && json.chart.result && json.chart.result[0];
-        if (!r) throw new ApiError('Yahoo : aucune donnée pour ' + rawY, 404);
+        if (!r) throw new ApiError('cours indisponible pour ' + rawY, 404);
       } else {
         r = await this.yahooChart(key, params);
       }
@@ -562,6 +580,7 @@ const Api = {
       '5J': { interval: '30min', outputsize: 90 },
       '1M': { days: 31 }, '6M': { days: 183 }, '1A': { days: 366 }, '5A': { days: 1830 }, 'MAX': { days: 365 * 20 },
     }[range];
+    if (this.provider(key) === 'manual') return Manual.daily(key, addDaysISO(todayISO(), -(cfg.days || 31)));
     if (cfg.interval) {
       const ck = key + range;
       const c = this.intraday[ck];

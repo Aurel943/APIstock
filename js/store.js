@@ -145,6 +145,7 @@ const Store = {
     const i = this.instrument(key);
     if (!i) return key;
     if (i.short) return i.short;
+    if (i.provider === 'manual') return i.name;
     return friendlyName(i.name, i.symbol) || this.code(key);
   },
 
@@ -152,6 +153,10 @@ const Store = {
   code(key) {
     const i = this.instrument(key);
     if (!i) return key;
+    if (i.provider === 'manual') {
+      const last = (i.values || []).map(v => v[0]).sort().pop();
+      return 'Valeur saisie' + (last ? ' le ' + fmtDate(last) : '');
+    }
     return i.symbol + (i.mic ? ' · ' + i.mic : '');
   },
 

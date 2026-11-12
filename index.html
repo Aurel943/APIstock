@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=d6d81bc0f0">
+  <link rel="stylesheet" href="css/style.css?v=6c5386e4ef">
 </head>
 <body>
   <header class="topbar">
@@ -25,17 +25,21 @@
     <nav class="tabs" role="tablist">
       <button class="tab active" data-view="portfolio">Portefeuille</button>
       <button class="tab" data-view="markets">Marchés</button>
-      <button class="tab" data-view="compare">Comparer</button>
-      <button class="tab" data-view="world">Monde</button>
       <button class="tab" data-view="invest">Investir</button>
-      <button class="tab" data-view="simulation">Simulation</button>
-      <button class="tab" data-view="settings">Réglages</button>
+      <button class="tab" data-view="world">Monde</button>
+      <div class="tab-more" id="tabMore">
+        <button class="tab-more-btn" id="tabMoreBtn" aria-haspopup="true" aria-expanded="false">Plus <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <div class="tab-menu" id="tabMenu" role="menu">
+          <button class="tab" data-view="compare" role="menuitem">Comparer</button>
+          <button class="tab" data-view="simulation" role="menuitem">Simulation</button>
+          <button class="tab" data-view="settings" role="menuitem">Réglages</button>
+        </div>
+      </div>
     </nav>
     <div class="status">
       <button id="marketState" class="pill" title="Horaires des marchés" data-goto="world">—</button>
       <span id="lastUpdate" class="muted small">Jamais mis à jour</span>
-      <span id="credits" class="pill mono" title="Crédits API utilisés sur la dernière minute">0/8</span>
-      <button id="reqToday" class="pill mono" data-goto="settings" title="Requêtes envoyées aujourd'hui depuis ce navigateur">0 req.</button>
+      <span id="refreshWarn" class="refresh-warn hidden" tabindex="0"></span>
       <button id="refreshBtn" class="btn icon" title="Rafraîchir maintenant" aria-label="Rafraîchir">
         <svg viewBox="0 0 24 24" width="18" height="18"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v4h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
@@ -131,6 +135,7 @@
           <h2>Évolution du portefeuille<button type="button" class="info" aria-label="Explication" data-tip="Reconstruite à partir de tes opérations et des cours de clôture (1 crédit par ETF, mis en cache 6 h).">i</button></h2>
           <div class="actions">
             <span class="muted small" id="historyInfo"></span>
+            <label class="check small"><input type="checkbox" id="histBench" checked> vs MSCI World<button type="button" class="info" aria-label="Explication" data-tip="Courbe orange : ce que vaudraient tes versements s'ils avaient été placés aux mêmes dates dans un ETF MSCI World (iShares IWDA, en euros). Permet de voir si tes choix font mieux ou moins bien que le marché mondial.">i</button></label>
             <button class="btn" id="loadHistoryBtn">Charger l'historique</button>
           </div>
         </div>
@@ -263,6 +268,7 @@
           <div class="detail-price" id="detailPrice"></div>
           <div class="chart-box wide"><canvas id="detailChart"></canvas></div>
           <div class="stats" id="detailStats"></div>
+          <div id="detailManual"></div>
           <div id="detailNews"></div>
         </div>
       </div>
@@ -623,30 +629,8 @@
       </div>
       <div class="grid-2">
         <div class="card">
-          <div class="card-head"><h2>Sources de données</h2></div>
+          <div class="card-head"><h2>Préférences</h2></div>
           <form id="settingsForm" class="stack">
-            <label><span class="lbl">Clé API Twelve Data<button type="button" class="info" aria-label="Explication" data-tip="Facultative : gratuite sur twelvedata.com, stockée uniquement dans ce navigateur. Sans clé, tout passe par Yahoo.">i</button></span>
-              <div class="inline">
-                <input type="password" id="setApiKey" autocomplete="off" placeholder="ta clé API" spellcheck="false">
-                <button type="button" class="btn small" id="toggleKey">Afficher</button>
-              </div>
-              <a class="small" href="https://twelvedata.com/pricing" target="_blank" rel="noopener">Obtenir une clé gratuite</a>
-            </label>
-            <label><span class="lbl">Relais Yahoo Finance<button type="button" class="info" aria-label="Explication" data-tip="Le forfait gratuit Twelve Data ne couvre pas Euronext, Xetra, etc. Ces ETF passent par Yahoo via ce relais (voir le README). Un relais par défaut est utilisé si le champ est vide.">i</button></span>
-              <div class="inline">
-                <input type="url" id="setProxy" autocomplete="off" placeholder="https://apistock-yahoo.xxx.workers.dev" spellcheck="false">
-                <button type="button" class="btn small" id="testProxy">Tester</button>
-              </div>
-              <b id="proxyStatus" class="up small"></b>
-            </label>
-            <div class="req-usage">
-              <div class="req-usage-head"><span class="lbl">Requêtes aujourd'hui<button type="button" class="info" aria-label="Explication" data-tip="Requêtes envoyées par ce navigateur. Le relais Yahoo a un quota gratuit de 100 000 requêtes par jour, partagé avec tous les visiteurs ; Twelve Data en autorise 800 par jour sur le forfait gratuit. Remis à zéro à minuit.">i</button></span><b id="reqTotal" class="mono">0</b></div>
-              <div class="bar"><span id="reqBar" style="width:0%"></span></div>
-              <span class="muted small" id="reqDetail"></span>
-              <div class="req-usage-head req-global"><span>Total du relais <span class="muted small">(tous les visiteurs)</span></span><b id="reqGlobal" class="mono">…</b></div>
-              <div class="bar"><span id="reqGlobalBar" style="width:0%"></span></div>
-              <span class="muted small" id="reqGlobalDetail"></span>
-            </div>
             <label>Devise de référence
               <select id="setCurrency">
                 <option>EUR</option><option>USD</option><option>GBP</option><option>CHF</option><option>CAD</option><option>JPY</option>
@@ -665,17 +649,42 @@
                 <option value="900">Toutes les 15 min</option>
               </select>
             </label>
-            <label><span class="lbl">Crédits API par minute (selon ton forfait)<button type="button" class="info" aria-label="Explication" data-tip="Forfait gratuit : 8 crédits/min et 800/jour. Chaque cotation coûte 1 crédit.">i</button></span>
-              <input type="number" id="setCredits" min="1" max="2000" value="8">
-              
-            </label>
             <label><span class="lbl">Taux sans risque (%)<button type="button" class="info" aria-label="Explication" data-tip="Rendement d&#x27;un placement sans risque (livret, monétaire), utilisé pour le ratio de Sharpe.">i</button></span>
               <input type="number" id="setRiskFree" min="0" max="20" step="0.1" value="2">
-              
             </label>
+            <details class="advanced" id="advancedSources">
+              <summary>Sources de données <span class="muted small">(avancé)</span></summary>
+              <div class="stack">
+                <label><span class="lbl">Clé API Twelve Data<button type="button" class="info" aria-label="Explication" data-tip="Facultative : gratuite sur twelvedata.com, stockée uniquement dans ce navigateur. Sans clé, tout passe par Yahoo.">i</button></span>
+                  <div class="inline">
+                    <input type="password" id="setApiKey" autocomplete="off" placeholder="ta clé API" spellcheck="false">
+                    <button type="button" class="btn small" id="toggleKey">Afficher</button>
+                  </div>
+                  <a class="small" href="https://twelvedata.com/pricing" target="_blank" rel="noopener">Obtenir une clé gratuite</a>
+                </label>
+                <label><span class="lbl">Relais Yahoo Finance<button type="button" class="info" aria-label="Explication" data-tip="Le forfait gratuit Twelve Data ne couvre pas Euronext, Xetra, etc. Ces ETF passent par Yahoo via ce relais (voir le README). Un relais par défaut est utilisé si le champ est vide.">i</button></span>
+                  <div class="inline">
+                    <input type="url" id="setProxy" autocomplete="off" placeholder="https://apistock-yahoo.xxx.workers.dev" spellcheck="false">
+                    <button type="button" class="btn small" id="testProxy">Tester</button>
+                  </div>
+                  <b id="proxyStatus" class="up small"></b>
+                </label>
+                <div class="req-usage">
+                  <div class="req-usage-head"><span class="lbl">Requêtes aujourd'hui<button type="button" class="info" aria-label="Explication" data-tip="Requêtes envoyées par ce navigateur. Le relais Yahoo a un quota gratuit de 100 000 requêtes par jour, partagé avec tous les visiteurs ; Twelve Data en autorise 800 par jour sur le forfait gratuit. Remis à zéro à minuit.">i</button></span><b id="reqTotal" class="mono">0</b></div>
+                  <div class="bar"><span id="reqBar" style="width:0%"></span></div>
+                  <span class="muted small" id="reqDetail"></span>
+                  <div class="req-usage-head req-global"><span>Total du relais <span class="muted small">(tous les visiteurs)</span></span><b id="reqGlobal" class="mono">…</b></div>
+                  <div class="bar"><span id="reqGlobalBar" style="width:0%"></span></div>
+                  <span class="muted small" id="reqGlobalDetail"></span>
+                </div>
+                <label><span class="lbl">Crédits API par minute (selon ton forfait)<button type="button" class="info" aria-label="Explication" data-tip="Forfait gratuit : 8 crédits/min et 800/jour. Chaque cotation coûte 1 crédit.">i</button></span>
+                  <input type="number" id="setCredits" min="1" max="2000" value="8">
+                </label>
+                <div class="actions"><button type="button" class="btn small" id="testKey">Tester la clé Twelve Data</button></div>
+              </div>
+            </details>
             <div class="actions">
               <button type="submit" class="btn primary">Enregistrer</button>
-              <button type="button" class="btn" id="testKey">Tester la clé</button>
             </div>
           </form>
         </div>
@@ -808,6 +817,23 @@
     </form>
   </dialog>
 
+  <!-- Placement sans cotation -->
+  <dialog id="manualDialog">
+    <form id="manualForm" class="stack">
+      <h2>Placement à valeur saisie<button type="button" class="info" aria-label="Explication" data-tip="Pour un produit structuré, un support d'assurance-vie ou un fonds sans cours en ligne. Tu mets sa valeur à jour à chaque relevé, depuis sa fiche (onglet Marchés) ; entre deux saisies, elle reste constante.">i</button></h2>
+      <div class="form-grid compact">
+        <label>Nom<input type="text" id="manualName" placeholder="ex. GS Luxury Leaders 2038" required></label>
+        <label>Devise<select id="manualCurrency"><option>EUR</option><option>USD</option><option>GBP</option><option>CHF</option></select></label>
+        <label><span class="lbl">Valeur d'une part<button type="button" class="info" aria-label="Explication" data-tip="La valeur unitaire indiquée sur ton relevé. Si tu ne connais que la valeur totale, saisis-la ici et enregistre ensuite un achat de 1 part.">i</button></span><input type="number" id="manualPrice" min="0" step="any" inputmode="decimal" required></label>
+        <label>Date de cette valeur<input type="date" id="manualDate" required></label>
+      </div>
+      <div class="actions end">
+        <button type="button" class="btn" id="manualCancel">Annuler</button>
+        <button type="submit" class="btn primary">Créer</button>
+      </div>
+    </form>
+  </dialog>
+
   <dialog id="assetDialog">
     <form id="assetForm" class="stack">
       <h2 id="assetDialogTitle">Ajouter un actif</h2>
@@ -864,22 +890,23 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-  <script src="js/utils.js?v=d6d81bc0f0"></script>
-  <script src="js/store.js?v=d6d81bc0f0"></script>
-  <script src="js/api.js?v=d6d81bc0f0"></script>
-  <script src="js/markets.js?v=d6d81bc0f0"></script>
-  <script src="js/portfolio.js?v=d6d81bc0f0"></script>
-  <script src="js/charts.js?v=d6d81bc0f0"></script>
-  <script src="js/app.js?v=d6d81bc0f0"></script>
-  <script src="js/views.js?v=d6d81bc0f0"></script>
-  <script src="js/compare.js?v=d6d81bc0f0"></script>
-  <script src="js/extras.js?v=d6d81bc0f0"></script>
-  <script src="js/mobile.js?v=d6d81bc0f0"></script>
-  <script src="js/features.js?v=d6d81bc0f0"></script>
-  <script src="js/money.js?v=d6d81bc0f0"></script>
-  <script src="js/newsart.js?v=d6d81bc0f0"></script>
-  <script src="js/insights.js?v=d6d81bc0f0"></script>
-  <script src="js/wealth.js?v=d6d81bc0f0"></script>
-  <script src="js/avis.js?v=d6d81bc0f0"></script>
+  <script src="js/utils.js?v=6c5386e4ef"></script>
+  <script src="js/store.js?v=6c5386e4ef"></script>
+  <script src="js/api.js?v=6c5386e4ef"></script>
+  <script src="js/markets.js?v=6c5386e4ef"></script>
+  <script src="js/portfolio.js?v=6c5386e4ef"></script>
+  <script src="js/charts.js?v=6c5386e4ef"></script>
+  <script src="js/app.js?v=6c5386e4ef"></script>
+  <script src="js/views.js?v=6c5386e4ef"></script>
+  <script src="js/compare.js?v=6c5386e4ef"></script>
+  <script src="js/extras.js?v=6c5386e4ef"></script>
+  <script src="js/mobile.js?v=6c5386e4ef"></script>
+  <script src="js/features.js?v=6c5386e4ef"></script>
+  <script src="js/money.js?v=6c5386e4ef"></script>
+  <script src="js/newsart.js?v=6c5386e4ef"></script>
+  <script src="js/insights.js?v=6c5386e4ef"></script>
+  <script src="js/wealth.js?v=6c5386e4ef"></script>
+  <script src="js/avis.js?v=6c5386e4ef"></script>
+  <script src="js/manual.js?v=6c5386e4ef"></script>
 </body>
 </html>
