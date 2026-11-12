@@ -118,6 +118,17 @@ const Tax = {
       taxFree: ratio > 0 ? Math.min(value, left / ratio) : value };
   },
 
+  /** Mois où le plafond du PEA serait atteint avec les versements programmés actifs de ce compte (null sans versement) */
+  peaCapDate(acc, deposits, cap, today = todayISO()) {
+    if (!acc || acc.type !== 'pea') return null;
+    const monthly = (Store.state.plans || []).filter(p => p.account === acc.id && p.active !== false).reduce((s, p) => s + (parseNum(p.amount) || 0), 0);
+    if (!(monthly > 0) || deposits >= cap) return null;
+    const months = Math.ceil((cap - deposits) / monthly);
+    const date = addMonthsISO(today, months);
+    const label = new Date(date + 'T12:00:00Z').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+    return { monthly, months, date, label };
+  },
+
   /**
    * PEA : versements estimés. On suppose que les ventes et dividendes restent dans le PEA
    * et financent les achats suivants : seul ce qui dépasse ce solde est un nouveau versement.
@@ -223,7 +234,11 @@ Object.assign(App, {
             el('span', { class: 'muted small' }, 'Versements ' + (p.manual ? '(saisis)' : p.tracked ? '(liquidités suivies)' : '(estimés)')),
             el('b', { class: 'mono' }, fmtMoney(p.deposits, cur, 0) + ' / ' + fmtMoney(PEA_CAP, cur, 0)),
             el('div', { class: 'bar' }, el('span', { class: pct >= 90 ? 'warn' : '', style: `width:${pct}%` })),
-            el('span', { class: 'muted small' }, p.deposits >= PEA_CAP ? 'Plafond atteint : plus de versement possible.' : 'Encore ' + fmtMoney(PEA_CAP - p.deposits, cur, 0) + ' de versements possibles.')),
+            el('span', { class: 'muted small' }, p.deposits >= PEA_CAP ? 'Plafond atteint : plus de versement possible.' : 'Encore ' + fmtMoney(PEA_CAP - p.deposits, cur, 0) + ' de versements possibles.'),
+            (() => {
+              const capAt = Tax.peaCapDate(a, p.deposits, PEA_CAP, today);
+              return capAt ? el('span', { class: 'muted small' }, `Au rythme de tes versements programmés (${fmtMoney(capAt.monthly, cur, 0)}/mois), plafond atteint vers ${capAt.label}.`) : null;
+            })()),
           el('div', { class: 'tax-stat' },
             el('span', { class: 'muted small' }, 'Cap des 5 ans'),
             el('b', { class: done ? 'up' : '' }, p.five ? (done ? '✔ Atteint depuis le ' + fmtDate(p.five) : fmtDate(p.five)) : '—'),

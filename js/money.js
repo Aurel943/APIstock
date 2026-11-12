@@ -408,6 +408,7 @@ Object.assign(App, {
     const recap = this.recapTodo();
     if (recap) items.unshift(recap);
     items.unshift(...this.backupTodos());
+    items.push(...this.manualTodos());
     return items;
   },
 
@@ -525,6 +526,28 @@ Object.assign(App, {
         actions: [{ label: 'Exporter maintenant', primary: true, fn: () => this.exportBackup() },
           { label: 'Synchronisation…', fn: () => { this.show('settings'); setTimeout(() => $('#syncCard').scrollIntoView({ behavior: 'smooth', block: 'center' }), 50); } },
           { label: 'Plus tard', fn: () => this.dismiss('backup:' + month) }] });
+    }
+    return out;
+  },
+
+  /** Placements à valeur saisie encore détenus dont la dernière valeur date de plus de 100 jours (un relevé trimestriel) */
+  manualTodos(today = todayISO()) {
+    const out = [];
+    if (typeof Manual === 'undefined') return out;
+    const held = new Set(Portfolio.positions('all').filter(p => p.qty > 0).map(p => p.key));
+    const dismissed = Store.state.dismissed || {};
+    for (const key of held) {
+      if (!Manual.is(key)) continue;
+      const last = Manual.last(key);
+      if (!last || addDaysISO(last[0], 100) > today) continue;
+      const id = 'manual:' + key + ':' + last[0];
+      if (dismissed[id]) continue;
+      out.push({ id, icon: '✏️', cls: 'manual', title: `Mets à jour la valeur de ${Store.label(key)}`,
+        sub: `Dernière valeur saisie le ${fmtDate(last[0])} (${fmtSpan(last[0], today)}). Reprends-la sur ton dernier relevé.`,
+        actions: [{ label: 'Mettre à jour', primary: true, fn: () => {
+          this.show('markets'); this.selectDetail(key);
+          setTimeout(() => { const f = $('#detailManual input[type=number]'); if (f) { f.scrollIntoView({ behavior: 'smooth', block: 'center' }); f.focus(); } }, 150);
+        } }, { label: 'Plus tard', fn: () => this.dismiss(id) }] });
     }
     return out;
   },

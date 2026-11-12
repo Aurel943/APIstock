@@ -93,6 +93,9 @@ const App = {
       setTimeout(() => toast('Site rechargé et à jour ✔', 'success', 3000), 300);
     }
     this.schedule();
+    window.addEventListener('offline', () => this.renderOffline());
+    window.addEventListener('online', () => { this.renderOffline(); this.refresh(); });
+    this.renderOffline();
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden && Date.now() - this.lastRefresh > Store.state.settings.refreshSec * 1000) this.refresh();
     });
@@ -104,6 +107,17 @@ const App = {
   bindNav() {
     $$('.tab').forEach(b => b.addEventListener('click', () => { this.show(b.dataset.view); this.toggleTabMenu(false); }));
     $('#tabMoreBtn').addEventListener('click', e => { e.stopPropagation(); this.toggleTabMenu(); });
+    const items = () => $$('#tabMenu .tab');
+    $('#tabMoreBtn').addEventListener('keydown', e => {
+      if (e.key === 'ArrowDown') { e.preventDefault(); this.toggleTabMenu(true); items()[0].focus(); }
+    });
+    $('#tabMenu').addEventListener('keydown', e => {
+      const list = items(), i = list.indexOf(document.activeElement);
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        list[(i + (e.key === 'ArrowDown' ? 1 : list.length - 1)) % list.length].focus();
+      } else if (e.key === 'Escape') { this.toggleTabMenu(false); $('#tabMoreBtn').focus(); }
+    });
     document.addEventListener('click', e => { if (!e.target.closest('#tabMore')) this.toggleTabMenu(false); });
     document.addEventListener('keydown', e => { if (e.key === 'Escape') this.toggleTabMenu(false); });
     $$('[data-goto]').forEach(b => b.addEventListener('click', () => this.show(b.dataset.goto)));
@@ -274,6 +288,16 @@ const App = {
   /* ------------------------------------------------------------------ */
   /* Rafraîchissement des cotations                                       */
   /* ------------------------------------------------------------------ */
+  /** Hors ligne : la barre du haut l'indique, avec l'heure des derniers cours connus */
+  renderOffline() {
+    const off = navigator.onLine === false;
+    document.documentElement.classList.toggle('offline', off);
+    const pill = $('#offlinePill');
+    if (!pill) return;
+    pill.classList.toggle('hidden', !off);
+    pill.title = off && this.lastRefresh ? 'Derniers cours : ' + fmtTime(this.lastRefresh) : 'Pas de connexion internet';
+  },
+
   async refresh(manual = false) {
     const res = await this._refresh(manual);
     this.emit('refreshed', manual);
@@ -281,6 +305,11 @@ const App = {
   },
 
   async _refresh(manual = false) {
+    if (navigator.onLine === false) {
+      this.renderOffline();
+      if (manual) toast('Pas de connexion : les cours affichés sont les derniers connus.', 'error', 4000);
+      return;
+    }
     if (!Api.ready()) { if (manual) toast('Configure d\'abord ta clé Twelve Data ou le relais Yahoo dans Réglages.', 'error'); return; }
     if (this.refreshing) return;
     const keys = Store.trackedKeys();
@@ -407,10 +436,10 @@ const App = {
     const gain = hasRealized || hasDivs ? totals.totalGain : totals.pnl;
     kpis.replaceChildren(...[
       this.kpi('Valeur actuelle', fmtMoney(totals.value, cur),
-        el('span', {}, `Aujourd'hui : ${fmtSignedMoney(totals.day, cur)} (${fmtPct(totals.dayPct)})`,
+        el('span', {}, el('span', { class: trendClass(totals.day) }, `Aujourd'hui : ${fmtSignedMoney(totals.day, cur)} (${fmtPct(totals.dayPct)})`),
           cash.tracked ? el('span', { class: 'kpi-line' }, 'Liquidités : ' + fmtMoney(cash.cash, cur)) : null,
           totals.missing ? el('span', { class: 'kpi-line down' }, totals.missing + ' cours manquant(s)') : null),
-        trendClass(totals.day), cash.tracked ? `Total avec espèces : ${fmtMoney(totals.value + cash.cash, cur)}` : ''),
+        '', cash.tracked ? `Total avec espèces : ${fmtMoney(totals.value + cash.cash, cur)}` : ''),
       this.kpi('Montant investi', fmtMoney(totals.cost, cur), `Frais inclus · ${rows.length} ligne(s)`),
       this.kpi(hasRealized || hasDivs ? 'Gain total' : 'Plus-value', fmtSignedMoney(gain, cur),
         fmtPct(totals.pnlPct) + ' sur tes lignes actuelles', trendClass(gain), gainTip),

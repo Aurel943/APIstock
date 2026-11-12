@@ -305,3 +305,18 @@ test('opérations filtrées, contribution des lignes et vente simulée', () => r
   await page.waitForFunction(() => /Net pour toi/.test(document.querySelector('#detailSale').innerText));
   assert.equal(await page.inputValue('#detailSale .sale-qty'), '1');
 }));
+
+test('menu « Plus » au clavier et indicateur hors ligne', () => run({ state: sampleState() }, async ({ page, context }) => {
+  await page.focus('#tabMoreBtn');
+  await page.keyboard.press('ArrowDown');
+  assert.equal(await page.evaluate(() => document.activeElement.dataset.view), 'compare');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  assert.equal(await page.evaluate(() => App.view), 'simulation');
+  assert.equal(await page.locator('#tabMore.open').count(), 0);
+  // hors ligne : pastille visible, pas de tentative de mise à jour
+  await context.setOffline(true);
+  await page.waitForSelector('#offlinePill:not(.hidden)');
+  await context.setOffline(false);
+  await page.waitForSelector('#offlinePill.hidden', { state: 'attached' });
+}));
