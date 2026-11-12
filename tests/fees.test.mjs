@@ -46,3 +46,14 @@ test('équivalents moins chers : même profil, TER plus bas, éligibles PEA si b
   assert.ok(pea.some(a => a.symbol === 'WPEA'));
   assert.deepEqual(plain(Expo.cheaper('SXR8@XETR')).map(a => a.symbol), ['SPY5', 'SPXS']); // VOO et IVV (américains) exclus
 });
+
+test('barème de courtage du compte : pourcentage, minimum, frais fixes, devise', () => {
+  const { Portfolio } = loadApp({ accounts: [{ id: 'pea', name: 'PEA', type: 'pea', taxRate: 18.6 }] });
+  const acc = { fees: { pct: 0.5, min: 1.99, fixed: 0 } };
+  assert.equal(Portfolio.brokerFee(acc, 1000), 5);        // 0,5 % de 1 000 €
+  assert.equal(Portfolio.brokerFee(acc, 200), 1.99);      // minimum
+  assert.equal(Portfolio.brokerFee({ fees: { pct: 0.1, min: 0, fixed: 1 } }, 500), 1.5);
+  assert.equal(Portfolio.brokerFee({ fees: { pct: 0, min: 2, fixed: 0 } }, 100, 0.5), 4); // minimum de 2 € = 4 unités d'une devise à 0,5 €
+  assert.equal(Portfolio.brokerFee({}, 1000), null);
+  assert.equal(Portfolio.brokerFee({ fees: { pct: '', min: '', fixed: '' } }, 1000), null);
+});

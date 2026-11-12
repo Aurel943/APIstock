@@ -2,6 +2,9 @@
  * fiscalité (PEA, compte-titres), exposition réelle des ETF et frais, synchronisation entre appareils. */
 'use strict';
 
+/* Assurance-vie : abattement annuel sur les gains rachetés après 8 ans (personne seule / couple soumis à imposition commune) */
+const AV_ALLOWANCE = { single: 4600, couple: 9200 };
+
 Object.assign(App, {
   /* ================================================================== */
   /* TEMPS RÉEL                                                           */
@@ -94,6 +97,28 @@ const Tax = {
   fxOf(key, date) { const i = Store.instrument(key); return Api.fxAt((i && i.currency) || Store.state.settings.baseCurrency, date); },
 
   /**
+   * Assurance-vie : passage des 8 ans, abattement annuel sur les gains des rachats (4 600 € seul, 9 200 € en couple)
+   * et montant qu'on peut racheter cette année sans impôt sur le revenu (les prélèvements sociaux restent dus).
+   * Un rachat contient une part de gains proportionnelle : gains du contrat / valeur du contrat.
+   */
+  av(acc, today = todayISO()) {
+    const txs = this.sortedTxs(acc.id);
+    const firstMove = Store.state.cashMoves.filter(m => (m.account || Store.defaultAccount()) === acc.id).reduce((m, x) => (!m || x.date < m ? x.date : m), '');
+    const open = acc.openDate || [firstMove, txs[0] && txs[0].date].filter(Boolean).sort()[0] || '';
+    const eight = open ? addYearsISO(open, 8) : '';
+    const allowance = acc.couple ? AV_ALLOWANCE.couple : AV_ALLOWANCE.single;
+    const year = today.slice(0, 4);
+    const used = Math.max(0, this.events(acc).sales.filter(s => s.date.slice(0, 4) === year).reduce((a, s) => a + s.gain, 0));
+    const { totals } = Portfolio.snapshot(acc.id);
+    const value = totals.value, gains = totals.value - totals.cost;
+    const ratio = value > 0 ? Math.max(0, gains / value) : 0;
+    const left = Math.max(0, allowance - used);
+    return { open, eight, done: !!eight && eight <= today, allowance, used, left, value, gains, ratio,
+      // rachat brut dont la part de gains épuise l'abattement restant (tout le contrat si le compte est en perte)
+      taxFree: ratio > 0 ? Math.min(value, left / ratio) : value };
+  },
+
+  /**
    * PEA : versements estimés. On suppose que les ventes et dividendes restent dans le PEA
    * et financent les achats suivants : seul ce qui dépasse ce solde est un nouveau versement.
    */
@@ -177,8 +202,9 @@ Object.assign(App, {
     const accs = Store.state.accounts;
     const peas = accs.filter(a => a.type === 'pea' && Tax.sortedTxs(a.id).length);
     const ctos = accs.filter(a => (a.type === 'cto' || a.type === 'autre') && Tax.sortedTxs(a.id).length);
-    card.classList.toggle('hidden', !peas.length && !ctos.length);
-    if (!peas.length && !ctos.length) return;
+    const avs = accs.filter(a => a.type === 'av' && Tax.sortedTxs(a.id).length);
+    card.classList.toggle('hidden', !peas.length && !ctos.length && !avs.length);
+    if (!peas.length && !ctos.length && !avs.length) return;
     const cur = this.base();
     const today = todayISO();
     const parts = [];
@@ -211,6 +237,38 @@ Object.assign(App, {
               el('input', { type: 'number', min: 0, step: 1, inputmode: 'decimal', placeholder: fmtNum(p.estimated, 0), value: p.manual ? a.peaDeposits : '',
                 onchange: e => save({ peaDeposits: e.target.value }) })))),
         noteTip('Estimation : achats moins ce que les ventes et dividendes ont rapporté dans le PEA. Saisis le montant exact (relevé de ton courtier) pour plus de précision ; par défaut, la date d\'ouverture est celle de ta première opération.')));
+    }
+
+    for (const a of avs) {
+      const v = Tax.av(a, today);
+      const save = patch => { Object.assign(a, patch); Store.save(); this.renderTax(); };
+      const pctUsed = Math.min(100, (v.used / v.allowance) * 100);
+      parts.push(el('div', { class: 'tax-block' },
+        el('h3', {}, a.name, /assurance|vie/i.test(a.name) ? null : el('span', { class: 'muted small' }, ' · Assurance-vie')),
+        el('div', { class: 'tax-grid' },
+          el('div', { class: 'tax-stat' },
+            el('span', { class: 'muted small' }, 'Passage des 8 ans'),
+            el('b', { class: v.done ? 'up' : '' }, v.eight ? (v.done ? '✔ Depuis le ' + fmtDate(v.eight) : fmtDate(v.eight)) : '—'),
+            el('span', { class: 'muted small' }, v.eight ? (v.done
+              ? `Gains rachetés : ${fmtNum(T.avIr8, 1)} % d'impôt au-delà de l'abattement, plus ${fmtNum(T.socialAv, 1)} % de prélèvements sociaux.`
+              : 'Dans ' + fmtSpan(today, v.eight) + `. Avant, les gains rachetés sont imposés à ${fmtNum(T.pfu, 1)} % (prélèvement forfaitaire unique), sans abattement.`) : '')),
+          el('div', { class: 'tax-stat' },
+            el('span', { class: 'muted small' }, `Abattement ${today.slice(0, 4)} restant`),
+            el('b', { class: 'mono' }, fmtMoney(v.left, cur, 0) + ' / ' + fmtMoney(v.allowance, cur, 0)),
+            el('div', { class: 'bar' }, el('span', { class: pctUsed >= 90 ? 'warn' : '', style: `width:${pctUsed}%` })),
+            el('span', { class: 'muted small' }, v.done
+              ? (v.used > 0 ? `${fmtMoney(v.used, cur, 0)} de gains déjà rachetés cette année.` : 'Aucun gain racheté cette année.')
+              : 'Utilisable après les 8 ans.')),
+          el('div', { class: 'tax-stat' },
+            el('span', { class: 'muted small' }, 'Rachat sans impôt sur le revenu', infoTip('Montant que tu peux retirer cette année sans impôt sur le revenu : un rachat contient une part de gains égale à gains ÷ valeur du contrat, et cette part doit rester sous l\'abattement. Les prélèvements sociaux restent dus sur les gains (souvent déjà prélevés chaque année sur le fonds euros). Versements avant le 27 septembre 2017 : règles différentes.')),
+            el('b', { class: v.done ? 'up mono' : 'mono' }, v.done ? '≈ ' + fmtMoney(v.taxFree, cur, 0) : '—'),
+            el('span', { class: 'muted small' }, v.value > 0 ? `Gains du contrat : ${fmtSignedMoney(v.gains, cur)} (${fmtPct(v.ratio * 100, 1, false)} de sa valeur)` : '')),
+          el('div', { class: 'tax-stat tax-edit' },
+            el('label', {}, el('span', { class: 'muted small' }, 'Date d\'ouverture du contrat'),
+              el('input', { type: 'date', value: v.open, max: today, onchange: e => save({ openDate: e.target.value }) })),
+            el('label', { class: 'check' }, el('input', { type: 'checkbox', checked: !!a.couple, onchange: e => save({ couple: e.target.checked }) }),
+              'En couple (9 200 €)', infoTip('Couple marié ou pacsé soumis à imposition commune : l\'abattement annuel passe de 4 600 € à 9 200 €.')))),
+        noteTip('Estimation sur les lignes suivies ici. Par défaut, la date d\'ouverture est celle de ta première opération : saisis la vraie date (elle figure sur tes relevés), c\'est elle qui compte pour les 8 ans. Ajoute tes supports avec « Placement à valeur saisie » s\'ils n\'ont pas de cours en ligne.')));
     }
 
     if (ctos.length) {
@@ -480,25 +538,32 @@ Object.assign(App, {
     if (us >= 60) notes.push(`🇺🇸 ${fmtNum(us, 0)} % de ton portefeuille dépend des actions américaines.`);
     const topSector = Object.entries(agg.sector).sort((a, b) => b[1] - a[1])[0];
     if (topSector && topSector[1] >= 30 && SECT[topSector[0]]) notes.push(`${SECT[topSector[0]]} : ${fmtNum(topSector[1], 0)} % du portefeuille, un secteur très représenté.`);
+    const partial = [];
     for (let i = 0; i < items.length; i++) for (let j = i + 1; j < items.length; j++) {
       const a = Expo.of(items[i].r.key).profile, b = Expo.of(items[j].r.key).profile;
       if (!EXPO_PROFILES[a].country || !EXPO_PROFILES[b].country) continue;
       const ov = a === b ? 100 : OVERLAP[[a, b].sort().join('|')];
-      if (ov >= 25) notes.push(`${Store.label(items[i].r.key)} et ${Store.label(items[j].r.key)} se recoupent à ~${fmtNum(ov, 0)} %`
-        + (a === b ? ' : ils suivent le même indice.' : ` (${EXPO_PROFILES[a].label} / ${EXPO_PROFILES[b].label}).`));
+      if (a === b) notes.push(`Doublon : ${Store.label(items[i].r.key)} et ${Store.label(items[j].r.key)} suivent le même indice.`);
+      else if (ov >= 25) partial.push(`${Store.label(items[i].r.key)} et ${Store.label(items[j].r.key)} : ~${fmtNum(ov, 0)} % de titres en commun (${EXPO_PROFILES[a].label} / ${EXPO_PROFILES[b].label}).`);
     }
+    if (partial.length) notes.push(el('span', {}, `${partial.length} paire(s) d'ETF se recoupent en partie`, infoTip(partial.join('\n'))));
+    const wasOpen = !!$('#expoDetail') && $('#expoDetail').open;
 
     $('#exposureBody').replaceChildren(
       notes.length ? el('ul', { class: 'expo-notes' }, ...notes.map(n => el('li', {}, n))) : null,
-      el('div', { class: 'expo-grid' }, bars('country', 'Pays', 7), bars('sector', 'Secteurs', 7), bars('ccy', 'Devises', 5)),
+      el('div', { class: 'expo-grid' }, bars('country', 'Pays', 5), bars('sector', 'Secteurs', 5), bars('ccy', 'Devises', 4)),
       el('div', { class: 'expo-fees' },
         this.kpi('Frais annuels des ETF', isFinite(avgTer) ? fmtMoney(fees, cur) + ' / an' : '—',
-          isFinite(avgTer) ? `TER moyen pondéré ${fmtNum(avgTer, 2)} % · ≈ ${fmtMoney(fees * 10, cur, 0)} sur 10 ans à valeur constante` : 'Renseigne les TER ci-dessous'),
-        unknownFee > 0 ? el('p', { class: 'muted small' }, `TER inconnu pour ${fmtNum(unknownFee / total * 100, 0)} % du portefeuille : saisis-le dans le tableau (il figure dans le DIC de l'ETF).`) : null),
-      el('div', { class: 'table-wrap' }, el('table', { class: 'data' },
-        el('thead', {}, el('tr', {}, el('th', {}, 'Ligne · exposition'), el('th', { class: 'num' }, 'TER %'), el('th', { class: 'num' }, 'Poids'), el('th', { class: 'num' }, 'Frais / an'))),
-        el('tbody', {}, ...rowsUi))),
-      this.feesLongTerm(items),
+          isFinite(avgTer) ? `TER moyen ${fmtNum(avgTer, 2)} %` : 'TER à renseigner dans le détail', '',
+          isFinite(avgTer) ? `Frais courants (TER) pondérés par le poids de chaque ligne. À valeur constante, ≈ ${fmtMoney(fees * 10, cur, 0)} sur 10 ans.` : ''),
+        unknownFee > 0 ? el('p', { class: 'muted small' }, `TER inconnu pour ${fmtNum(unknownFee / total * 100, 0)} % du portefeuille : à saisir dans le détail (il figure dans le DIC de l'ETF).`) : null),
+      el('details', { class: 'advanced expo-detail', id: 'expoDetail', open: wasOpen },
+        el('summary', {}, 'Détail par ligne, frais sur 10-20 ans et ETF moins chers'),
+        el('div', { class: 'stack' },
+          el('div', { class: 'table-wrap' }, el('table', { class: 'data' },
+            el('thead', {}, el('tr', {}, el('th', {}, 'Ligne · exposition'), el('th', { class: 'num' }, 'TER %'), el('th', { class: 'num' }, 'Poids'), el('th', { class: 'num' }, 'Frais / an'))),
+            el('tbody', {}, ...rowsUi))),
+          this.feesLongTerm(items))),
       noteTip('Répartitions approximatives des indices (ordre de grandeur 2025-2026) et TER indicatifs : vérifie-les sur la fiche de chaque ETF. Le recoupement est estimé à partir du poids des titres communs aux deux indices.', 'Sources et limites'));
   },
 });

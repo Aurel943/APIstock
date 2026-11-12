@@ -381,9 +381,9 @@ const App = {
     }
   },
 
-  kpi(label, value, sub, cls = '') {
+  kpi(label, value, sub, cls = '', tip = '') {
     return el('div', { class: 'kpi' },
-      el('div', { class: 'label' }, label),
+      el('div', { class: 'label' }, label, tip ? infoTip(tip) : null),
       el('div', { class: 'value ' + cls }, value),
       sub ? el('div', { class: 'sub ' + cls }, sub) : null);
   },
@@ -396,22 +396,30 @@ const App = {
     const net = Portfolio.netPnl();
     const kpis = $('#kpis');
     const cash = Portfolio.cashTotal();
+    // quatre chiffres clés ; le détail (jour, espèces, réalisé, dividendes, impôt) en sous-titre ou dans la bulle « i »
+    const hasRealized = Math.abs(totals.realized) > 0.005, hasDivs = totals.dividends > 0.005;
+    const gainTip = [
+      `Plus-value latente : ${fmtSignedMoney(totals.pnl, cur)} (${fmtPct(totals.pnlPct)})`,
+      hasRealized ? `Plus-values réalisées (ventes) : ${fmtSignedMoney(totals.realized, cur)}` : '',
+      hasDivs ? `Dividendes reçus : ${fmtMoney(totals.dividends, cur)} (${fmtPct(totals.cost > 0 ? (totals.dividends / totals.cost) * 100 : NaN, 2, false)} de l'investi)` : '',
+      net.taxed && totals.pnl > 0 ? `Plus-value latente nette d'impôt estimée : ${fmtSignedMoney(net.net, cur)}` : '',
+    ].filter(Boolean).join('\n');
+    const gain = hasRealized || hasDivs ? totals.totalGain : totals.pnl;
     kpis.replaceChildren(...[
-      this.kpi('Valeur actuelle', fmtMoney(totals.value, cur), totals.missing ? totals.missing + ' cours manquant(s)' : rows.length + ' ligne(s)'),
-      cash.tracked ? this.kpi('Liquidités', fmtMoney(cash.cash, cur), 'Total avec espèces : ' + fmtMoney(totals.value + cash.cash, cur), cash.cash < -0.005 ? 'down' : '') : null,
-      this.kpi('Montant investi', fmtMoney(totals.cost, cur), 'Frais inclus'),
-      this.kpi('Plus-value latente', fmtSignedMoney(totals.pnl, cur),
-        fmtPct(totals.pnlPct) + (net.taxed && totals.pnl > 0 ? ' · net d\'impôt ≈ ' + fmtSignedMoney(net.net, cur) : ''), trendClass(totals.pnl)),
+      this.kpi('Valeur actuelle', fmtMoney(totals.value, cur),
+        el('span', {}, `Aujourd'hui : ${fmtSignedMoney(totals.day, cur)} (${fmtPct(totals.dayPct)})`,
+          cash.tracked ? el('span', { class: 'kpi-line' }, 'Liquidités : ' + fmtMoney(cash.cash, cur)) : null,
+          totals.missing ? el('span', { class: 'kpi-line down' }, totals.missing + ' cours manquant(s)') : null),
+        trendClass(totals.day), cash.tracked ? `Total avec espèces : ${fmtMoney(totals.value + cash.cash, cur)}` : ''),
+      this.kpi('Montant investi', fmtMoney(totals.cost, cur), `Frais inclus · ${rows.length} ligne(s)`),
+      this.kpi(hasRealized || hasDivs ? 'Gain total' : 'Plus-value', fmtSignedMoney(gain, cur),
+        fmtPct(totals.pnlPct) + ' sur tes lignes actuelles', trendClass(gain), gainTip),
       (() => {
         const x = rows.length ? Portfolio.portfolioXirr(totals.value) : NaN;
         const first = Portfolio.txs().reduce((m, t) => (t.date < m ? t.date : m), todayISO());
-        return this.kpi('Rendement annualisé', isFinite(x) ? fmtPct(x) : '—', isFinite(x) ? 'XIRR depuis le ' + fmtDate(first) : 'Pas assez d\'historique', trendClass(x));
+        return this.kpi('Rendement annualisé', isFinite(x) ? fmtPct(x) : '—', isFinite(x) ? 'depuis le ' + fmtDate(first) : 'Pas assez d\'historique', trendClass(x),
+          'Taux de rendement interne (XIRR) : rendement moyen par an, qui tient compte de la date et du montant de chacun de tes versements.');
       })(),
-      this.kpi('Variation du jour', fmtSignedMoney(totals.day, cur), fmtPct(totals.dayPct), trendClass(totals.day)),
-      totals.dividends > 0.005 ? this.kpi('Dividendes reçus', fmtMoney(totals.dividends, cur),
-        'Rendement sur investi : ' + fmtPct(totals.cost > 0 ? (totals.dividends / totals.cost) * 100 : NaN, 2, false), 'up') : null,
-      Math.abs(totals.realized) > 0.005 || totals.dividends > 0.005 ? this.kpi('Gain total', fmtSignedMoney(totals.totalGain, cur),
-        ['Latent', Math.abs(totals.realized) > 0.005 ? 'réalisé (' + fmtSignedMoney(totals.realized, cur) + ')' : '', totals.dividends > 0.005 ? 'dividendes' : ''].filter(Boolean).join(' + '), trendClass(totals.totalGain)) : null,
     ].filter(Boolean));
     this.renderAccountsSummary();
     this.renderGoal();
@@ -636,7 +644,8 @@ const App = {
     const dlg = $('#txDialog');
     $('#txCancel').addEventListener('click', () => dlg.close());
     dlg.addEventListener('close', () => { this.txPlanRef = null; });
-    ['#txQty', '#txPrice', '#txFees', '#txType', '#txAccount'].forEach(s => $(s).addEventListener('input', () => this.updateTxTotal()));
+    ['#txQty', '#txPrice', '#txType', '#txAccount'].forEach(s => $(s).addEventListener('input', () => { this.autoTxFees(); this.updateTxTotal(); }));
+    $('#txFees').addEventListener('input', () => { this._feesTouched = true; $('#txFeesAuto').classList.add('hidden'); this.updateTxTotal(); });
     $('#txType').addEventListener('change', () => this.syncTxType());
     $('#txForm').addEventListener('submit', e => {
       e.preventDefault();
@@ -682,6 +691,8 @@ const App = {
     $('#txQty').value = tx ? tx.qty : '';
     $('#txPrice').value = tx ? tx.price : '';
     $('#txFees').value = tx ? (tx.fees || 0) : 0;
+    this._feesTouched = !!tx; // une opération existante garde ses frais
+    $('#txFeesAuto').classList.add('hidden');
     $('#txNote').value = tx ? (tx.note || '') : '';
     const accs = Store.state.accounts;
     $('#txAccount').replaceChildren(...accs.map(a => el('option', { value: a.id }, a.name)));
@@ -707,6 +718,7 @@ const App = {
       const q = Api.cachedQuote(key);
       if (q && !$('#txPrice').value && $('#txType').value !== 'div' && $('#txType').value !== 'split') $('#txPrice').value = q.price;
     }
+    this.autoTxFees();
     this.updateTxTotal();
   },
 
@@ -723,6 +735,18 @@ const App = {
     $('#txPriceLabel').textContent = div ? 'Montant brut reçu' : 'Prix unitaire';
     $('#txFeesLabel').textContent = div ? 'Retenue / prélèvements' : 'Frais';
     this.updateTxTotal();
+  },
+
+  /** Frais de l'ordre d'après le barème du compte (achat ou vente), sauf s'ils ont été saisis à la main */
+  autoTxFees() {
+    const type = $('#txType').value;
+    if (this._feesTouched || (type !== 'buy' && type !== 'sell')) { $('#txFeesAuto').classList.add('hidden'); return; }
+    const acc = Store.account($('#txAccount').value || Store.defaultAccount());
+    const inst = this.txInstrument ? Store.instrument(this.txInstrument) : null;
+    const fx = inst ? Api.fxCached(inst.currency) : 1;
+    const fee = Portfolio.brokerFee(acc, parseNum($('#txQty').value) * parseNum($('#txPrice').value), isFinite(fx) && fx > 0 ? fx : 1);
+    $('#txFeesAuto').classList.toggle('hidden', fee === null);
+    if (fee !== null) $('#txFees').value = fee;
   },
 
   updateTxTotal() {
@@ -1176,12 +1200,7 @@ const App = {
       }
     });
 
-    $('#exportBtn').addEventListener('click', () => {
-      const blob = new Blob([Store.exportJSON()], { type: 'application/json' });
-      const a = el('a', { href: URL.createObjectURL(blob), download: 'apistock-' + todayISO() + '.json' });
-      document.body.append(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-    });
+    $('#exportBtn').addEventListener('click', () => this.exportBackup());
 
     $('#importFile').addEventListener('change', async e => {
       const file = e.target.files[0];

@@ -4,7 +4,7 @@
  */
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { chromium, startServer, openApp, sampleState } from './helpers.mjs';
+import { chromium, startServer, openApp, sampleState, realCharts } from './helpers.mjs';
 
 const VIEWS = ['portfolio', 'markets', 'compare', 'world', 'invest', 'simulation', 'settings'];
 let server, url, browser;
@@ -238,4 +238,45 @@ test('placement à valeur saisie : création, achat, mise à jour de la valeur',
   await page.click('#detailManual button[type=submit]');
   await page.waitForFunction(k => { const p = Portfolio.snapshot().rows.find(r => r.key === k); return p && Math.abs(p.valueBase - 3300) < 0.01; }, key);
   assert.equal(await page.locator('#detailManual tbody tr').count(), 2);
+}));
+
+test('graphique d\'évolution dessiné avec la courbe « mêmes versements dans le MSCI World »', { skip: !realCharts && 'Chart.js non installé (npm install --no-save chart.js@4.4.1)' }, () => run({ state: sampleState() }, async ({ page }) => {
+  // chargé tout seul (relais Yahoo simulé), sans clic sur « Charger l'historique »
+  await page.waitForFunction(() => window.Chart && Chart.getChart('historyChart'), null, { timeout: 15000 });
+  const info = await page.evaluate(() => {
+    const c = Chart.getChart('historyChart');
+    const ds = c.data.datasets;
+    const bench = ds.find(d => /MSCI World/.test(d.label));
+    return { n: ds.length, labels: ds.map(d => d.label), points: c.data.labels.length,
+      benchOk: !!bench && bench.data.filter(v => v > 0).length > 0.9 * bench.data.length,
+      drawn: c.canvas.width > 0 && c.getDatasetMeta(0).data.length === c.data.labels.length };
+  });
+  assert.equal(info.n, 3, JSON.stringify(info.labels));
+  assert.ok(info.points > 100, 'historique de plus de 100 jours');
+  assert.ok(info.benchOk, 'courbe MSCI World renseignée');
+  assert.ok(info.drawn, 'graphique dessiné');
+  assert.match(await page.locator('#historyInfo').innerText(), /vs MSCI World/);
+  // option désactivée : plus que deux courbes
+  await page.uncheck('#histBench');
+  await page.waitForFunction(() => Chart.getChart('historyChart') && Chart.getChart('historyChart').data.datasets.length === 2);
+}));
+
+test('frais de courtage calculés avec le barème du compte, sauf saisie manuelle', () => run({ state: sampleState({ accounts: [
+  { id: 'pea', name: 'PEA', type: 'pea', taxRate: 18.6, fees: { pct: 0.5, min: 1.99, fixed: 0 } },
+  { id: 'cto', name: 'Compte-titres', type: 'cto', taxRate: 31.4 }] }) }, async ({ page }) => {
+  await page.click('#addTxBtn');
+  await page.locator('#txInstrument button', { hasText: 'BNP Paribas Easy S&P 500' }).click();
+  await page.selectOption('#txAccount', 'pea');
+  await page.fill('#txPrice', '30');
+  await page.fill('#txQty', '100');                 // 3 000 € × 0,5 %
+  assert.equal(await page.inputValue('#txFees'), '15');
+  assert.ok(await page.locator('#txFeesAuto').isVisible());
+  await page.fill('#txQty', '10');                  // 300 € : minimum 1,99 €
+  assert.equal(await page.inputValue('#txFees'), '1.99');
+  await page.selectOption('#txAccount', 'cto');     // pas de barème : frais laissés tels quels
+  assert.ok(!(await page.locator('#txFeesAuto').isVisible()));
+  await page.selectOption('#txAccount', 'pea');
+  await page.fill('#txFees', '0.5');                // saisie manuelle : plus de recalcul
+  await page.fill('#txQty', '200');
+  assert.equal(await page.inputValue('#txFees'), '0.5');
 }));
