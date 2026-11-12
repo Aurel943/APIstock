@@ -1,9 +1,9 @@
 /* Service worker : rend le site installable et utilisable hors-ligne (dernières données en cache).
  * Stratégie « réseau d'abord » pour les fichiers du site, afin de toujours récupérer la dernière version. */
-const CACHE = 'apistock-e6456b40b1'; // calculé par scripts/sw-version.mjs (ne pas modifier à la main)
+const CACHE = 'apistock-e3724e471b'; // calculé par scripts/sw-version.mjs (ne pas modifier à la main)
 const ASSETS = ['./', 'index.html', 'css/style.css', 'js/utils.js', 'js/store.js', 'js/api.js', 'js/markets.js',
   'js/portfolio.js', 'js/charts.js', 'js/app.js', 'js/views.js', 'js/compare.js', 'js/extras.js', 'js/mobile.js', 'js/features.js',
-  'js/money.js', 'js/newsart.js', 'js/insights.js', 'js/wealth.js', 'js/avis.js', 'js/manual.js', 'js/health.js', 'js/agenda.js', 'js/catalog.js', 'manifest.webmanifest', 'icons/icon-192.png'];
+  'js/money.js', 'js/newsart.js', 'js/insights.js', 'js/wealth.js', 'js/avis.js', 'js/manual.js', 'js/health.js', 'js/agenda.js', 'js/catalog.js', 'js/goals.js', 'manifest.webmanifest', 'icons/icon-192.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));

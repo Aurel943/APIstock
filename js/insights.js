@@ -514,7 +514,13 @@ ${snap.rows.map(r => row(esc(Store.label(r.key)) + `<small>${esc(Store.code(r.ke
     return Store.state.alerts.filter(a => a.active).map(a => {
       const inst = Store.instrument(a.key);
       const s = inst && yahooSymbolFor(inst);
-      return s ? { id: a.id, s, k: a.kind, v: a.value, t: Store.label(a.key) + ' : ' + this.alertText(a) } : null;
+      if (!s) return null;
+      const t = Store.label(a.key) + ' : ' + this.alertText(a);
+      if (['belowPru', 'fromHigh', 'belowMa200'].includes(a.kind)) {
+        const th = this.alertThreshold(a); // seuil du jour, renvoyé au relais à chaque synchronisation
+        return isFinite(th) ? { id: a.id, s, k: 'below', v: Math.round(th * 1000) / 1000, t } : null;
+      }
+      return { id: a.id, s, k: a.kind, v: a.value, t };
     }).filter(Boolean);
   },
 

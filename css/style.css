@@ -927,3 +927,27 @@ details.advanced[open] > .stack { margin-top: 12px; }
   #plansTable th:nth-child(4), #plansTable td:nth-child(4) { display: none; }
   #alertTable th:nth-child(3), #alertTable td:nth-child(3) { display: none; }
 }
+
+/* Objectifs */
+.goal-list { display: flex; flex-direction: column; gap: 14px; }
+.goal-item { padding: 14px; border: 1px solid var(--border); border-radius: 12px; }
+.goal-item.editing { border-color: var(--accent); }
+.goal-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.goal-head > div { flex: 1 1 200px; min-width: 0; }
+.goal-name { font-size: 15px; }
+.goal-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+.goal-stats > div { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; background: var(--surface-2); border-radius: 10px; font-size: 12px; color: var(--muted); }
+.goal-stats b { font: 600 16px/1.2 "JetBrains Mono", monospace; color: var(--text); }
+.goal-stats b.up { color: var(--up); } .goal-stats b.down { color: var(--down); }
+.goal-form { margin-top: 12px; }
+.goal-accs { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; }
+.goal-accs legend { font-size: 13px; padding: 0; margin-bottom: 4px; }
+@media (max-width: 640px) {
+  .goal-stats { gap: 6px; }
+  .goal-stats > div { padding: 8px; font-size: 11px; }
+  .goal-stats b { font-size: 13px; }
+  .goal-stats small { display: none; }
+  .goal-head { gap: 6px 10px; }
+}
+.goal-item .goal-bar { margin: 2px 0 6px; height: 22px; }
+.goal-item .goal-legend { margin-bottom: 0; }

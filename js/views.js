@@ -335,7 +335,8 @@ Object.assign(App, {
   bindAlerts() {
     $('#alertForm').addEventListener('submit', e => {
       e.preventDefault();
-      const value = parseNum($('#alertValue').value);
+      const noValue = this.ALERT_NO_VALUE.includes($('#alertKind').value);
+      const value = noValue ? 0 : parseNum($('#alertValue').value);
       if (!$('#alertKey').value || !(value >= 0)) return;
       Store.state.alerts.push({ id: uid(), key: $('#alertKey').value, kind: $('#alertKind').value, value, active: true, createdAt: Date.now() });
       Store.save();
@@ -345,6 +346,14 @@ Object.assign(App, {
       const q = Api.cachedQuote($('#alertKey').value);
       if (q) this.checkAlerts($('#alertKey').value, q);
     });
+    const syncKind = () => {
+      const noValue = this.ALERT_NO_VALUE.includes($('#alertKind').value);
+      $('#alertValue').classList.toggle('hidden', noValue);
+      $('#alertValue').required = !noValue;
+      $('#alertValue').placeholder = $('#alertKind').value === 'fromHigh' ? 'ex. 10 (%)' : 'Valeur';
+    };
+    $('#alertKind').addEventListener('change', syncKind);
+    syncKind();
     $('#alertKey').addEventListener('change', () => {
       const q = Api.cachedQuote($('#alertKey').value);
       $('#alertValue').placeholder = q ? 'Cours actuel : ' + fmtNum(q.price, 3) : 'Valeur';
@@ -357,11 +366,45 @@ Object.assign(App, {
     });
   },
 
+  /** Alertes sans valeur saisie : le seuil vient de la ligne elle-même */
+  ALERT_NO_VALUE: ['belowPru', 'belowMa200'],
+
+  /** Seuil de prix (devise de l'instrument) d'une alerte dérivée ; NaN s'il n'est pas encore connu */
+  alertThreshold(a, q = Api.cachedQuote(a.key)) {
+    if (a.kind === 'belowPru') {
+      const pos = Portfolio.positions('all').find(p => p.key === a.key);
+      return pos && pos.qty > 0 ? pos.pru : NaN;
+    }
+    if (a.kind === 'fromHigh') return q && isFinite(q.high52) ? q.high52 * (1 - a.value / 100) : NaN;
+    if (a.kind === 'belowMa200') return this.ma200(a.key);
+    return NaN;
+  },
+
+  /** Moyenne 200 jours d'une ligne, calculée une fois par jour à partir de l'historique (chargé au besoin) */
+  ma200(key) {
+    this._ma = this._ma || {};
+    const day = todayISO(), c = this._ma[key];
+    if (c && c.day === day) return c.value;
+    if (!c || c.day !== day) {
+      this._ma[key] = { day, value: c ? c.value : NaN };
+      Api.daily(key, addDaysISO(day, -320)).then(series => {
+        const ma = Portfolio.movingAverage(series.map(v => v[1]), 200);
+        this._ma[key] = { day, value: ma.length ? ma[ma.length - 1] ?? NaN : NaN };
+        const q = Api.cachedQuote(key);
+        if (q) this.checkAlerts(key, q);
+        this.renderAlerts();
+      }).catch(() => { /* historique indisponible : l'alerte attend */ });
+    }
+    return this._ma[key].value;
+  },
+
   alertText(a) {
     const inst = Store.instrument(a.key);
     const ccy = inst ? inst.currency : this.base();
     return { above: `Cours ≥ ${fmtMoney(a.value, ccy, 3)}`, below: `Cours ≤ ${fmtMoney(a.value, ccy, 3)}`,
-      dayUp: `Hausse du jour ≥ ${fmtNum(a.value, 2)} %`, dayDown: `Baisse du jour ≥ ${fmtNum(a.value, 2)} %` }[a.kind];
+      dayUp: `Hausse du jour ≥ ${fmtNum(a.value, 2)} %`, dayDown: `Baisse du jour ≥ ${fmtNum(a.value, 2)} %`,
+      fromHigh: `Baisse ≥ ${fmtNum(a.value, 1)} % depuis le plus haut 1 an`, belowPru: 'Sous mon prix de revient', belowMa200: 'Sous la moyenne 200 jours' }[a.kind]
+      + (['belowPru', 'fromHigh', 'belowMa200'].includes(a.kind) && isFinite(this.alertThreshold(a)) ? ` (${fmtMoney(this.alertThreshold(a), ccy, 3)})` : '');
   },
 
   renderAlerts() {
@@ -400,8 +443,10 @@ Object.assign(App, {
     let fired = false;
     for (const a of Store.state.alerts) {
       if (!a.active || a.key !== key) continue;
+      const th = ['belowPru', 'fromHigh', 'belowMa200'].includes(a.kind) ? this.alertThreshold(a, q) : NaN;
       const hit = (a.kind === 'above' && q.price >= a.value) || (a.kind === 'below' && q.price <= a.value) ||
-        (a.kind === 'dayUp' && q.percentChange >= a.value) || (a.kind === 'dayDown' && q.percentChange <= -a.value);
+        (a.kind === 'dayUp' && q.percentChange >= a.value) || (a.kind === 'dayDown' && q.percentChange <= -a.value) ||
+        (isFinite(th) && q.price <= th);
       if (!hit) continue;
       a.active = false; a.triggeredAt = Date.now(); fired = true;
       const inst = Store.instrument(key);
