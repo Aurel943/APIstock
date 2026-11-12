@@ -868,3 +868,22 @@ details.advanced[open] > .stack { margin-top: 12px; }
 .agenda-date b { font: 600 18px/1 "JetBrains Mono", monospace; } .agenda-date span { font-size: 11px; color: var(--muted); }
 .agenda-icon { font-size: 18px; text-align: center; }
 .agenda-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+/* Catalogue d'ETF et portefeuilles types */
+.catalog-opts { margin-bottom: 4px; }
+.model-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.model-card { display: flex; flex-direction: column; gap: 8px; padding: 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+.model-card p { margin: 0; }
+.model-card .btn { align-self: flex-start; margin-top: auto; }
+.model-head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.model-bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: var(--surface-2); }
+.model-lines { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.model-lines li { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.model-lines li > b + span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.model-lines li { grid-template-columns: 10px auto minmax(0, 1fr) auto; }
+.model-lines .dot { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+.catalog-zones { margin-bottom: 10px; max-width: 100%; }
+#view-catalog h3 { display: flex; align-items: center; }
+/* Fiche : moyennes mobiles */
+.detail-ind { margin-left: auto; margin-right: 8px; white-space: nowrap; }
+#view-catalog .tag { margin-left: 8px; }
