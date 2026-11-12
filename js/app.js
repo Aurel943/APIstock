@@ -64,6 +64,15 @@ const App = {
     this.bindCsv();
     this.bindMobile();
     this.bindManual();
+    $('#optRun').addEventListener('click', () => this.runOptimizer());
+    $('#wrappedOpen').addEventListener('click', () => { this.toggleTabMenu(false); this.openWrapped(); });
+    $$('#mapMode button').forEach(b => b.addEventListener('click', () => {
+      this.treemapMode = b.dataset.mode;
+      $$('#mapMode button').forEach(x => x.classList.toggle('active', x === b));
+      this.renderTreemap();
+    }));
+    let resizeT = null;
+    window.addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(() => this.renderTreemap(), 200); });
     $('#detailInd').checked = this.indicatorsOn();
     $('#detailInd').addEventListener('change', e => {
       try { localStorage.setItem('apistock:ind', e.target.checked ? '1' : '0'); } catch (err) { /* stockage indisponible */ }
@@ -295,6 +304,7 @@ const App = {
     if (this.view === 'world') this.renderWorld();
     if (this.view === 'agenda') this.renderAgenda();
     this.renderHealth();
+    this.renderTreemap();
     this.emit('rendered:all');
   },
 
@@ -399,6 +409,7 @@ const App = {
     if (!$(`#pfSubnav [data-tab="${tab}"]`)) tab = 'synthese'; // ancien sous-onglet (ex. « Patrimoine »)
     $('#view-portfolio').dataset.sub = tab;
     $$('#pfSubnav button').forEach(x => x.classList.toggle('active', x.dataset.tab === tab));
+    if (tab === 'analyse' && this.renderTreemap) requestAnimationFrame(() => this.renderTreemap()); // largeur connue une fois visible
     try { localStorage.setItem('apistock:pfTab', tab); } catch (e) { /* stockage indisponible */ }
   },
 

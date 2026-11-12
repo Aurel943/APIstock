@@ -20,6 +20,7 @@ Object.assign(App, {
     $$('#moreSheet button').forEach(b => b.addEventListener('click', () => {
       openSheet(false);
       if (b.dataset.action === 'theme') { $('#themeBtn').click(); return; }
+      if (b.dataset.action === 'wrapped') { this.openWrapped(); return; }
       this.show(b.dataset.view);
       window.scrollTo({ top: 0 });
     }));

@@ -168,6 +168,21 @@ const Charts = {
     });
   },
 
+  /** Nuage de points risque (x, % / an) / rendement (y, % / an) */
+  scatter(id, datasets) {
+    this.destroy(id);
+    const ctx = document.getElementById(id);
+    if (!ctx || typeof Chart === 'undefined') return;
+    const o = this.baseOptions();
+    o.interaction = { mode: 'nearest', intersect: true };
+    o.animation = { duration: 600 };
+    o.plugins.legend.labels.filter = l => l.text !== 'Répartitions simulées';
+    o.plugins.tooltip.callbacks = { label: c => ` ${c.dataset.label} : rendement ${fmtPct(c.raw.y, 1)}, volatilité ${fmtNum(c.raw.x, 1)} %` };
+    o.scales.x = Object.assign(o.scales.x, { type: 'linear', title: { display: true, text: 'Risque : volatilité annuelle (%)', color: this.css('--muted') }, grid: { color: this.css('--chart-grid') } });
+    o.scales.y = Object.assign(o.scales.y, { title: { display: true, text: 'Rendement annuel (%)', color: this.css('--muted') } });
+    this.instances[id] = new Chart(ctx, { type: 'scatter', data: { datasets }, options: o });
+  },
+
   refreshTheme() {
     for (const c of Object.values(this.instances)) {
       const muted = this.css('--muted'), grid = this.css('--chart-grid');

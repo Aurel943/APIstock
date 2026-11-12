@@ -951,3 +951,66 @@ details.advanced[open] > .stack { margin-top: 12px; }
 }
 .goal-item .goal-bar { margin: 2px 0 6px; height: 22px; }
 .goal-item .goal-legend { margin-bottom: 0; }
+
+/* Menu « Plus » : action (pas une vue) */
+.tab-action { border: 0; background: none; color: var(--text); font: inherit; font-weight: 500; padding: 8px 14px; border-radius: 8px; cursor: pointer; text-align: left; width: 100%; white-space: nowrap; }
+.tab-action:hover { background: var(--surface-2); }
+
+/* Carte du portefeuille */
+.map-box { position: relative; width: 100%; border-radius: 10px; overflow: hidden; }
+.map-tile { position: absolute; border: 2px solid var(--surface); border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 2px;
+  color: var(--text); font: inherit; text-align: left; cursor: pointer; overflow: hidden; transition: filter .15s, transform .15s; }
+.map-tile:hover, .map-tile:focus-visible { filter: brightness(1.06); outline: none; z-index: 1; }
+.map-name { font-weight: 600; font-size: 13px; line-height: 1.2; max-width: 100%; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.map-tile.big .map-name { font-size: 15px; }
+.map-pct { font: 600 13px/1.2 "JetBrains Mono", monospace; }
+.map-tile.big .map-pct { font-size: 20px; }
+.map-val { font-size: 11px; color: var(--muted); }
+.map-tile.tiny { padding: 0; }
+
+/* Optimiseur */
+.opt-chart { height: 340px; }
+.opt-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; margin-top: 12px; }
+.opt-col { display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: 12px; border: 2px solid var(--border); }
+.opt-col.current { border-color: var(--accent); } .opt-col.minvol { border-color: #6366f1; } .opt-col.maxsharpe { border-color: #f59e0b; }
+.opt-col > .btn { align-self: flex-start; margin-top: 4px; }
+.opt-num { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); }
+.opt-num b { color: var(--text); font-family: "JetBrains Mono", monospace; } .opt-num b.up { color: var(--up); } .opt-num b.down { color: var(--down); }
+.opt-weights { list-style: none; margin: 4px 0 0; padding: 6px 0 0; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; }
+.opt-weights li { display: flex; justify-content: space-between; gap: 8px; } .opt-weights li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 640px) { .opt-chart { height: 280px; } }
+
+/* « Ton année en bourse » */
+body.w-open { overflow: hidden; }
+.wrapped { position: fixed; inset: 0; z-index: 2000; display: flex; flex-direction: column; color: #fff; cursor: pointer; user-select: none;
+  background: linear-gradient(160deg, #0f172a, #1e293b); transition: background .5s ease; padding: max(14px, env(safe-area-inset-top)) 18px max(18px, env(safe-area-inset-bottom)); }
+.wrapped.w-intro { background: linear-gradient(160deg, #4f46e5, #0ea5e9); }
+.wrapped.w-up { background: linear-gradient(160deg, #047857, #10b981); }
+.wrapped.w-down, .wrapped.w-vs { background: linear-gradient(160deg, #9f1239, #f43f5e); }
+.wrapped.w-invest { background: linear-gradient(160deg, #1d4ed8, #6366f1); }
+.wrapped.w-star { background: linear-gradient(160deg, #b45309, #f59e0b); }
+.wrapped.w-months { background: linear-gradient(160deg, #6d28d9, #ec4899); }
+.wrapped.w-cash { background: linear-gradient(160deg, #0f766e, #22d3ee); }
+.wrapped.w-end { background: linear-gradient(160deg, #111827, #374151); }
+.w-bars { display: flex; gap: 4px; max-width: 560px; width: 100%; margin: 0 auto; }
+.w-bars span { flex: 1; height: 3px; border-radius: 2px; background: rgba(255,255,255,.3); overflow: hidden; }
+.w-bars span i { display: block; height: 100%; width: 0; background: #fff; }
+.w-bars span.done i { width: 100%; }
+.w-bars span.now i { animation: wBar 6.5s linear forwards; }
+@keyframes wBar { to { width: 100%; } }
+.w-close { position: absolute; top: max(24px, calc(env(safe-area-inset-top) + 10px)); right: 18px; border: 0; background: rgba(255,255,255,.18); color: #fff; width: 34px; height: 34px; border-radius: 50%; font-size: 15px; cursor: pointer; }
+.w-stage { flex: 1; display: grid; place-items: center; }
+.w-slide { max-width: 560px; width: 100%; text-align: center; animation: wIn .55s cubic-bezier(.2,.8,.2,1); }
+@keyframes wIn { from { opacity: 0; transform: translateY(24px) scale(.97); } to { opacity: 1; transform: none; } }
+.w-kicker { text-transform: uppercase; letter-spacing: .12em; font-size: 13px; opacity: .85; margin: 0 0 10px; }
+.w-big { font: 700 clamp(44px, 13vw, 88px)/1.05 "JetBrains Mono", monospace; letter-spacing: -.02em; word-break: break-word; }
+.w-months .w-big { text-transform: capitalize; }
+.w-title { font-size: clamp(18px, 4.6vw, 24px); font-weight: 600; margin: 14px 0 0; }
+.w-sub { font-size: 15px; opacity: .85; margin: 14px auto 0; max-width: 420px; line-height: 1.5; }
+.w-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 18px; margin: 18px 0 0; text-align: left; }
+.w-summary dt { font-size: 12px; opacity: .75; text-transform: uppercase; letter-spacing: .06em; }
+.w-summary dd { margin: 2px 0 0; font: 600 20px/1.2 "JetBrains Mono", monospace; overflow-wrap: anywhere; }
+.w-actions { display: flex; gap: 10px; justify-content: center; margin-top: 22px; }
+.w-actions .btn { background: rgba(255,255,255,.18); color: #fff; border-color: transparent; }
+.w-actions .btn.primary { background: #fff; color: #111827; }
+@media (prefers-reduced-motion: reduce) { .w-slide { animation: none; } .w-bars span.now i { animation: none; width: 100%; } }

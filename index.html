@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=6696fe6127">
+  <link rel="stylesheet" href="css/style.css?v=bdefbe463b">
 </head>
 <body>
   <header class="topbar">
@@ -35,6 +35,7 @@
           <button class="tab" data-view="compare" role="menuitem">Comparer</button>
           <button class="tab" data-view="simulation" role="menuitem">Simulation</button>
           <button class="tab" data-view="settings" role="menuitem">Réglages</button>
+          <button class="tab-action" type="button" id="wrappedOpen" role="menuitem">🎉 Mon année en bourse</button>
         </div>
       </div>
     </nav>
@@ -170,6 +171,17 @@
         <div id="healthBody"></div>
       </div>
 
+      <div data-sub="analyse" class="card hidden" id="mapCard">
+        <div class="card-head">
+          <h2>Carte du portefeuille<button type="button" class="info" aria-label="Explication" data-tip="Chaque rectangle est une ligne, proportionnel à son poids. Couleur : vert si elle monte, rouge si elle baisse, d'autant plus foncé que la variation est forte. Touche un rectangle pour ouvrir sa fiche.">i</button></h2>
+          <div class="seg" id="mapMode">
+            <button class="active" data-mode="day">Aujourd'hui</button>
+            <button data-mode="gain">Plus-value</button>
+          </div>
+        </div>
+        <div class="map-box" id="mapBox"></div>
+      </div>
+
       <div data-sub="analyse" class="card hidden" id="moversCard">
         <div class="card-head"><h2>Variations du jour</h2><span class="muted small" id="moversInfo"></span></div>
         <div class="movers">
@@ -191,6 +203,14 @@
           <h2>Risque du portefeuille<button type="button" class="info" aria-label="Explication" data-tip="Calculé sur la performance pondérée dans le temps (TWR), depuis ta première opération. Volatilité, pire baisse, ratio de Sharpe et bêta face au MSCI World.">i</button></h2>
         </div>
         <div id="riskBody"></div>
+      </div>
+
+      <div data-sub="analyse" class="card" id="optCard">
+        <div class="card-head">
+          <h2>Optimiseur de répartition<button type="button" class="info" aria-label="Explication" data-tip="À partir des cours réels de tes lignes sur 3 ans, l'appli simule des milliers de répartitions et les place selon leur risque (volatilité) et leur rendement. Elle repère la moins risquée et celle qui rapporte le plus par unité de risque (ratio de Sharpe). Le passé ne se répète pas forcément : un éclairage, pas une recommandation.">i</button></h2>
+          <button class="btn small" id="optRun" type="button">Calculer</button>
+        </div>
+        <div id="optBody"><p class="muted small">Compare ta répartition à des milliers d'autres faites avec les mêmes ETF, sur leur historique réel.</p></div>
       </div>
 
       <div data-sub="analyse" class="card hidden" id="exposureCard">
@@ -925,33 +945,37 @@
     <button data-view="compare"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><div><b>Comparer</b><span>Nasdaq vs S&amp;P 500, ton portefeuille vs le marché…</span></div></button>
     <button data-view="simulation"><svg viewBox="0 0 24 24"><path d="M12 3v3M12 18v3M4.2 7.5l2.6 1.5M17.2 15l2.6 1.5M4.2 16.5l2.6-1.5M17.2 9l2.6-1.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/></svg><div><b>Simulation</b><span>« Et si j'avais investi… », projection future</span></div></button>
     <button data-view="settings"><svg viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="16" cy="6" r="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="10" cy="12" r="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="18" r="2" fill="none" stroke="currentColor" stroke-width="2"/></svg><div><b>Réglages</b><span>Clé API, relais Yahoo, comptes, sauvegarde</span></div></button>
+    <button data-action="wrapped"><svg viewBox="0 0 24 24"><path d="M12 3l2.6 5.6 6 .8-4.4 4.2 1.1 6-5.3-2.9-5.3 2.9 1.1-6L3.4 9.4l6-.8z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><div><b>Mon année en bourse</b><span>Ton récap animé : performance, ligne star, meilleur mois…</span></div></button>
     <button data-action="theme"><svg viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><div><b>Thème clair / sombre</b><span>Changer l'apparence</span></div></button>
   </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-  <script src="js/utils.js?v=6696fe6127"></script>
-  <script src="js/store.js?v=6696fe6127"></script>
-  <script src="js/api.js?v=6696fe6127"></script>
-  <script src="js/markets.js?v=6696fe6127"></script>
-  <script src="js/portfolio.js?v=6696fe6127"></script>
-  <script src="js/charts.js?v=6696fe6127"></script>
-  <script src="js/app.js?v=6696fe6127"></script>
-  <script src="js/views.js?v=6696fe6127"></script>
-  <script src="js/compare.js?v=6696fe6127"></script>
-  <script src="js/extras.js?v=6696fe6127"></script>
-  <script src="js/mobile.js?v=6696fe6127"></script>
-  <script src="js/features.js?v=6696fe6127"></script>
-  <script src="js/money.js?v=6696fe6127"></script>
-  <script src="js/newsart.js?v=6696fe6127"></script>
-  <script src="js/insights.js?v=6696fe6127"></script>
-  <script src="js/wealth.js?v=6696fe6127"></script>
-  <script src="js/avis.js?v=6696fe6127"></script>
-  <script src="js/manual.js?v=6696fe6127"></script>
-  <script src="js/health.js?v=6696fe6127"></script>
-  <script src="js/agenda.js?v=6696fe6127"></script>
-  <script src="js/catalog.js?v=6696fe6127"></script>
-  <script src="js/goals.js?v=6696fe6127"></script>
+  <script src="js/utils.js?v=bdefbe463b"></script>
+  <script src="js/store.js?v=bdefbe463b"></script>
+  <script src="js/api.js?v=bdefbe463b"></script>
+  <script src="js/markets.js?v=bdefbe463b"></script>
+  <script src="js/portfolio.js?v=bdefbe463b"></script>
+  <script src="js/charts.js?v=bdefbe463b"></script>
+  <script src="js/app.js?v=bdefbe463b"></script>
+  <script src="js/views.js?v=bdefbe463b"></script>
+  <script src="js/compare.js?v=bdefbe463b"></script>
+  <script src="js/extras.js?v=bdefbe463b"></script>
+  <script src="js/mobile.js?v=bdefbe463b"></script>
+  <script src="js/features.js?v=bdefbe463b"></script>
+  <script src="js/money.js?v=bdefbe463b"></script>
+  <script src="js/newsart.js?v=bdefbe463b"></script>
+  <script src="js/insights.js?v=bdefbe463b"></script>
+  <script src="js/wealth.js?v=bdefbe463b"></script>
+  <script src="js/avis.js?v=bdefbe463b"></script>
+  <script src="js/manual.js?v=bdefbe463b"></script>
+  <script src="js/health.js?v=bdefbe463b"></script>
+  <script src="js/agenda.js?v=bdefbe463b"></script>
+  <script src="js/catalog.js?v=bdefbe463b"></script>
+  <script src="js/goals.js?v=bdefbe463b"></script>
+  <script src="js/optimizer.js?v=bdefbe463b"></script>
+  <script src="js/treemap.js?v=bdefbe463b"></script>
+  <script src="js/wrapped.js?v=bdefbe463b"></script>
 </body>
 </html>
