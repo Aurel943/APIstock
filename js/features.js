@@ -210,7 +210,7 @@ Object.assign(App, {
             el('label', {}, el('span', { class: 'muted small' }, 'Versements réels (optionnel)'),
               el('input', { type: 'number', min: 0, step: 1, inputmode: 'decimal', placeholder: fmtNum(p.estimated, 0), value: p.manual ? a.peaDeposits : '',
                 onchange: e => save({ peaDeposits: e.target.value }) })))),
-        el('p', { class: 'muted small' }, 'Estimation : achats moins ce que les ventes et dividendes ont rapporté dans le PEA. Saisis le montant exact (relevé de ton courtier) pour plus de précision ; par défaut, la date d\'ouverture est celle de ta première opération.')));
+        noteTip('Estimation : achats moins ce que les ventes et dividendes ont rapporté dans le PEA. Saisis le montant exact (relevé de ton courtier) pour plus de précision ; par défaut, la date d\'ouverture est celle de ta première opération.')));
     }
 
     if (ctos.length) {
@@ -241,11 +241,11 @@ Object.assign(App, {
             this.kpi('Dividendes bruts', fmtMoney(Y.dividends, cur), 'Case 2DC (actions) ou 2TR (distributions d\'ETF), souvent déjà pré-remplis'),
             this.kpi(`Impôt estimé (flat tax ${fmtNum(T.pfu, 1)} %)`, fmtMoney(flat, cur), `${fmtNum(T.ir, 1)} % d'impôt + ${fmtNum(T.social, 1)} % de prélèvements sociaux, hors acomptes déjà prélevés`),
             Y.carryLeft > 0.005 ? this.kpi('Moins-values reportables', fmtMoney(Y.carryLeft, cur), 'Utilisables jusqu\'à 10 ans') : null),
-          el('p', { class: 'muted small' }, 'Méthode du prix moyen pondéré d\'acquisition (frais inclus), calculée par compte. Les montants en devises sont convertis au taux de change du jour de chaque opération (clôture de la veille pour un week-end ; taux actuel si l\'historique n\'a pas pu être chargé).')));
+          noteTip('Méthode du prix moyen pondéré d\'acquisition (frais inclus), calculée par compte. Les montants en devises sont convertis au taux de change du jour de chaque opération (clôture de la veille pour un week-end ; taux actuel si l\'historique n\'a pas pu être chargé).')));
       }
     }
-    parts.push(el('p', { class: 'muted small tax-source' }, T.custom ? 'Taux fiscaux personnalisés (Réglages → Fiscalité).'
-      : `Taux des revenus ${T.year} : ${T.source}. Modifiables dans Réglages → Fiscalité.`));
+    parts.push(noteTip(T.custom ? 'Taux fiscaux personnalisés (Réglages → Fiscalité).'
+      : `Taux des revenus ${T.year} : ${T.source}. Modifiables dans Réglages → Fiscalité.`, 'Taux utilisés'));
     $('#taxBody').replaceChildren(...parts);
   },
 });
@@ -499,7 +499,7 @@ Object.assign(App, {
         el('thead', {}, el('tr', {}, el('th', {}, 'Ligne · exposition'), el('th', { class: 'num' }, 'TER %'), el('th', { class: 'num' }, 'Poids'), el('th', { class: 'num' }, 'Frais / an'))),
         el('tbody', {}, ...rowsUi))),
       this.feesLongTerm(items),
-      el('p', { class: 'muted small' }, 'Répartitions approximatives des indices (ordre de grandeur 2025-2026) et TER indicatifs : vérifie-les sur la fiche de chaque ETF. Le recoupement est estimé à partir du poids des titres communs aux deux indices.'));
+      noteTip('Répartitions approximatives des indices (ordre de grandeur 2025-2026) et TER indicatifs : vérifie-les sur la fiche de chaque ETF. Le recoupement est estimé à partir du poids des titres communs aux deux indices.', 'Sources et limites'));
   },
 });
 
@@ -540,7 +540,7 @@ Object.assign(App, {
         el('div', { class: 'table-wrap' }, el('table', { class: 'data' },
           el('thead', {}, el('tr', {}, el('th', {}, 'Ta ligne'), el('th', {}, 'Équivalents moins chers (TER)'), el('th', { class: 'num' }, 'Écart sur 10 ans'), el('th', { class: 'num' }, 'Écart sur 20 ans'))),
           el('tbody', {}, ...swaps)))) : el('p', { class: 'muted small' }, 'Aucun équivalent moins cher parmi les ETF connus du site pour tes lignes.'),
-      el('p', { class: 'muted small' }, 'Information, pas un conseil d\'investissement : deux ETF d\'une même catégorie peuvent suivre des indices différents (méthode de réplication, distribution, devise, encours). L\'écart ne compte ni les frais de courtage ni l\'impôt d\'une vente sur un compte-titres, et suppose des TER inchangés : vérifie-les dans le DIC.'));
+      noteTip('Information, pas un conseil d\'investissement : deux ETF d\'une même catégorie peuvent suivre des indices différents (méthode de réplication, distribution, devise, encours). L\'écart ne compte ni les frais de courtage ni l\'impôt d\'une vente sur un compte-titres, et suppose des TER inchangés : vérifie-les dans le DIC.', 'À savoir'));
   },
 });
 

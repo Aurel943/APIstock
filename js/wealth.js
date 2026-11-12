@@ -140,7 +140,7 @@ Object.assign(App, {
                 undoToast('Actif supprimé', () => { Store.state.assets.splice(Math.max(0, idx), 0, a); Store.unmarkDeleted(a.id); Store.save(); this.renderAll(); });
               } }, '🗑')));
         })))) : el('p', { class: 'muted small' }, 'Ajoute tes livrets, ton fonds euros, ton compte courant ou ton logement pour voir l\'ensemble de ton patrimoine.'),
-      el('p', { class: 'muted small' }, 'Titres et espèces : tous tes comptes suivis ici. Livrets et fonds euros : valeur saisie, augmentée des intérêts depuis la date de mise à jour (estimation). Immobilier : valeur moins le crédit restant.'),
+      noteTip('Titres et espèces : tous tes comptes suivis ici. Livrets et fonds euros : valeur saisie, augmentée des intérêts depuis la date de mise à jour (estimation). Immobilier : valeur moins le crédit restant.'),
     ].filter(Boolean));
   },
 });

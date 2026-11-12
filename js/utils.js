@@ -168,3 +168,47 @@ function friendlyName(name, symbol) {
   if (!s) return '';
   return s.length > 40 ? s.slice(0, 39).trimEnd() + '…' : s;
 }
+
+/*
+ * Bulle d'information : petit « i » à côté d'un titre ou d'un champ, qui affiche une explication au survol,
+ * au focus clavier ou au toucher (mobile). Une seule bulle, positionnée en JS pour rester dans l'écran.
+ */
+function infoTip(text) {
+  return el('button', { type: 'button', class: 'info', 'aria-label': 'Explication', 'data-tip': text }, 'i');
+}
+(function setupInfoTips() {
+  if (typeof document === 'undefined') return;
+  let bubble = null, owner = null, pinned = false;
+  const hide = () => { if (bubble) bubble.remove(); bubble = null; owner = null; pinned = false; };
+  const show = btn => {
+    if (owner === btn) return;
+    hide();
+    owner = btn;
+    bubble = el('div', { class: 'info-bubble', role: 'tooltip' }, btn.dataset.tip);
+    document.body.append(bubble);
+    const r = btn.getBoundingClientRect(), W = document.documentElement.clientWidth;
+    const bw = Math.min(320, W - 24);
+    bubble.style.maxWidth = bw + 'px';
+    const b = bubble.getBoundingClientRect();
+    const left = Math.max(12, Math.min(r.left + r.width / 2 - b.width / 2, W - b.width - 12));
+    const above = r.top - b.height - 8 > 8;
+    bubble.style.left = left + window.scrollX + 'px';
+    bubble.style.top = (above ? r.top - b.height - 8 : r.bottom + 8) + window.scrollY + 'px';
+  };
+  const tipOf = e => e.target instanceof Element ? e.target.closest('.info[data-tip]') : null;
+  document.addEventListener('mouseover', e => { const t = tipOf(e); if (t) show(t); else if (owner && !pinned) hide(); });
+  document.addEventListener('focusin', e => { const t = tipOf(e); if (t) show(t); });
+  document.addEventListener('focusout', e => { if (tipOf(e) && !pinned) hide(); });
+  document.addEventListener('click', e => {
+    const t = tipOf(e);
+    if (t) { e.preventDefault(); e.stopPropagation(); if (owner === t && pinned) hide(); else { show(t); pinned = true; } return; }
+    if (bubble) hide();
+  }, true);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') hide(); });
+  document.addEventListener('scroll', () => { if (!pinned) hide(); }, { passive: true, capture: true });
+})();
+
+/* Note de bas de carte repliée : une ligne discrète, l'explication complète dans la bulle « i » */
+function noteTip(text, label = 'Comment c\'est calculé') {
+  return el('p', { class: 'note-tip muted small' }, label, infoTip(text));
+}

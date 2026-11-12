@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=47bc0bb662">
+  <link rel="stylesheet" href="css/style.css?v=d6d81bc0f0">
 </head>
 <body>
   <header class="topbar">
@@ -55,25 +55,24 @@
 
   <main>
     <!-- ============ PORTEFEUILLE ============ -->
-    <section id="view-portfolio" class="view active">
+    <section id="view-portfolio" class="view active" data-sub="synthese">
       <div class="seg acc-filter hidden" id="accFilter"></div>
       <div class="kpis" id="kpis"></div>
+      <div class="seg subnav" id="pfSubnav" role="tablist">
+        <button class="active" data-tab="synthese">Synthèse</button>
+        <button data-tab="analyse">Analyse</button>
+        <button data-tab="revenus">Revenus &amp; impôts</button>
+        <button data-tab="patrimoine">Patrimoine</button>
+        <button data-tab="operations">Opérations</button>
+      </div>
 
-      <div class="card hidden todo-card" id="todoCard">
+      <div data-sub="synthese" class="card hidden todo-card" id="todoCard">
         <div class="card-head"><h2>À faire</h2><span class="muted small" id="todoInfo"></span></div>
         <ul class="todo-list" id="todoList"></ul>
       </div>
 
-      <div class="card hidden" id="moversCard">
-        <div class="card-head"><h2>Variations du jour</h2><span class="muted small" id="moversInfo"></span></div>
-        <div class="movers">
-          <div><h3 class="movers-title up">En hausse</h3><ul class="movers-list" id="moversUp"></ul></div>
-          <div><h3 class="movers-title down">En baisse</h3><ul class="movers-list" id="moversDown"></ul></div>
-        </div>
-      </div>
-
-      <div class="card hidden" id="accSummary">
-        <div class="card-head"><h2>Mes comptes</h2><span class="muted small">Cliquer sur un compte pour le filtrer</span></div>
+      <div data-sub="synthese" class="card hidden" id="accSummary">
+        <div class="card-head"><h2>Mes comptes<button type="button" class="info" aria-label="Explication" data-tip="Cliquer sur un compte pour le filtrer">i</button></h2></div>
         <div class="table-wrap">
           <table class="data clickable">
             <thead><tr><th>Compte</th><th class="num">Valeur</th><th class="num">Part</th><th class="num">Investi</th><th class="num">+/- latente</th><th class="num">Net d'impôt estimé</th></tr></thead>
@@ -82,7 +81,7 @@
         </div>
       </div>
 
-      <div class="grid-2">
+      <div data-sub="synthese" class="grid-2">
         <div class="card">
           <div class="card-head">
             <h2>Mes positions</h2>
@@ -127,11 +126,11 @@
         </div>
       </div>
 
-      <div class="card">
+      <div data-sub="synthese" class="card">
         <div class="card-head">
-          <h2>Évolution du portefeuille</h2>
+          <h2>Évolution du portefeuille<button type="button" class="info" aria-label="Explication" data-tip="Reconstruite à partir de tes opérations et des cours de clôture (1 crédit par ETF, mis en cache 6 h).">i</button></h2>
           <div class="actions">
-            <span class="muted small" id="historyInfo">Reconstruit à partir de tes opérations (1 crédit par ETF, mis en cache 6 h).</span>
+            <span class="muted small" id="historyInfo"></span>
             <button class="btn" id="loadHistoryBtn">Charger l'historique</button>
           </div>
         </div>
@@ -139,39 +138,29 @@
         <div id="calendar"></div>
       </div>
 
-      <div class="card hidden" id="riskCard">
+      <div data-sub="analyse" class="card hidden" id="moversCard">
+        <div class="card-head"><h2>Variations du jour</h2><span class="muted small" id="moversInfo"></span></div>
+        <div class="movers">
+          <div><h3 class="movers-title up">En hausse</h3><ul class="movers-list" id="moversUp"></ul></div>
+          <div><h3 class="movers-title down">En baisse</h3><ul class="movers-list" id="moversDown"></ul></div>
+        </div>
+      </div>
+
+      <div data-sub="analyse" class="card hidden" id="riskCard">
         <div class="card-head">
-          <h2>Risque du portefeuille</h2>
-          <span class="muted small" id="riskInfo">Calculé sur la performance pondérée dans le temps (TWR), depuis ta première opération</span>
+          <h2>Risque du portefeuille<button type="button" class="info" aria-label="Explication" data-tip="Calculé sur la performance pondérée dans le temps (TWR), depuis ta première opération. Volatilité, pire baisse, ratio de Sharpe et bêta face au MSCI World.">i</button></h2>
         </div>
         <div id="riskBody"></div>
       </div>
 
-      <div class="card hidden" id="cashCard">
+      <div data-sub="analyse" class="card hidden" id="exposureCard">
         <div class="card-head">
-          <h2>Liquidités</h2>
-          <div class="actions"><span class="muted small">Espèces disponibles sur tes comptes</span><button class="btn small" id="cashAdd2">+ Versement / retrait</button></div>
+          <h2>Exposition réelle &amp; frais<button type="button" class="info" aria-label="Explication" data-tip="Ce que contiennent vraiment tes ETF (pondéré par leur valeur)">i</button></h2>
         </div>
-        <div id="cashBody"></div>
+        <div id="exposureBody"></div>
       </div>
 
-      <div class="card" id="wealthCard">
-        <div class="card-head">
-          <h2>Patrimoine global</h2>
-          <div class="actions"><span class="muted small">Titres, espèces, épargne et immobilier</span><button class="btn small" id="assetAdd">+ Ajouter un actif</button></div>
-        </div>
-        <div id="wealthBody"></div>
-      </div>
-
-      <div class="card hidden" id="divCard">
-        <div class="card-head">
-          <h2>Dividendes à venir</h2>
-          <span class="muted small" id="divInfo">Estimation d'après les détachements des 12 derniers mois</span>
-        </div>
-        <div id="divBody"></div>
-      </div>
-
-      <div class="card hidden" id="newsCard">
+      <div data-sub="analyse" class="card hidden" id="newsCard">
         <div class="card-head">
           <h2>Actualités de mes placements</h2>
           <span class="muted small" id="newsSource">Presse financière française</span>
@@ -179,23 +168,37 @@
         <ul class="news-list" id="newsList" style="list-style:none;margin:0;padding:0"></ul>
       </div>
 
-      <div class="card hidden" id="exposureCard">
+      <div data-sub="revenus" class="card hidden" id="divCard">
         <div class="card-head">
-          <h2>Exposition réelle &amp; frais</h2>
-          <span class="muted small">Ce que contiennent vraiment tes ETF (pondéré par leur valeur)</span>
+          <h2>Dividendes à venir<button type="button" class="info" aria-label="Explication" data-tip="Estimation d&#x27;après les détachements des 12 derniers mois, supposés se répéter à la même date et au même montant, avec ton nombre de parts actuel. Les ETF capitalisants ne versent rien : ils réinvestissent.">i</button></h2>
         </div>
-        <div id="exposureBody"></div>
+        <div id="divBody"></div>
       </div>
 
-      <div class="card hidden" id="taxCard">
+      <div data-sub="revenus" class="card hidden" id="taxCard">
         <div class="card-head">
-          <h2>Fiscalité</h2>
-          <span class="muted small">Estimations indicatives : ta déclaration pré-remplie et l'IFU de ton courtier font foi</span>
+          <h2>Fiscalité<button type="button" class="info" aria-label="Explication" data-tip="Estimations indicatives : ta déclaration pré-remplie et l&#x27;IFU de ton courtier font foi">i</button></h2>
         </div>
         <div id="taxBody"></div>
       </div>
 
-      <div class="card">
+      <div data-sub="patrimoine" class="card" id="wealthCard">
+        <div class="card-head">
+          <h2>Patrimoine global<button type="button" class="info" aria-label="Explication" data-tip="Titres, espèces, épargne et immobilier">i</button></h2>
+          <div class="actions"><button class="btn small" id="assetAdd">+ Ajouter un actif</button></div>
+        </div>
+        <div id="wealthBody"></div>
+      </div>
+
+      <div data-sub="patrimoine" class="card hidden" id="cashCard">
+        <div class="card-head">
+          <h2>Liquidités<button type="button" class="info" aria-label="Explication" data-tip="Espèces disponibles sur tes comptes">i</button></h2>
+          <div class="actions"><button class="btn small" id="cashAdd2">+ Versement / retrait</button></div>
+        </div>
+        <div id="cashBody"></div>
+      </div>
+
+      <div data-sub="operations" class="card">
         <div class="card-head">
           <h2>Opérations</h2>
           <div class="actions"><span class="muted small" id="txCount"></span>
@@ -228,8 +231,7 @@
       <div class="grid-2 markets">
         <div class="card">
           <div class="card-head">
-            <h2>Liste de suivi</h2>
-            <span class="muted small">Cliquer sur une ligne pour voir le graphique</span>
+            <h2>Liste de suivi<button type="button" class="info" aria-label="Explication" data-tip="Cliquer sur une ligne pour voir le graphique">i</button></h2>
           </div>
           <div class="table-wrap">
             <table class="data clickable" id="watchTable">
@@ -271,8 +273,7 @@
       <div class="card">
         <div class="card-head">
           <div>
-            <h2>Comparer des valeurs</h2>
-            <p class="muted small">Indices, ETF, actions, or, crypto… ou ton propre portefeuille. Jusqu'à 5 valeurs, ramenées au même point de départ.</p>
+            <h2>Comparer des valeurs<button type="button" class="info" aria-label="Explication" data-tip="Indices, ETF, actions, or, crypto… ou ton propre portefeuille. Jusqu&#x27;à 5 valeurs, ramenées au même point de départ.">i</button></h2>
           </div>
           <span class="muted small" id="cmpStatus"></span>
         </div>
@@ -328,8 +329,8 @@
       <div class="card">
         <div class="card-head">
           <div>
-            <h2>Horaires des bourses</h2>
-            <p class="muted small">Séances affichées à ton heure locale — <b id="localClock" class="mono"></b> <span id="localTz"></span></p>
+            <h2>Horaires des bourses<button type="button" class="info" aria-label="Explication" data-tip="Séances affichées à ton heure locale. Jours fériés et clôtures anticipées 2026-2027 gérés pour Euronext, Xetra, Londres et New York ; pour les autres places, seuls les week-ends sont pris en compte.">i</button></h2>
+            <p class="muted small">Ton heure : <b id="localClock" class="mono"></b> <span id="localTz"></span></p>
           </div>
           <div class="seg" id="regionSel">
             <button class="active" data-region="all">Toutes</button>
@@ -343,7 +344,6 @@
       </div>
 
       <div class="exchange-grid" id="exchangeGrid"></div>
-      <p class="muted small">Jours fériés et clôtures anticipées 2026-2027 gérés pour Euronext, Xetra, Londres et New York. Pour les autres places, seuls les week-ends sont pris en compte : vérifie le calendrier officiel de la bourse.</p>
     </section>
 
     <!-- ============ INVESTIR ============ -->
@@ -351,8 +351,7 @@
       <div class="card">
         <div class="card-head">
           <div>
-            <h2>Mon objectif</h2>
-            <p class="muted small">Où en es-tu de ton objectif de patrimoine (tous comptes confondus) ? Projection avec tes versements et un rendement moyen supposé.</p>
+            <h2>Mon objectif<button type="button" class="info" aria-label="Explication" data-tip="Où en es-tu de ton objectif de patrimoine (tous comptes confondus) ? Projection avec tes versements et un rendement moyen supposé.">i</button></h2>
           </div>
         </div>
         <div class="form-grid">
@@ -360,7 +359,7 @@
           <label>Date cible<input type="date" id="goalDate"></label>
           <label><span>Versement mensuel (<span class="ccy"></span>)</span><input type="number" id="goalMonthly" min="0" step="50"></label>
           <label>Rendement annuel supposé (%)<input type="number" id="goalRate" step="0.5"></label>
-          <label class="check"><input type="checkbox" id="goalAssets"> Inclure mes autres actifs (livrets, fonds euros, compte courant, immobilier net — carte « Patrimoine global »)</label>
+          <label class="check"><input type="checkbox" id="goalAssets"> Inclure mes autres actifs<button type="button" class="info" aria-label="Explication" data-tip="Livrets, fonds euros, compte courant, immobilier net : ce que tu as saisi dans Portefeuille → Patrimoine.">i</button></label>
         </div>
         <div id="goalResult"></div>
       </div>
@@ -368,8 +367,7 @@
       <div class="card">
         <div class="card-head">
           <div>
-            <h2>Allocation cible & plan d'investissement</h2>
-            <p class="muted small">Fixe la répartition idéale de ton portefeuille, indique la somme à investir : le site calcule combien de parts acheter de chaque ETF pour te rapprocher de ta cible.</p>
+            <h2>Allocation cible & plan d'investissement<button type="button" class="info" aria-label="Explication" data-tip="Fixe la répartition idéale de ton portefeuille, indique la somme à investir : le site calcule combien de parts acheter de chaque ETF pour te rapprocher de ta cible.">i</button></h2>
           </div>
           <div class="actions">
             <button class="btn" id="tgtFromPf">Reprendre les poids actuels</button>
@@ -403,8 +401,7 @@
       <div class="card" id="plansCard">
         <div class="card-head">
           <div>
-            <h2>Versements programmés</h2>
-            <p class="muted small">Ton investissement mensuel automatique (DCA) : à chaque échéance, l'achat apparaît dans « À faire » sur le portefeuille, pré-rempli avec le cours du jour, et s'enregistre en un clic.</p>
+            <h2>Versements programmés<button type="button" class="info" aria-label="Explication" data-tip="Ton investissement mensuel automatique (DCA) : à chaque échéance, l&#x27;achat apparaît dans « À faire » sur le portefeuille, pré-rempli avec le cours du jour, et s&#x27;enregistre en un clic.">i</button></h2>
           </div>
         </div>
         <div class="table-wrap">
@@ -422,14 +419,12 @@
           <label class="check"><input type="checkbox" id="planFrac"> Parts fractionnées</label>
           <button class="btn primary" type="submit">Ajouter</button>
         </form>
-        <p class="muted small">Astuce : l'ETF doit déjà être suivi (portefeuille, liste de suivi ou allocation cible) pour apparaître dans la liste.</p>
       </div>
 
       <div class="card">
         <div class="card-head">
           <div>
-            <h2>Alertes de prix</h2>
-            <p class="muted small">Vérifiées à chaque rafraîchissement tant que le site est ouvert, et <b>même site fermé</b> si les notifications push sont activées ci-dessous.</p>
+            <h2>Alertes de prix<button type="button" class="info" aria-label="Explication" data-tip="Vérifiées à chaque rafraîchissement tant que le site est ouvert, et même site fermé si les notifications push sont activées ci-dessous.">i</button></h2>
           </div>
           <button class="btn" id="notifBtn">Activer les notifications</button>
         </div>
@@ -451,8 +446,8 @@
           </table>
         </div>
         <div class="push-box" id="pushBox">
-          <h3>Alertes même site fermé</h3>
-          <p class="muted small" id="pushInfo">Ton relais Cloudflare vérifie tes alertes toutes les 5 minutes et t'envoie une notification push, même téléphone verrouillé et site fermé. Sur iPhone : ajoute d'abord le site à l'écran d'accueil (iOS 16.4 ou plus).</p>
+          <h3>Alertes même site fermé<button type="button" class="info" aria-label="Explication" data-tip="Ton relais Cloudflare vérifie tes alertes toutes les 5 minutes et t&#x27;envoie une notification push, même téléphone verrouillé et site fermé. Sur iPhone : ajoute d&#x27;abord le site à l&#x27;écran d&#x27;accueil (iOS 16.4 ou plus).">i</button></h3>
+          <p class="muted small" id="pushInfo"></p>
           <div class="actions">
             <button type="button" class="btn primary" id="pushOn">Activer sur cet appareil</button>
             <button type="button" class="btn hidden" id="pushTest">Envoyer une notification de test</button>
@@ -469,8 +464,7 @@
       <div class="card">
         <div class="card-head">
           <div>
-            <h2>Simulation sur données réelles</h2>
-            <p class="muted small">« Et si j'avais investi… » — choisis tes ETF, la répartition en %, les sommes et la date de départ. Les achats sont rejoués au cours de clôture réel.</p>
+            <h2>Simulation sur données réelles<button type="button" class="info" aria-label="Explication" data-tip="« Et si j&#x27;avais investi… » — choisis tes ETF, la répartition en %, les sommes et la date de départ. Les achats sont rejoués au cours de clôture réel.">i</button></h2>
           </div>
         </div>
 
@@ -527,8 +521,7 @@
       <div class="card">
         <div class="card-head">
           <div>
-            <h2>Projection dans le futur</h2>
-            <p class="muted small">Intérêts composés avec versements mensuels. Hypothèse de rendement, pas une promesse !</p>
+            <h2>Projection dans le futur<button type="button" class="info" aria-label="Explication" data-tip="Intérêts composés avec versements mensuels. Hypothèse de rendement, pas une promesse !">i</button></h2>
           </div>
         </div>
         <div class="form-grid">
@@ -555,17 +548,15 @@
           </label>
         </div>
         <div class="kpis" id="projKpis"></div>
-        <h3>Scénarios (Monte-Carlo, 2 000 trajectoires)</h3>
+        <h3>Scénarios<button type="button" class="info" aria-label="Explication" data-tip="Monte-Carlo, 2 000 trajectoires. La zone colorée contient 80 % des scénarios simulés (entre le 10e et le 90e centile) : les marchés ne montent pas en ligne droite. Le rendement saisi est le rendement médian ; la volatilité mesure l&#x27;ampleur des variations d&#x27;une année à l&#x27;autre.">i</button></h3>
         <div class="kpis" id="projMcKpis"></div>
         <div class="chart-box wide"><canvas id="projChart"></canvas></div>
-        <p class="muted small">La zone colorée contient 80 % des scénarios simulés (entre le 10<sup>e</sup> et le 90<sup>e</sup> centile) : les marchés ne montent pas en ligne droite. Le rendement saisi est le rendement médian ; la volatilité mesure l'ampleur des variations d'une année à l'autre.</p>
       </div>
 
       <div class="card" id="retireCard">
         <div class="card-head">
           <div>
-            <h2>Phase de retraite : vivre de son capital</h2>
-            <p class="muted small">Retraits mensuels sur un capital qui reste placé. Combien de temps tient-il, selon les scénarios de marché ?</p>
+            <h2>Phase de retraite : vivre de son capital<button type="button" class="info" aria-label="Explication" data-tip="Retraits mensuels sur un capital qui reste placé. Combien de temps tient-il, selon les scénarios de marché ? Monte-Carlo, 2 000 trajectoires, mêmes hypothèses de marché que la projection. Le retrait de la première année est indexé chaque année sur l&#x27;inflation. Hors impôts sur les retraits. Une simulation, pas un conseil.">i</button></h2>
           </div>
         </div>
         <div class="form-grid">
@@ -584,7 +575,6 @@
         </div>
         <div class="kpis" id="retKpis"></div>
         <div class="chart-box wide"><canvas id="retChart"></canvas></div>
-        <p class="muted small" id="retNote">Monte-Carlo, 2 000 trajectoires, mêmes hypothèses de marché que la projection. Le retrait de la première année est indexé chaque année sur l'inflation. Hors impôts sur les retraits. Une simulation, pas un conseil.</p>
       </div>
     </section>
 
@@ -592,8 +582,7 @@
     <section id="view-settings" class="view">
       <div class="card reload-card">
         <div>
-          <h2>Mettre à jour le site</h2>
-          <p class="muted small">Le site ne semble pas à jour, ou quelque chose s'affiche mal ? Ce bouton retélécharge tout le site depuis le serveur, sans aucun cache (fichiers, application installée, cours). Tes opérations, comptes, réglages et ta clé API sont conservés.</p>
+          <h2>Mettre à jour le site<button type="button" class="info" aria-label="Explication" data-tip="Le site ne semble pas à jour, ou quelque chose s&#x27;affiche mal ? Ce bouton retélécharge tout le site depuis le serveur, sans aucun cache (fichiers, application installée, cours). Tes opérations, comptes, réglages et ta clé API sont conservés.">i</button></h2>
         </div>
         <button class="btn primary" id="hardReload">
           <svg viewBox="0 0 24 24" width="18" height="18"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v4h-4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -604,8 +593,7 @@
       <div class="card">
         <div class="card-head">
           <div>
-            <h2>Mes comptes</h2>
-            <p class="muted small">PEA, compte-titres, assurance-vie… Chaque opération est rattachée à un compte. Le taux sert à estimer la plus-value nette d'impôt (valeurs indicatives, à vérifier : elles évoluent avec les lois de finances).</p>
+            <h2>Mes comptes<button type="button" class="info" aria-label="Explication" data-tip="PEA, compte-titres, assurance-vie… Chaque opération est rattachée à un compte. Le taux sert à estimer la plus-value nette d&#x27;impôt (valeurs indicatives, à vérifier : elles évoluent avec les lois de finances).">i</button></h2>
           </div>
         </div>
         <div class="acc-list" id="accList"></div>
@@ -619,16 +607,16 @@
       <div class="card" id="taxSettings">
         <div class="card-head">
           <div>
-            <h2>Fiscalité</h2>
-            <p class="muted small" id="taxSettingsInfo"></p>
+            <h2>Fiscalité<button type="button" class="info" aria-label="Explication" id="taxSettingsInfo" data-tip="">i</button></h2>
+            
           </div>
           <button type="button" class="btn small" id="taxDefaults">Valeurs par défaut</button>
         </div>
         <div class="form-grid" id="taxSettingsForm">
           <label>Impôt sur le revenu (PFU) <div class="pct-field"><input type="number" min="0" max="100" step="0.1" inputmode="decimal" data-tax="ir"></div></label>
-          <label>Prélèvements sociaux <div class="pct-field"><input type="number" min="0" max="100" step="0.1" inputmode="decimal" data-tax="social"></div><span class="muted small">Compte-titres, PEA, PER</span></label>
+          <label><span class="lbl">Prélèvements sociaux<button type="button" class="info" aria-label="Explication" data-tip="Compte-titres, PEA, PER">i</button></span> <div class="pct-field"><input type="number" min="0" max="100" step="0.1" inputmode="decimal" data-tax="social"></div></label>
           <label>Prélèvements sociaux assurance-vie <div class="pct-field"><input type="number" min="0" max="100" step="0.1" inputmode="decimal" data-tax="socialAv"></div></label>
-          <label>Impôt assurance-vie de plus de 8 ans <div class="pct-field"><input type="number" min="0" max="100" step="0.1" inputmode="decimal" data-tax="avIr8"></div><span class="muted small">Au-delà de l'abattement annuel</span></label>
+          <label><span class="lbl">Impôt assurance-vie de plus de 8 ans<button type="button" class="info" aria-label="Explication" data-tip="Au-delà de l&#x27;abattement annuel">i</button></span> <div class="pct-field"><input type="number" min="0" max="100" step="0.1" inputmode="decimal" data-tax="avIr8"></div></label>
           <label>Plafond des versements PEA <input type="number" min="0" step="1000" inputmode="decimal" data-tax="peaCap"></label>
         </div>
         <p class="muted small" id="taxSettingsSum"></p>
@@ -637,25 +625,25 @@
         <div class="card">
           <div class="card-head"><h2>Sources de données</h2></div>
           <form id="settingsForm" class="stack">
-            <label>Clé API
+            <label><span class="lbl">Clé API Twelve Data<button type="button" class="info" aria-label="Explication" data-tip="Facultative : gratuite sur twelvedata.com, stockée uniquement dans ce navigateur. Sans clé, tout passe par Yahoo.">i</button></span>
               <div class="inline">
                 <input type="password" id="setApiKey" autocomplete="off" placeholder="ta clé API" spellcheck="false">
                 <button type="button" class="btn small" id="toggleKey">Afficher</button>
               </div>
-              <span class="muted small">Gratuite sur <a href="https://twelvedata.com/pricing" target="_blank" rel="noopener">twelvedata.com</a>. Stockée uniquement dans ce navigateur.</span>
+              <a class="small" href="https://twelvedata.com/pricing" target="_blank" rel="noopener">Obtenir une clé gratuite</a>
             </label>
-            <label>Relais Yahoo Finance (ETF européens gratuits)
+            <label><span class="lbl">Relais Yahoo Finance<button type="button" class="info" aria-label="Explication" data-tip="Le forfait gratuit Twelve Data ne couvre pas Euronext, Xetra, etc. Ces ETF passent par Yahoo via ce relais (voir le README). Un relais par défaut est utilisé si le champ est vide.">i</button></span>
               <div class="inline">
                 <input type="url" id="setProxy" autocomplete="off" placeholder="https://apistock-yahoo.xxx.workers.dev" spellcheck="false">
                 <button type="button" class="btn small" id="testProxy">Tester</button>
               </div>
-              <span class="muted small">Le forfait gratuit Twelve Data ne couvre pas Euronext, Xetra, etc. Ces ETF passent alors par Yahoo via ton relais (voir le README). <b id="proxyStatus" class="up"></b></span>
+              <b id="proxyStatus" class="up small"></b>
             </label>
             <div class="req-usage">
-              <div class="req-usage-head"><span>Requêtes envoyées aujourd'hui <span class="muted small">(ce navigateur)</span></span><b id="reqTotal" class="mono">0</b></div>
+              <div class="req-usage-head"><span class="lbl">Requêtes aujourd'hui<button type="button" class="info" aria-label="Explication" data-tip="Requêtes envoyées par ce navigateur. Le relais Yahoo a un quota gratuit de 100 000 requêtes par jour, partagé avec tous les visiteurs ; Twelve Data en autorise 800 par jour sur le forfait gratuit. Remis à zéro à minuit.">i</button></span><b id="reqTotal" class="mono">0</b></div>
               <div class="bar"><span id="reqBar" style="width:0%"></span></div>
               <span class="muted small" id="reqDetail"></span>
-              <div class="req-usage-head req-global"><span>Total du relais aujourd'hui <span class="muted small">(tous les visiteurs)</span></span><b id="reqGlobal" class="mono">…</b></div>
+              <div class="req-usage-head req-global"><span>Total du relais <span class="muted small">(tous les visiteurs)</span></span><b id="reqGlobal" class="mono">…</b></div>
               <div class="bar"><span id="reqGlobalBar" style="width:0%"></span></div>
               <span class="muted small" id="reqGlobalDetail"></span>
             </div>
@@ -677,13 +665,13 @@
                 <option value="900">Toutes les 15 min</option>
               </select>
             </label>
-            <label>Crédits API par minute (selon ton forfait)
+            <label><span class="lbl">Crédits API par minute (selon ton forfait)<button type="button" class="info" aria-label="Explication" data-tip="Forfait gratuit : 8 crédits/min et 800/jour. Chaque cotation coûte 1 crédit.">i</button></span>
               <input type="number" id="setCredits" min="1" max="2000" value="8">
-              <span class="muted small">Forfait gratuit : 8 crédits/min et 800/jour. Chaque cotation coûte 1 crédit.</span>
+              
             </label>
-            <label>Taux sans risque (%)
+            <label><span class="lbl">Taux sans risque (%)<button type="button" class="info" aria-label="Explication" data-tip="Rendement d&#x27;un placement sans risque (livret, monétaire), utilisé pour le ratio de Sharpe.">i</button></span>
               <input type="number" id="setRiskFree" min="0" max="20" step="0.1" value="2">
-              <span class="muted small">Rendement d'un placement sans risque (livret, monétaire), utilisé pour le ratio de Sharpe.</span>
+              
             </label>
             <div class="actions">
               <button type="submit" class="btn primary">Enregistrer</button>
@@ -693,16 +681,15 @@
         </div>
 
         <div class="card" id="syncCard">
-          <div class="card-head"><h2>Synchronisation entre appareils</h2><span class="pill" id="syncState">Désactivée</span></div>
+          <div class="card-head"><h2>Synchronisation<button type="button" class="info" aria-label="Explication" data-tip="Retrouve tes opérations, comptes, liste de suivi et réglages sur ton téléphone et ton ordinateur. Les données sont chiffrées dans ton navigateur avec ton code avant d&#x27;être envoyées : sans le code, personne ne peut les lire, pas même le relais qui les stocke.">i</button></h2><span class="pill" id="syncState">Désactivée</span></div>
           <div class="stack">
-            <p class="muted">Retrouve tes opérations, comptes, liste de suivi et réglages sur ton téléphone et ton ordinateur. Les données sont <b>chiffrées dans ton navigateur</b> avec ton code avant d'être envoyées : sans le code, personne ne peut les lire, pas même le relais qui les stocke.</p>
             <div id="syncOff">
-              <label>Code de synchronisation
+              <label><span class="lbl">Code de synchronisation<button type="button" class="info" aria-label="Explication" data-tip="Sur ton 1er appareil, clique sur « Générer », note le code, puis active. Sur les autres, saisis le même code. Garde-le précieusement : il ne peut pas être récupéré.">i</button></span>
                 <div class="inline">
                   <input type="text" id="syncCode" autocomplete="off" spellcheck="false" placeholder="Au moins 12 caractères" minlength="12">
                   <button type="button" class="btn small" id="syncGen">Générer</button>
                 </div>
-                <span class="muted small">Sur ton 1er appareil, clique sur « Générer », note le code, puis active. Sur les autres, saisis le même code. Garde-le précieusement : il ne peut pas être récupéré.</span>
+                
               </label>
               <div class="actions"><button type="button" class="btn primary" id="syncOn">Activer la synchronisation</button></div>
             </div>
@@ -718,23 +705,23 @@
         </div>
 
         <div class="card">
-          <div class="card-head"><h2>Sauvegarde</h2></div>
+          <div class="card-head"><h2>Sauvegarde<button type="button" class="info" aria-label="Explication" data-tip="Tes données sont enregistrées dans ce navigateur. Exporte-les régulièrement pour ne rien perdre, ou pour les transférer sur un autre appareil.">i</button></h2></div>
           <div class="stack">
-            <p class="muted">Tes données (opérations, liste de suivi) sont enregistrées dans le navigateur. Exporte-les régulièrement pour ne rien perdre, ou pour les transférer sur un autre appareil.</p>
+            <h4 class="sub-title">Tout le site (JSON)</h4>
             <div class="actions">
               <button class="btn" id="exportBtn">Exporter (JSON)</button>
               <label class="btn">Importer… <input type="file" id="importFile" accept="application/json,.json" hidden></label>
             </div>
             <hr>
-            <p class="muted">Opérations au format CSV (Excel) : pour les retravailler, ou pour importer l'historique exporté de ton courtier. Colonnes reconnues : date, type (achat / vente / dividende / division), compte, symbole, place, nom, quantité (ou parité pour une division), prix, frais, devise, note.</p>
+            <h4 class="sub-title">Opérations en CSV (Excel)<button type="button" class="info" aria-label="Explication" data-tip="Pour retravailler tes opérations, ou importer l&#x27;historique exporté de ton courtier. Colonnes reconnues : date, type (achat / vente / dividende / division), compte, symbole, place, nom, quantité (ou parité pour une division), prix, frais, devise, note.">i</button></h4>
             <div class="actions">
               <button class="btn" id="csvExport">Exporter en CSV</button>
               <label class="btn">Importer un CSV… <input type="file" id="csvImport" accept=".csv,text/csv,text/plain" hidden></label>
               <button class="btn" id="csvTemplate">Télécharger un modèle</button>
             </div>
-            <p class="muted">Avis d'opéré PDF (Boursorama et présentations proches) : sélectionne-les tous d'un coup, chaque achat ou vente est reconnu (titre retrouvé par son ISIN, frais compris). Un avis déjà importé est ignoré.</p>
+            <h4 class="sub-title">Avis d'opéré (PDF)<button type="button" class="info" aria-label="Explication" data-tip="Boursorama et présentations proches : sélectionne-les tous d&#x27;un coup, chaque achat ou vente est reconnu (titre retrouvé par son ISIN, frais compris). Un avis déjà importé est ignoré.">i</button></h4>
             <div class="actions">
-              <label class="btn">Importer des avis d'opéré (PDF)… <input type="file" class="avisImport" accept="application/pdf,.pdf" multiple hidden></label>
+              <label class="btn">Importer des avis… <input type="file" class="avisImport" accept="application/pdf,.pdf" multiple hidden></label>
             </div>
             <hr>
             <div class="actions">
@@ -789,8 +776,7 @@
   <!-- Fenêtre de versement / retrait d'espèces -->
   <dialog id="cashDialog">
     <form method="dialog" id="cashForm" class="stack">
-      <h2 id="cashDialogTitle">Versement / retrait</h2>
-      <p class="muted small">Enregistre l'argent que tu verses sur un compte (ou que tu en retires) : l'appli calcule alors les espèces disponibles et, pour un PEA, les versements réels face au plafond.</p>
+      <h2 id="cashDialogTitle">Versement / retrait<button type="button" class="info" aria-label="Explication" data-tip="Enregistre l&#x27;argent que tu verses sur un compte (ou que tu en retires) : l&#x27;appli calcule alors les espèces disponibles et, pour un PEA, les versements réels face au plafond.">i</button></h2>
       <div class="form-grid compact">
         <label>Type
           <select id="cashType"><option value="deposit">Versement</option><option value="withdraw">Retrait</option></select>
@@ -810,8 +796,7 @@
   <!-- Rapport annuel -->
   <dialog id="reportDialog">
     <form method="dialog" id="reportForm" class="stack">
-      <h2>Rapport annuel</h2>
-      <p class="muted small">Un récapitulatif imprimable de l'année : versements, achats et ventes, dividendes, frais, plus-values réalisées, cases fiscales du compte-titres et performance. Choisis « Enregistrer au format PDF » dans la fenêtre d'impression.</p>
+      <h2>Rapport annuel<button type="button" class="info" aria-label="Explication" data-tip="Un récapitulatif imprimable de l&#x27;année : versements, achats et ventes, dividendes, frais, plus-values réalisées, cases fiscales du compte-titres et performance. Choisis « Enregistrer au format PDF » dans la fenêtre d&#x27;impression.">i</button></h2>
       <div class="form-grid compact">
         <label>Année<select id="reportYear"></select></label>
         <label>Comptes<select id="reportAcc"></select></label>
@@ -831,10 +816,9 @@
         <label>Nom<input type="text" id="assetName" placeholder="ex. Livret A Banque"></label>
         <label><span>Valeur (<span class="ccy"></span>)</span><input type="number" id="assetValue" min="0" step="0.01" inputmode="decimal" required></label>
         <label>Date de mise à jour<input type="date" id="assetDate" required></label>
-        <label id="assetRateWrap">Taux annuel (%)<input type="number" id="assetRate" min="0" max="20" step="0.05" inputmode="decimal" placeholder="ex. taux du livret"></label>
+        <label id="assetRateWrap"><span>Taux annuel (%)<button type="button" class="info" aria-label="Explication" data-tip="Livrets et fonds euros : la valeur est estimée chaque jour avec ce taux, à partir de la date de mise à jour. Mets-la à jour avec ton relevé de temps en temps.">i</button></span><input type="number" id="assetRate" min="0" max="20" step="0.05" inputmode="decimal" placeholder="ex. taux du livret"></label>
         <label id="assetDebtWrap" class="hidden"><span>Crédit restant dû (<span class="ccy"></span>)</span><input type="number" id="assetDebt" min="0" step="100" inputmode="decimal"></label>
       </div>
-      <p class="muted small">Livrets et fonds euros : la valeur est estimée chaque jour avec le taux indiqué, à partir de la date de mise à jour. Mets-la à jour avec ton relevé de temps en temps.</p>
       <div class="actions end">
         <button type="button" class="btn" id="assetCancel">Annuler</button>
         <button type="submit" class="btn primary">Enregistrer</button>
@@ -849,7 +833,7 @@
       <div id="csvSummary"></div>
       <div id="csvIsins" class="csv-isins"></div>
       <div id="csvPreview" class="table-wrap"></div>
-      <p class="muted small" id="csvHelp">Formats reconnus automatiquement : modèle APIstock, Degiro (Transactions.csv), Trade Republic (export des transactions, non vérifié). Les autres relevés (Boursorama, Fortuneo…) sont lus d'après leurs en-têtes : date, sens, ISIN ou symbole, quantité, cours, frais, montant.</p>
+      <p class="muted small" id="csvHelp">Format détecté automatiquement<button type="button" class="info" aria-label="Explication" data-tip="Formats reconnus automatiquement : modèle APIstock, Degiro (Transactions.csv), Trade Republic (export des transactions, non vérifié). Les autres relevés (Boursorama, Fortuneo…) sont lus d&#x27;après leurs en-têtes : date, sens, ISIN ou symbole, quantité, cours, frais, montant.">i</button></p>
       <div class="actions end">
         <button type="button" class="btn" id="csvCancel">Annuler</button>
         <button type="submit" class="btn primary" id="csvOk">Importer</button>
@@ -880,22 +864,22 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-  <script src="js/utils.js?v=47bc0bb662"></script>
-  <script src="js/store.js?v=47bc0bb662"></script>
-  <script src="js/api.js?v=47bc0bb662"></script>
-  <script src="js/markets.js?v=47bc0bb662"></script>
-  <script src="js/portfolio.js?v=47bc0bb662"></script>
-  <script src="js/charts.js?v=47bc0bb662"></script>
-  <script src="js/app.js?v=47bc0bb662"></script>
-  <script src="js/views.js?v=47bc0bb662"></script>
-  <script src="js/compare.js?v=47bc0bb662"></script>
-  <script src="js/extras.js?v=47bc0bb662"></script>
-  <script src="js/mobile.js?v=47bc0bb662"></script>
-  <script src="js/features.js?v=47bc0bb662"></script>
-  <script src="js/money.js?v=47bc0bb662"></script>
-  <script src="js/newsart.js?v=47bc0bb662"></script>
-  <script src="js/insights.js?v=47bc0bb662"></script>
-  <script src="js/wealth.js?v=47bc0bb662"></script>
-  <script src="js/avis.js?v=47bc0bb662"></script>
+  <script src="js/utils.js?v=d6d81bc0f0"></script>
+  <script src="js/store.js?v=d6d81bc0f0"></script>
+  <script src="js/api.js?v=d6d81bc0f0"></script>
+  <script src="js/markets.js?v=d6d81bc0f0"></script>
+  <script src="js/portfolio.js?v=d6d81bc0f0"></script>
+  <script src="js/charts.js?v=d6d81bc0f0"></script>
+  <script src="js/app.js?v=d6d81bc0f0"></script>
+  <script src="js/views.js?v=d6d81bc0f0"></script>
+  <script src="js/compare.js?v=d6d81bc0f0"></script>
+  <script src="js/extras.js?v=d6d81bc0f0"></script>
+  <script src="js/mobile.js?v=d6d81bc0f0"></script>
+  <script src="js/features.js?v=d6d81bc0f0"></script>
+  <script src="js/money.js?v=d6d81bc0f0"></script>
+  <script src="js/newsart.js?v=d6d81bc0f0"></script>
+  <script src="js/insights.js?v=d6d81bc0f0"></script>
+  <script src="js/wealth.js?v=d6d81bc0f0"></script>
+  <script src="js/avis.js?v=d6d81bc0f0"></script>
 </body>
 </html>

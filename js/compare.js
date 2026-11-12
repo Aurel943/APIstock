@@ -285,7 +285,7 @@ Object.assign(App, {
             const v = i === j ? 1 : this.cmpCorr(a.values, b.values).corr;
             return el('td', { class: 'num corr-cell', style: `--a:${isFinite(v) ? Math.abs(v) : 0}` }, fmtNum(v, 2));
           })))))),
-        el('p', { class: 'muted small' }, '1 = évoluent exactement ensemble · 0 = aucun lien · négatif = évoluent en sens inverse. Une faible corrélation améliore la diversification.'));
+        noteTip('1 = évoluent exactement ensemble · 0 = aucun lien · négatif = évoluent en sens inverse. Une faible corrélation améliore la diversification.', 'Comment lire ce tableau'));
     } else $('#cmpCorr').replaceChildren();
 
     const notes = [];

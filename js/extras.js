@@ -79,9 +79,9 @@ Object.assign(App, {
     if (!$('#taxSettings')) return;
     const c = taxConf();
     $$('#taxSettingsForm [data-tax]').forEach(i => { if (document.activeElement !== i) i.value = c[i.dataset.tax]; });
-    $('#taxSettingsInfo').textContent = `Taux utilisés pour l'impôt estimé, la carte Fiscalité et le rapport annuel. Valeurs par défaut : revenus ${TAX_DEFAULTS.year} (${TAX_DEFAULTS.source}). À vérifier après chaque loi de finances.`;
+    $('#taxSettingsInfo').dataset.tip = `Taux utilisés pour l'impôt estimé, la carte Fiscalité et le rapport annuel. Valeurs par défaut : revenus ${TAX_DEFAULTS.year} (${TAX_DEFAULTS.source}). À vérifier après chaque loi de finances. Les comptes restés sur le taux par défaut de leur type suivent ces valeurs.`;
     $('#taxSettingsSum').textContent = `Prélèvement forfaitaire unique : ${fmtNum(c.pfu, 1)} % · PEA de plus de 5 ans : ${fmtNum(taxRateFor('pea', c), 1)} % · assurance-vie de plus de 8 ans : ${fmtNum(taxRateFor('av', c), 1)} %`
-      + (c.custom ? ' · taux personnalisés' : '') + '. Les comptes restés sur le taux par défaut de leur type suivent ces valeurs.';
+      + (c.custom ? ' · taux personnalisés' : '');
   },
 
   bindAccounts() {
@@ -196,7 +196,7 @@ Object.assign(App, {
         el('thead', {}, el('tr', {}, el('th'), ...MONTHS_FR.map(m => el('th', { class: 'num' }, m)), el('th', { class: 'num' }, 'Année'))),
         el('tbody', {}, ...years.map(y => el('tr', {}, el('td', { class: 'sym' }, y),
           ...MONTHS_FR.map((_, i) => cell(data[y].months[i + 1])), (() => { const c = cell(data[y].year); c.classList.add('cal-year'); return c; })()))))),
-      el('p', { class: 'muted small' }, 'Performance pondérée dans le temps (TWR), en % : tes versements et retraits ne la faussent pas. Le premier mois est partiel.'));
+      noteTip('Performance pondérée dans le temps (TWR), en % : tes versements et retraits ne la faussent pas. Le premier mois est partiel.'));
   },
 
   /* ================================================================== */
