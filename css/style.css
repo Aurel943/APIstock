@@ -810,3 +810,31 @@ details.advanced[open] > .stack { margin-top: 12px; }
 .tax-edit label.check { display: flex; flex-direction: row; align-items: center; gap: 8px; font-size: 13px; text-align: left; }
 .tax-edit label.check input { width: auto; flex: none; margin: 0; }
 .tax-edit label.check { justify-content: flex-start; align-self: stretch; }
+
+/* Filtres de l'historique des opérations */
+.tx-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+.tx-filters select { width: auto; min-width: 150px; max-width: 100%; }
+@media (max-width: 640px) { .tx-filters select { flex: 1 1 45%; min-width: 0; } }
+
+/* Contribution de chaque ligne au gain */
+.contrib-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.contrib-list li { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 2fr) 110px; gap: 12px; align-items: center; font-size: 13.5px; }
+.contrib-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.contrib-list b { text-align: right; }
+.contrib-bar { position: relative; height: 10px; border-radius: 5px; background: var(--surface-2); }
+.contrib-bar::after { content: ""; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--border); }
+.contrib-bar span { position: absolute; top: 0; bottom: 0; border-radius: 5px; }
+.contrib-bar .pos { left: 50%; background: var(--up); }
+.contrib-bar .neg { right: 50%; background: var(--down); }
+@media (max-width: 640px) { .contrib-list li { grid-template-columns: minmax(0, 1fr) 90px; } .contrib-bar { grid-column: 1 / -1; order: 3; } }
+
+/* Simulation de vente (fiche détaillée) */
+#detailSale h3 { display: flex; align-items: center; }
+.sale-form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13.5px; margin-bottom: 10px; }
+.sale-form .sale-qty { width: 110px; }
+.sale-form select { width: auto; }
+.sale-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; }
+.sale-line { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; background: var(--surface-2); border-radius: 10px; font-size: 12px; color: var(--muted); }
+.sale-line b { font-size: 15px; color: var(--text); }
+.sale-line.up b { color: var(--up); } .sale-line.down b { color: var(--down); }
+.sale-line.sale-net { background: color-mix(in srgb, var(--accent) 12%, var(--surface)); }

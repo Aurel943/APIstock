@@ -3,6 +3,40 @@
 
 const Portfolio = {
   /**
+   * Vente simulée de `qty` parts d'une ligne sur un compte, au cours actuel : produit, frais (barème du compte),
+   * plus-value (prix moyen pondéré) et impôt estimé au taux du compte. Montants en devise de base.
+   */
+  simulateSale(key, accountId, qty) {
+    const pos = this.positions(accountId).find(p => p.key === key);
+    const q = Api.cachedQuote(key);
+    if (!pos || !(pos.qty > 0) || !q || !(q.price > 0)) return null;
+    const n = Math.min(Math.max(0, qty), pos.qty);
+    const inst = Store.instrument(key);
+    const fx = Api.fxCached(inst ? inst.currency : Store.state.settings.baseCurrency);
+    if (!(fx > 0)) return null;
+    const acc = Store.account(accountId);
+    const gross = n * q.price * fx;
+    const fees = (this.brokerFee(acc, n * q.price, fx) || 0) * fx;
+    const cost = pos.cost * (n / pos.qty) * fx;
+    const gain = gross - fees - cost;
+    // PEA de moins de 5 ans : le retrait le clôture, la plus-value est imposée au prélèvement forfaitaire unique
+    const peaEarly = acc.type === 'pea' && typeof Tax !== 'undefined' && Tax.pea(acc).five > todayISO();
+    const rate = peaEarly ? taxConf().pfu : parseNum(acc.taxRate) || 0;
+    const tax = Math.max(0, gain) * rate / 100;
+    return { qty: n, maxQty: pos.qty, gross, fees, cost, gain, rate, tax, net: gross - fees - tax, account: acc, peaEarly };
+  },
+
+  /** Contribution de chaque ligne au gain total (devise de base), de la plus forte à la plus faible */
+  contributions(account) {
+    const { rows, closed } = this.snapshot(account);
+    const n = v => (isFinite(v) ? v : 0);
+    return rows.concat(closed).map(r => {
+      const latent = r.qty > 0 ? n(r.pnlBase) : 0, realized = n(r.realizedBase), dividends = n(r.dividendsBase);
+      return { key: r.key, open: r.qty > 0, latent, realized, dividends, total: latent + realized + dividends };
+    }).filter(c => Math.abs(c.total) > 0.005).sort((a, b) => b.total - a.total);
+  },
+
+  /**
    * Frais de courtage d'un ordre selon le barème du compte { pct, min, fixed } (minimum et fixe en devise de base).
    * `amount` : montant brut de l'ordre en devise de l'instrument ; `fx` : taux de cette devise vers la devise de base.
    * Renvoie null si le compte n'a pas de barème.
