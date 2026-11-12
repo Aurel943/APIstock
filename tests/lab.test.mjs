@@ -61,3 +61,20 @@ test('partage : aller-retour du lien, sans montant, et liens invalides refusés'
   assert.ok(!/[<>]/.test(e.title) && e.lines.every(l => !/[<>]/.test(l.name)));
   assert.deepEqual(e.lines.map(l => l.symbol), ['CW8'], 'symbole invalide écarté');
 });
+
+test('laboratoire : historique d\'un ETF récent prolongé par son indice, recalé sur son premier cours', () => {
+  const { get } = loadApp({});
+  const Lab = get('Lab');
+  const etf = [['2019-04-25', 20], ['2019-05-02', 21]];
+  const index = [['2011-11-14', 500], ['2015-01-02', 800], ['2019-04-25', 1000], ['2019-05-02', 1100]];
+  const s = JSON.parse(JSON.stringify(Lab.extend(etf, index)));
+  assert.deepEqual(s, [['2011-11-14', 10], ['2015-01-02', 16], ['2019-04-25', 20], ['2019-05-02', 21]]); // indice × 20/1000, puis l'ETF tel quel
+  assert.deepEqual(JSON.parse(JSON.stringify(Lab.extend(etf, [['2020-01-02', 5]]))), etf, 'indice plus court : rien à prolonger');
+  // avec la prolongation, la comparaison démarre au début de l'indice
+  const months = Array.from({ length: 30 }, (_, i) => `20${18 + Math.floor(i / 12)}-${String(i % 12 + 1).padStart(2, '0')}-02`);
+  const old = months.map((d, i) => [d, 100 + i]);
+  const young = months.slice(18).map((d, i) => [d, 50 + i]);
+  assert.equal(Lab.run({ A: old, B: young }, { A: 0.5, B: 0.5 }, { monthly: 100, start: '2018-01-01' }).dates.length, 12);
+  const longB = Lab.extend(young, months.map((d, i) => [d, 200 + 2 * i]));
+  assert.equal(Lab.run({ A: old, B: longB }, { A: 0.5, B: 0.5 }, { monthly: 100, start: '2018-01-01' }).dates.length, 30);
+});
