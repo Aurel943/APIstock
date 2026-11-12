@@ -68,9 +68,25 @@ const Charts = {
     const color = up ? this.css('--up') : this.css('--down');
     const o = this.baseOptions();
     o.plugins.legend.display = false;
-    o.plugins.tooltip.callbacks = { label: c => ' ' + fmtMoney(c.raw, opts.currency) };
+    o.plugins.tooltip.callbacks = { label: c => (c.dataset.label ? ` ${c.dataset.label} : ` : ' ') + fmtMoney(c.raw, opts.currency, 3) };
+    o.plugins.tooltip.filter = c => c.raw !== null && c.raw !== undefined;
     o.scales.y.ticks.callback = v => fmtNum(v, v >= 1000 ? 0 : 2);
     o.elements = { point: { radius: 0, hoverRadius: 4 } };
+    // repères facultatifs : achats (▲ vert), ventes (▼ rouge), prix de revient moyen (pointillés)
+    const n = values.length;
+    const marks = (type, color, style) => {
+      const pts = (opts.marks || []).filter(m => m.type === type);
+      if (!pts.length) return [];
+      const data = new Array(n).fill(null);
+      for (const m of pts) if (m.i >= 0 && m.i < n) data[m.i] = m.price;
+      return [{ label: type === 'buy' ? 'Achat' : 'Vente', data, showLine: false, pointStyle: style, rotation: type === 'sell' ? 180 : 0,
+        pointRadius: data.map(v => (v === null ? 0 : 6)), pointHoverRadius: 8, pointBackgroundColor: color, pointBorderColor: this.css('--surface'), borderWidth: 1 }];
+    };
+    const extra = [
+      ...(isFinite(opts.pru) ? [{ label: 'Ton prix de revient', data: new Array(n).fill(opts.pru), borderColor: this.css('--muted'), borderDash: [6, 4], borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 0, fill: false }] : []),
+      ...marks('buy', this.css('--up'), 'triangle'),
+      ...marks('sell', this.css('--down'), 'triangle'),
+    ];
     this.instances[id] = new Chart(ctx, {
       type: 'line',
       data: {
@@ -85,7 +101,7 @@ const Charts = {
             grad.addColorStop(1, color + '00');
             return grad;
           },
-        }],
+        }, ...extra],
       },
       options: o,
     });

@@ -263,3 +263,29 @@ test('vente simulée : PEA de moins de 5 ans imposé au prélèvement forfaitair
   near(s.rate, 31.4);
   near(s.tax, 500 * 0.314);
 });
+
+test('repères du graphique de la fiche : achats et ventes au bon jour, prix de revient', () => {
+  const app = loadApp(base({ transactions: [
+    { id: '1', key: 'CW8@XPAR', type: 'buy', date: '2024-01-06', account: 'pea', qty: 10, price: 100, fees: 0 }, // samedi : reporté au lundi
+    { id: '2', key: 'CW8@XPAR', type: 'sell', date: '2024-01-09', account: 'pea', qty: 5, price: 110, fees: 0 },
+    { id: '3', key: 'CW8@XPAR', type: 'buy', date: '2023-12-01', account: 'pea', qty: 10, price: 90, fees: 0 },  // avant la période
+    { id: '4', key: 'SPY@ARCX', type: 'buy', date: '2024-01-08', account: 'cto', qty: 1, price: 400, fees: 0 },  // autre ligne
+  ] }));
+  const values = [['2024-01-05', 99], ['2024-01-08', 101], ['2024-01-09', 108], ['2024-01-10', 109]];
+  const m = JSON.parse(JSON.stringify(app.App.detailMarks('CW8@XPAR', values)));
+  assert.deepEqual(m.marks, [{ i: 1, type: 'buy', price: 100 }, { i: 2, type: 'sell', price: 110 }]);
+  near(m.pru, 95);                                    // (10 × 90 + 10 × 100) / 20, PRU inchangé par la vente
+});
+
+test('performance depuis le 1er janvier, hors versements', () => {
+  const { App } = loadApp(base());
+  const y = new Date().getFullYear();
+  App.historyPoints = [
+    { date: `${y - 1}-12-31`, invested: 1000, value: 1000 },
+    { date: `${y}-03-01`, invested: 2000, value: 2100 },   // +1 000 € versés, +100 € de gain
+    { date: `${y}-06-01`, invested: 2000, value: 2310 },
+  ];
+  near(App.ytdPerf(), ((2100 - 1000) / 1000 * 2310 / 2100 - 1) * 100, 1e-9);
+  App.historyPoints = null;
+  assert.ok(Number.isNaN(App.ytdPerf()));
+});

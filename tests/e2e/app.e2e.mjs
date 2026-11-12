@@ -320,3 +320,23 @@ test('menu « Plus » au clavier et indicateur hors ligne', () => run({ state: s
   await context.setOffline(false);
   await page.waitForSelector('#offlinePill.hidden', { state: 'attached' });
 }));
+
+test('fiche : achats sur le graphique, « M\'alerter » ; répartition par compte ; performance de l\'année', { skip: !realCharts && 'Chart.js non installé' }, () => run({ state: sampleState() }, async ({ page }) => {
+  // performance de l'année, une fois l'historique chargé tout seul
+  await page.waitForFunction(() => /\d{4} : [+-−]/.test(document.querySelector('#kpis').innerText), null, { timeout: 15000 });
+  // répartition par compte
+  await page.click('#allocByAccount');
+  await page.waitForFunction(() => Chart.getChart('allocChart') && Chart.getChart('allocChart').data.labels.includes('PEA'));
+  assert.equal(await page.locator('#allocLegend li').count(), 2);
+  // fiche : repères d'achat et prix de revient sur le graphique 5 ans
+  await page.evaluate(() => { App.show('markets'); App.selectDetail('CW8@XPAR'); });
+  await page.click('#rangeSel [data-range="5A"]');
+  await page.waitForFunction(() => { const c = Chart.getChart('detailChart'); return c && c.data.datasets.some(d => d.label === 'Achat'); });
+  const labels = await page.evaluate(() => Chart.getChart('detailChart').data.datasets.map(d => d.label || ''));
+  assert.ok(labels.includes('Ton prix de revient'), JSON.stringify(labels));
+  // « M'alerter » : formulaire d'alerte pré-rempli
+  await page.click('.alert-shortcut');
+  assert.equal(await page.evaluate(() => App.view), 'invest');
+  assert.equal(await page.inputValue('#alertKey'), 'CW8@XPAR');
+  assert.ok(parseFloat(await page.inputValue('#alertValue')) > 0);
+}));

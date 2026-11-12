@@ -838,3 +838,5 @@ details.advanced[open] > .stack { margin-top: 12px; }
 .sale-line b { font-size: 15px; color: var(--text); }
 .sale-line.up b { color: var(--up); } .sale-line.down b { color: var(--down); }
 .sale-line.sale-net { background: color-mix(in srgb, var(--accent) 12%, var(--surface)); }
+.alert-shortcut { margin-left: auto; }
+.kpi-line.up { color: var(--up); }
