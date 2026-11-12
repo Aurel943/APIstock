@@ -16,7 +16,33 @@ const LAB_STRATS = {
   dip: { name: 'Attendre les baisses', color: '#ec4899' },
 };
 
+/* Indice suivi par zone (symbole Yahoo, devise, nom) : historique plus long que celui de l'ETF */
+const LAB_PROXY = {
+  world: ['^990100-USD-STRD', 'USD', 'MSCI World'],
+  allworld: ['ACWI', 'USD', 'MSCI ACWI (ETF iShares)'],
+  sp500: ['^GSPC', 'USD', 'S&P 500'],
+  ndx: ['^NDX', 'USD', 'Nasdaq-100'],
+  em: ['EEM', 'USD', 'MSCI Emerging Markets (ETF iShares)'],
+  europe: ['^STOXX', 'EUR', 'Stoxx Europe 600'],
+  es50: ['^STOXX50E', 'EUR', 'Euro Stoxx 50'],
+  cac: ['^FCHI', 'EUR', 'CAC 40'],
+  japan: ['EWJ', 'USD', 'MSCI Japan (ETF iShares)'],
+  gold: ['GC=F', 'USD', 'Or (contrat à terme)'],
+};
+
 const Lab = {
+  /**
+   * Prolonge la série d'un ETF avant son lancement avec celle de son indice : les points antérieurs de
+   * l'indice sont recalés pour coïncider avec le premier cours de l'ETF. Séries triées, même devise.
+   */
+  extend(series, proxy) {
+    if (!series.length || !proxy.length || proxy[0][0] >= series[0][0]) return series;
+    const at = this.priceAt(proxy, series[0][0]);
+    if (!(at > 0)) return series;
+    const ratio = series[0][1] / at;
+    return proxy.filter(p => p[0] < series[0][0]).map(([d, v]) => [d, v * ratio]).concat(series);
+  },
+
   /** Cours à une date (dernier connu à cette date ou avant) ; `s` trié par date */
   priceAt(s, d) {
     let lo = 0, hi = s.length - 1, best = null;
@@ -115,15 +141,33 @@ Object.assign(App, {
     btn.disabled = true; btn.textContent = 'Calcul…';
     try {
       const start = addMonthsISO(todayISO(), -12 * years);
-      const prices = {};
+      const extend = $('#labExtend') ? $('#labExtend').checked : true;
+      const prices = {}, extended = [], firsts = {};
+      const inBase = async (series, ccy) => { const fx = await Api.fxSeries(ccy, start); return series.map(([d, v]) => [d, v * (fx(d) || 1)]); };
       for (const k of Object.keys(lines.w)) {
         const inst = Store.instrument(k);
-        const fx = Api.fxCached(inst.currency);
-        prices[k] = (await Api.daily(k, start)).map(([d, v]) => [d, v * (isFinite(fx) && fx > 0 ? fx : 1)]);
+        let s = await inBase(await Api.daily(k, start), inst.currency); // au taux de change de chaque jour
+        firsts[k] = s.length ? s[0][0] : todayISO();
+        // ETF lancé après le début de la période : avant son lancement, on suit l'indice qu'il réplique
+        const proxy = LAB_PROXY[Expo.of(k).profile];
+        if (extend && proxy && s.length && s[0][0] > addDaysISO(start, 40)) {
+          try {
+            const p = await inBase(await Api.daily('Y:' + proxy[0], start), proxy[1]);
+            const longer = Lab.extend(s, p);
+            if (longer.length > s.length) { extended.push({ key: k, since: s[0][0], index: proxy[2] }); s = longer; }
+          } catch (e) { /* indice indisponible : la période sera raccourcie */ }
+        }
+        prices[k] = s;
       }
       const res = Lab.run(prices, lines.w, { monthly, start });
       if (!res || res.dates.length < 12) throw new Error('Pas assez d\'historique commun pour ces lignes (au moins un an).');
-      this.labResult = Object.assign(res, { source: lines.source, keys: Object.keys(lines.w), monthly });
+      // période raccourcie malgré tout : quelle ligne la limite ?
+      let limit = null;
+      if (res.dates[0] > addDaysISO(start, 45)) {
+        const k = Object.keys(prices).reduce((a, b) => (prices[b][0][0] > prices[a][0][0] ? b : a));
+        limit = { key: k, since: prices[k][0][0] };
+      }
+      this.labResult = Object.assign(res, { source: lines.source, keys: Object.keys(lines.w), monthly, years, extended, limit });
       this.renderLab();
     } catch (e) {
       box.replaceChildren(el('p', { class: 'muted' }, e.message));
@@ -150,8 +194,11 @@ Object.assign(App, {
         ? 'Le rééquilibrage annuel n\'a presque rien changé ici : tes lignes ont évolué de façon proche. Il sert surtout quand l\'une d\'elles s\'envole ou chute, pour garder le niveau de risque choisi.'
         : `Le rééquilibrage annuel a ${s.rebal.final >= s.dca.final ? 'ajouté' : 'coûté'} ${fmtMoney(Math.abs(s.rebal.final - s.dca.final), cur, 0)} : son intérêt est surtout de garder le niveau de risque choisi (pire baisse ${fmtPct(s.rebal.maxDrawdown, 0)} contre ${fmtPct(s.dca.maxDrawdown, 0)}).`,
     ].filter(Boolean);
-    box.replaceChildren(
+    box.replaceChildren(...[
       el('p', { class: 'muted small lab-src' }, `${fmtMoney(r.total, cur, 0)} investis au total (${fmtMoney(r.monthly, cur, 0)}/mois) sur ${r.dates.length} mois, du ${fmtDate(r.dates[0])} au ${fmtDate(r.dates[r.dates.length - 1])}, avec ${r.source}. « Tout au début » place ces ${fmtMoney(r.total, cur, 0)} dès le premier jour.`),
+      r.limit ? el('p', { class: 'lab-warn small' }, `⚠ Période limitée à ${fmtSpan(r.dates[0], r.dates[r.dates.length - 1])} au lieu de ${r.years} ans : ${Store.label(r.limit.key)} n'a pas de cours avant le ${fmtDate(r.limit.since)}` + (r.extended.length || !$('#labExtend') || $('#labExtend').checked ? '.' : '. Coche « Prolonger avec l\'indice suivi » pour remonter plus loin.')) : null,
+      r.extended.length ? el('p', { class: 'muted small' }, 'Historique prolongé avec l\'indice suivi : ' + r.extended.map(x => `${Store.label(x.key)} avant le ${fmtDate(x.since)} (${x.index})`).join(' · ') + '.',
+        infoTip('Avant le lancement d\'un ETF, on suit l\'indice qu\'il réplique, recalé sur son premier cours et converti en euros au taux de chaque jour. Les indices de prix ne comptent pas les dividendes : cette partie est un peu sous-estimée, et ne tient pas compte des frais de l\'ETF.')) : null,
       el('div', { class: 'chart-box lab-chart' }, el('canvas', { id: 'labChart' })),
       el('ol', { class: 'lab-rank' }, ...ranked.map(([id, x], i) => el('li', { class: id === best ? 'best' : '' },
         el('span', { class: 'lab-dot', style: 'background:' + LAB_STRATS[id].color }),
@@ -161,7 +208,7 @@ Object.assign(App, {
         el('span', { class: 'muted small' }, 'pire baisse ' + fmtPct(x.maxDrawdown, 0)),
         i === 0 ? el('span', { class: 'chip up' }, 'gagnante') : null))),
       el('ul', { class: 'lab-lessons' }, ...lessons.map(t => el('li', {}, t))),
-      noteTip('Cours de clôture réels du premier jour de cotation de chaque mois, convertis au taux de change actuel. Frais, impôts et dividendes non réinvestis ignorés. « Attendre les baisses » : l\'argent s\'accumule et n\'est investi que quand l\'indice pondéré est à 10 % sous son plus haut des 12 derniers mois, ou après 12 mois d\'attente. Les résultats dépendent beaucoup de la période : un éclairage, pas une prédiction.', 'Méthode et limites'));
+      noteTip('Cours de clôture réels du premier jour de cotation de chaque mois, convertis au taux de change de chaque jour. Frais, impôts et dividendes non réinvestis ignorés. « Attendre les baisses » : l\'argent s\'accumule et n\'est investi que quand l\'indice pondéré est à 10 % sous son plus haut des 12 derniers mois, ou après 12 mois d\'attente. Les résultats dépendent beaucoup de la période : un éclairage, pas une prédiction.', 'Méthode et limites')].filter(Boolean));
     if (typeof Chart === 'undefined') return;
     Charts.destroy('labChart');
     const o = Charts.baseOptions();

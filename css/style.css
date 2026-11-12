@@ -1031,3 +1031,5 @@ body.w-open { overflow: hidden; }
 /* Répartition partagée */
 .share-dialog { max-width: 560px; width: calc(100% - 24px); }
 .share-dialog h2 { display: flex; align-items: center; }
+.lab-extend { grid-column: 1 / -1; }
+.lab-warn { color: #b45309; margin: 0 0 6px; }
