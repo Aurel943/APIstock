@@ -381,3 +381,28 @@ test('catalogue : portefeuille type appliqué comme cible ; moyennes mobiles sur
   await page.waitForFunction(() => /tendance/i.test(document.querySelector('#detailStats').innerText));
   assert.equal(await page.evaluate(() => localStorage.getItem('apistock:ind')), '1');
 }));
+
+test('objectifs multiples et alerte « sous mon prix de revient »', () => run({ state: sampleState() }, async ({ page }) => {
+  await page.evaluate(() => App.show('invest'));
+  await page.waitForSelector('#goalList .goal-item');
+  assert.equal(await page.locator('#goalList .goal-item').count(), 1, 'objectif principal');
+  await page.click('#goalAdd');
+  assert.equal(await page.locator('#goalList .goal-item').count(), 2);
+  const form = page.locator('#goalList .goal-item.editing');
+  await form.locator('input[type=text]').fill('Apport immobilier');
+  await form.locator('input[type=text]').press('Tab');
+  await form.locator('.goal-accs label', { hasText: 'PEA' }).locator('input').uncheck();     // financé par le compte-titres seul
+  const g = await page.evaluate(() => Store.state.goals[0]);
+  assert.equal(g.name, 'Apport immobilier');
+  assert.deepEqual(g.accounts, ['cto']);
+  assert.match(await page.locator('#goalList .goal-item').nth(1).innerText(), /Apport immobilier/);
+  // alerte sans valeur à saisir
+  await page.selectOption('#alertKey', 'CW8@XPAR');
+  await page.selectOption('#alertKind', 'belowPru');
+  assert.ok(!(await page.locator('#alertValue').isVisible()), 'pas de valeur à saisir');
+  await page.click('#alertForm button[type=submit]');
+  const alerts = await page.evaluate(() => Store.state.alerts);
+  assert.equal(alerts.length, 1);
+  assert.equal(alerts[0].kind, 'belowPru');
+  await page.waitForFunction(() => /prix de revient \(/.test(document.querySelector('#alertTable').innerText));
+}));

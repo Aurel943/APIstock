@@ -150,51 +150,6 @@ Object.assign(App, {
   /* ================================================================== */
   /* OBJECTIF PATRIMONIAL                                                 */
   /* ================================================================== */
-  bindGoal() {
-    const g = Store.state.goal = Store.state.goal || { target: 100000, date: addMonthsISO(todayISO(), 120), monthly: 300, rate: 6 };
-    const ids = { target: '#goalTarget', date: '#goalDate', monthly: '#goalMonthly', rate: '#goalRate' };
-    for (const [k, id] of Object.entries(ids)) {
-      $(id).value = g[k];
-      $(id).addEventListener('input', () => { g[k] = k === 'date' ? $(id).value : parseNum($(id).value) || 0; Store.save(); this.renderGoal(); });
-    }
-    if ($('#goalAssets')) {
-      $('#goalAssets').checked = !!g.includeAssets;
-      $('#goalAssets').addEventListener('change', () => { g.includeAssets = $('#goalAssets').checked; Store.save(); this.renderGoal(); });
-    }
-  },
-
-  renderGoal() {
-    const g = Store.state.goal;
-    if (!g || !$('#goalResult')) return;
-    const cur = this.base();
-    // l'objectif porte sur l'ensemble des comptes
-    const { totals } = Portfolio.snapshot('all');
-    const others = g.includeAssets && typeof Wealth !== 'undefined' ? Wealth.othersTotal() : 0;
-    const V = (totals.value || 0) + Portfolio.cashTotal('all').cash + others; // titres + espèces suivies (+ autres actifs si demandé)
-    const T = g.target || 0;
-    const r = Math.pow(1 + (g.rate || 0) / 100, 1 / 12) - 1;
-    const m = g.monthly || 0;
-    const n = Math.max(0, this.monthsBetween(todayISO(), g.date || todayISO()));
-    const fv = r ? V * Math.pow(1 + r, n) + m * (Math.pow(1 + r, n) - 1) / r : V + m * n;
-    let reach = null;
-    if (V >= T) reach = 0;
-    else {
-      let v = V;
-      for (let k = 1; k <= 1200; k++) { v = v * (1 + r) + m; if (v >= T) { reach = k; break; } }
-    }
-    const need = n > 0 ? (r ? (T - V * Math.pow(1 + r, n)) * r / (Math.pow(1 + r, n) - 1) : (T - V) / n) : NaN;
-    const pct = T > 0 ? Math.min(100, (V / T) * 100) : 0;
-    const onTrack = fv >= T;
-    $('#goalResult').replaceChildren(
-      el('div', { class: 'goal-bar' }, el('span', { style: `width:${pct}%` }), el('b', {}, fmtNum(pct, 1) + ' %')),
-      el('div', { class: 'goal-legend' }, el('span', {}, fmtMoney(V, cur, 0) + ' aujourd\'hui' + (others ? ` (dont ${fmtMoney(others, cur, 0)} d'autres actifs)` : '')), el('span', {}, 'objectif ' + fmtMoney(T, cur, 0))),
-      el('div', { class: 'kpis' },
-        this.kpi('À la date cible', fmtMoney(fv, cur, 0), fmtDate(g.date) + (onTrack ? ' · objectif atteint ✔' : ' · il manquera ' + fmtMoney(T - fv, cur, 0)), onTrack ? 'up' : 'down'),
-        this.kpi('Objectif atteint', reach === null ? 'Jamais' : reach === 0 ? 'Déjà !' : fmtDate(addMonthsISO(todayISO(), reach)),
-          reach ? `dans ${Math.floor(reach / 12)} an(s) et ${reach % 12} mois` : 'avec ces hypothèses', reach !== null && (reach === 0 || addMonthsISO(todayISO(), reach) <= g.date) ? 'up' : ''),
-        this.kpi('Versement mensuel nécessaire', isFinite(need) ? (need <= 0 ? '0 €' : fmtMoney(need, cur, 0)) : '—',
-          'pour atteindre l\'objectif à la date cible', isFinite(need) && need <= m ? 'up' : 'down')));
-  },
 
   /* ================================================================== */
   /* CALENDRIER DES PERFORMANCES MENSUELLES                               */

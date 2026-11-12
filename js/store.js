@@ -54,7 +54,8 @@ const DEFAULT_STATE = {
   transactions: [],  // { id, key, type: 'buy'|'sell'|'div'|'split', date, qty (parité pour 'split'), price, fees, note }
   cashMoves: [],     // { id, account, type: 'deposit'|'withdraw', date, amount (devise de base), note }
   assets: [],        // autres actifs (patrimoine global) { id, type, name, value, date, rate?, debt? }
-  plans: [],         // versements programmés { id, key, account, amount, day, start, fractional, active, done: { 'AAAA-MM': idOpération | 'skip' } }
+  plans: [],
+  goals: [],         // objectifs supplémentaires { id, name, target, date, monthly, rate, accounts: [ids] (vide = tous), includeAssets }         // versements programmés { id, key, account, amount, day, start, fractional, active, done: { 'AAAA-MM': idOpération | 'skip' } }
   watchlist: [],     // [key]
   deleted: {},       // id -> horodatage de suppression (synchronisation : un élément supprimé ne réapparaît pas)
   restored: {},      // id -> horodatage d'annulation d'une suppression (l'emporte sur une suppression plus ancienne)
@@ -74,6 +75,7 @@ const Store = {
     this.state.alerts = this.state.alerts || [];
     if (!Array.isArray(this.state.cashMoves)) this.state.cashMoves = [];
     if (!Array.isArray(this.state.plans)) this.state.plans = [];
+    if (!Array.isArray(this.state.goals)) this.state.goals = [];
     if (!Array.isArray(this.state.assets)) this.state.assets = [];
     for (const k of ['deleted', 'restored']) if (!this.state[k] || typeof this.state[k] !== 'object' || Array.isArray(this.state[k])) this.state[k] = {};
     this.purgeTombstones();
