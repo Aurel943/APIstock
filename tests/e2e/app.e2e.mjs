@@ -6,7 +6,7 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { chromium, startServer, openApp, sampleState, realCharts } from './helpers.mjs';
 
-const VIEWS = ['portfolio', 'markets', 'compare', 'world', 'invest', 'simulation', 'settings'];
+const VIEWS = ['portfolio', 'markets', 'agenda', 'compare', 'world', 'invest', 'simulation', 'settings'];
 let server, url, browser;
 
 before(async () => { ({ server, url } = await startServer()); browser = await chromium.launch(); });
@@ -309,7 +309,8 @@ test('opérations filtrées, contribution des lignes et vente simulée', () => r
 test('menu « Plus » au clavier et indicateur hors ligne', () => run({ state: sampleState() }, async ({ page, context }) => {
   await page.focus('#tabMoreBtn');
   await page.keyboard.press('ArrowDown');
-  assert.equal(await page.evaluate(() => document.activeElement.dataset.view), 'compare');
+  assert.equal(await page.evaluate(() => document.activeElement.dataset.view), 'agenda');
+  await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
   assert.equal(await page.evaluate(() => App.view), 'simulation');
@@ -339,4 +340,24 @@ test('fiche : achats sur le graphique, « M\'alerter » ; répartition par compt
   assert.equal(await page.evaluate(() => App.view), 'invest');
   assert.equal(await page.inputValue('#alertKey'), 'CW8@XPAR');
   assert.ok(parseFloat(await page.inputValue('#alertValue')) > 0);
+}));
+
+test('agenda (filtres, export .ics) et bilan de santé', () => run({ state: sampleState({ plans: [
+  { id: 'p1', key: 'CW8@XPAR', account: 'pea', amount: 300, day: 5, start: '2026-01-01', active: true, done: {} }] }) }, async ({ page }) => {
+  // bilan de santé en tête de l'onglet Analyse
+  await page.click('#pfSubnav [data-tab=analyse]');
+  await page.waitForSelector('#healthCard:not(.hidden) .health-ring');
+  const score = +(await page.locator('.health-ring b').innerText());
+  assert.ok(score >= 0 && score <= 100, String(score));
+  assert.ok(await page.locator('.health-item').count() >= 5);
+  // agenda depuis le menu « Plus »
+  await page.click('#tabMoreBtn');
+  await page.click('#tabMenu [data-view=agenda]');
+  await page.waitForSelector('#agendaList .agenda-item');
+  assert.ok(await page.locator('#agendaList .agenda-item.plan').count() >= 11, 'versements des 12 prochains mois');
+  await page.locator('#agendaKinds button', { hasText: 'Bourse' }).click();
+  const kinds = await page.locator('#agendaList .agenda-item').evaluateAll(l => Array.from(new Set(l.map(e => e.className.replace('agenda-item', '').replace('today', '').trim()))));
+  assert.deepEqual(kinds, ['market']);
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#agendaExport')]);
+  assert.equal(dl.suggestedFilename(), 'apistock-agenda.ics');
 }));

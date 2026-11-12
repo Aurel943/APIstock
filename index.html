@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=0873f11e64">
+  <link rel="stylesheet" href="css/style.css?v=cd3ca6584d">
 </head>
 <body>
   <header class="topbar">
@@ -30,6 +30,7 @@
       <div class="tab-more" id="tabMore">
         <button class="tab-more-btn" id="tabMoreBtn" aria-haspopup="true" aria-expanded="false">Plus <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         <div class="tab-menu" id="tabMenu" role="menu">
+          <button class="tab" data-view="agenda" role="menuitem">Agenda</button>
           <button class="tab" data-view="compare" role="menuitem">Comparer</button>
           <button class="tab" data-view="simulation" role="menuitem">Simulation</button>
           <button class="tab" data-view="settings" role="menuitem">Réglages</button>
@@ -145,6 +146,13 @@
         <div id="calendar"></div>
       </div>
 
+      <div data-sub="analyse" class="card hidden" id="healthCard">
+        <div class="card-head">
+          <h2>Bilan de santé<button type="button" class="info" aria-label="Explication" data-tip="Une note sur 100 calculée sur ta diversification (pays, secteurs, lignes non diversifiées), tes frais (ETF et courtage), les doublons, le respect de ta cible et la sauvegarde de tes données. Repères pédagogiques, pas un conseil en investissement : un portefeuille 100 % MSCI World est par exemple à ~72 % américain.">i</button></h2>
+        </div>
+        <div id="healthBody"></div>
+      </div>
+
       <div data-sub="analyse" class="card hidden" id="moversCard">
         <div class="card-head"><h2>Variations du jour</h2><span class="muted small" id="moversInfo"></span></div>
         <div class="movers">
@@ -234,6 +242,18 @@
             <tbody></tbody>
           </table>
         </div>
+      </div>
+    </section>
+
+    <!-- ============ AGENDA ============ -->
+    <section id="view-agenda" class="view">
+      <div class="card">
+        <div class="card-head">
+          <h2>Agenda<button type="button" class="info" aria-label="Explication" data-tip="Tes 12 prochains mois : versements programmés, dividendes attendus (d'après ceux de l'an dernier), jours où tes bourses sont fermées, jalons de tes PEA et assurances-vie, déclaration de revenus et relevés à saisir. « Ajouter à mon agenda » crée un fichier à ouvrir sur ton téléphone ou ton ordinateur.">i</button></h2>
+          <button class="btn small" id="agendaExport">📅 Ajouter à mon agenda</button>
+        </div>
+        <div class="seg agenda-kinds" id="agendaKinds"></div>
+        <div id="agendaList"></div>
       </div>
     </section>
 
@@ -894,6 +914,7 @@
   <div class="sheet-backdrop" id="moreBackdrop"></div>
   <div class="sheet" id="moreSheet" role="dialog" aria-label="Plus">
     <div class="sheet-handle"></div>
+    <button data-view="agenda"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><div><b>Agenda</b><span>Versements, dividendes, jours fériés, échéances fiscales</span></div></button>
     <button data-view="compare"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><div><b>Comparer</b><span>Nasdaq vs S&amp;P 500, ton portefeuille vs le marché…</span></div></button>
     <button data-view="simulation"><svg viewBox="0 0 24 24"><path d="M12 3v3M12 18v3M4.2 7.5l2.6 1.5M17.2 15l2.6 1.5M4.2 16.5l2.6-1.5M17.2 9l2.6-1.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/></svg><div><b>Simulation</b><span>« Et si j'avais investi… », projection future</span></div></button>
     <button data-view="settings"><svg viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="16" cy="6" r="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="10" cy="12" r="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="18" r="2" fill="none" stroke="currentColor" stroke-width="2"/></svg><div><b>Réglages</b><span>Clé API, relais Yahoo, comptes, sauvegarde</span></div></button>
@@ -903,23 +924,25 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-  <script src="js/utils.js?v=0873f11e64"></script>
-  <script src="js/store.js?v=0873f11e64"></script>
-  <script src="js/api.js?v=0873f11e64"></script>
-  <script src="js/markets.js?v=0873f11e64"></script>
-  <script src="js/portfolio.js?v=0873f11e64"></script>
-  <script src="js/charts.js?v=0873f11e64"></script>
-  <script src="js/app.js?v=0873f11e64"></script>
-  <script src="js/views.js?v=0873f11e64"></script>
-  <script src="js/compare.js?v=0873f11e64"></script>
-  <script src="js/extras.js?v=0873f11e64"></script>
-  <script src="js/mobile.js?v=0873f11e64"></script>
-  <script src="js/features.js?v=0873f11e64"></script>
-  <script src="js/money.js?v=0873f11e64"></script>
-  <script src="js/newsart.js?v=0873f11e64"></script>
-  <script src="js/insights.js?v=0873f11e64"></script>
-  <script src="js/wealth.js?v=0873f11e64"></script>
-  <script src="js/avis.js?v=0873f11e64"></script>
-  <script src="js/manual.js?v=0873f11e64"></script>
+  <script src="js/utils.js?v=cd3ca6584d"></script>
+  <script src="js/store.js?v=cd3ca6584d"></script>
+  <script src="js/api.js?v=cd3ca6584d"></script>
+  <script src="js/markets.js?v=cd3ca6584d"></script>
+  <script src="js/portfolio.js?v=cd3ca6584d"></script>
+  <script src="js/charts.js?v=cd3ca6584d"></script>
+  <script src="js/app.js?v=cd3ca6584d"></script>
+  <script src="js/views.js?v=cd3ca6584d"></script>
+  <script src="js/compare.js?v=cd3ca6584d"></script>
+  <script src="js/extras.js?v=cd3ca6584d"></script>
+  <script src="js/mobile.js?v=cd3ca6584d"></script>
+  <script src="js/features.js?v=cd3ca6584d"></script>
+  <script src="js/money.js?v=cd3ca6584d"></script>
+  <script src="js/newsart.js?v=cd3ca6584d"></script>
+  <script src="js/insights.js?v=cd3ca6584d"></script>
+  <script src="js/wealth.js?v=cd3ca6584d"></script>
+  <script src="js/avis.js?v=cd3ca6584d"></script>
+  <script src="js/manual.js?v=cd3ca6584d"></script>
+  <script src="js/health.js?v=cd3ca6584d"></script>
+  <script src="js/agenda.js?v=cd3ca6584d"></script>
 </body>
 </html>

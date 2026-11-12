@@ -64,6 +64,7 @@ const App = {
     this.bindCsv();
     this.bindMobile();
     this.bindManual();
+    this.bindAgenda();
     this.bindInteractionGuard();
     if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
     Api.onUsage((used, limit) => {
@@ -79,7 +80,7 @@ const App = {
     setInterval(() => { Api.emitUsage(); Api.emitDaily(); }, 5000);
 
     const hash = location.hash.replace('#', '');
-    this.show(['portfolio', 'markets', 'compare', 'world', 'invest', 'simulation', 'settings'].includes(hash) ? hash : (Api.ready() ? 'portfolio' : 'settings'));
+    this.show(['portfolio', 'markets', 'agenda', 'compare', 'world', 'invest', 'simulation', 'settings'].includes(hash) ? hash : (Api.ready() ? 'portfolio' : 'settings'));
     this.renderAll();
     Api.detectProxy().finally(() => { if (!Api.ready() && $('#advancedSources')) $('#advancedSources').open = true; this.renderAll(); Promise.resolve(this.refresh()).finally(() => this.autoHistory()); this.preloadFx(); });
     // opérations modifiées : le graphique d'évolution déjà affiché est recalculé (sans bruit)
@@ -138,6 +139,7 @@ const App = {
   },
 
   show(view) {
+    if (view === 'agenda') setTimeout(() => this.renderAgenda(), 0);
     this.view = view;
     $$('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === view));
     $('#tabMoreBtn').classList.toggle('active', !!$('#tabMenu .tab.active'));
@@ -282,6 +284,8 @@ const App = {
     this.renderAlerts();
     this.renderMarketState();
     if (this.view === 'world') this.renderWorld();
+    if (this.view === 'agenda') this.renderAgenda();
+    this.renderHealth();
     this.emit('rendered:all');
   },
 
