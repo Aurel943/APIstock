@@ -149,7 +149,10 @@ const App = {
     this.view = view;
     $$('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === view));
     $('#tabMoreBtn').classList.toggle('active', !!$('#tabMenu .tab.active'));
+    const changed = !$('#view-' + view).classList.contains('active');
     $$('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + view));
+    if (changed && this._booted) window.scrollTo({ top: 0 });
+    this._booted = true;
     history.replaceState(null, '', '#' + view);
     clearInterval(this._globalTimer);
     if (view === 'settings') {
@@ -393,6 +396,7 @@ const App = {
   /* ------------------------------------------------------------------ */
   // Sous-onglets du portefeuille (Synthèse, Analyse…) : un seul groupe de cartes visible à la fois
   portfolioTab(tab) {
+    if (!$(`#pfSubnav [data-tab="${tab}"]`)) tab = 'synthese'; // ancien sous-onglet (ex. « Patrimoine »)
     $('#view-portfolio').dataset.sub = tab;
     $$('#pfSubnav button').forEach(x => x.classList.toggle('active', x.dataset.tab === tab));
     try { localStorage.setItem('apistock:pfTab', tab); } catch (e) { /* stockage indisponible */ }
@@ -762,7 +766,7 @@ const App = {
     input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); run(); } });
     renderKnown();
     const manual = el('button', { type: 'button', class: 'link small picker-manual', onclick: () => this.openManualCreate(k => { renderKnown(); onPick(k); }) },
-      'Introuvable ? Ajouter un placement à valeur saisie à la main');
+      'Sans cotation en ligne ? Le saisir à la main');
     container.replaceChildren(el('div', { class: 'picker' },
       el('div', { class: 'inline' }, input, btn),
       el('label', { class: 'check', style: 'align-self:start;padding:0' }, etfOnly, 'ETF uniquement'),
@@ -971,6 +975,7 @@ const App = {
       $('#detailSub').textContent = 'Sélectionne un instrument';
       $('#detailPrice').replaceChildren();
       $('#detailStats').replaceChildren();
+      $('#detailSession').replaceChildren();
       return;
     }
     const inst = Store.instrument(k);
@@ -983,11 +988,16 @@ const App = {
       el('span', { class: 'muted small' }, (q.isOpen ? 'En direct · ' : 'Clôture · ') + q.datetime),
     ] : [el('span', { class: 'muted' }, 'Pas encore de cotation')]));
     const perf = this.detailPerf && this.detailPerf.key === k ? this.detailPerf : null;
-    $('#detailStats').replaceChildren(...(perf ? [el('div', {}, el('span', {}, 'Perf. ' + perf.range), el('b', { class: trendClass(perf.value) }, fmtPct(perf.value)))] : []), ...(q ? [
-      ['Ouverture', fmtNum(q.open, 3)], ['Plus haut', fmtNum(q.high, 3)], ['Plus bas', fmtNum(q.low, 3)],
-      ['Clôture veille', fmtNum(q.previousClose, 3)], ['52 sem. bas', fmtNum(q.low52, 2)], ['52 sem. haut', fmtNum(q.high52, 2)],
-      ['Volume', isFinite(q.volume) ? new Intl.NumberFormat('fr-FR').format(q.volume) : '—'],
-    ].map(([a, b]) => el('div', {}, el('span', {}, a), el('b', {}, b))) : []),
+    const session = q && !q.manual ? el('details', { class: 'session-details', open: this._sessOpen ? true : null,
+      ontoggle: e => { this._sessOpen = e.target.open; } },
+      el('summary', {}, 'Séance du jour'),
+      el('div', { class: 'stats' }, ...[
+        ['Ouverture', fmtNum(q.open, 3)], ['Plus haut', fmtNum(q.high, 3)], ['Plus bas', fmtNum(q.low, 3)],
+        ['Clôture veille', fmtNum(q.previousClose, 3)], ['Volume', isFinite(q.volume) ? new Intl.NumberFormat('fr-FR').format(q.volume) : '—'],
+      ].map(([a, b]) => el('div', {}, el('span', {}, a), el('b', {}, b))))) : null;
+    $('#detailSession').replaceChildren(...(session ? [session] : []));
+    $('#detailStats').replaceChildren(...(perf ? [el('div', {}, el('span', {}, 'Perf. ' + perf.range), el('b', { class: trendClass(perf.value) }, fmtPct(perf.value)))] : []),
+    ...(q && isFinite(q.low52) && isFinite(q.high52) ? [el('div', {}, el('span', {}, 'Sur 1 an'), el('b', {}, fmtNum(q.low52, 2) + ' – ' + fmtNum(q.high52, 2)))] : []),
     ...(() => {
       const ind = this.detailInd && this.detailInd.key === k ? this.detailInd : null;
       if (!ind) return [];

@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=c566ce6cb8">
+  <link rel="stylesheet" href="css/style.css?v=e6456b40b1">
 </head>
 <body>
   <header class="topbar">
@@ -26,12 +26,12 @@
       <button class="tab active" data-view="portfolio">Portefeuille</button>
       <button class="tab" data-view="markets">Marchés</button>
       <button class="tab" data-view="invest">Investir</button>
-      <button class="tab" data-view="world">Monde</button>
+      <button class="tab" data-view="agenda">Agenda</button>
       <div class="tab-more" id="tabMore">
         <button class="tab-more-btn" id="tabMoreBtn" aria-haspopup="true" aria-expanded="false">Plus <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         <div class="tab-menu" id="tabMenu" role="menu">
-          <button class="tab" data-view="agenda" role="menuitem">Agenda</button>
           <button class="tab" data-view="catalog" role="menuitem">Catalogue d'ETF</button>
+          <button class="tab" data-view="world" role="menuitem">Monde et horaires</button>
           <button class="tab" data-view="compare" role="menuitem">Comparer</button>
           <button class="tab" data-view="simulation" role="menuitem">Simulation</button>
           <button class="tab" data-view="settings" role="menuitem">Réglages</button>
@@ -68,8 +68,7 @@
       <div class="seg subnav" id="pfSubnav" role="tablist">
         <button class="active" data-tab="synthese">Synthèse</button>
         <button data-tab="analyse">Analyse</button>
-        <button data-tab="revenus">Revenus &amp; impôts</button>
-        <button data-tab="patrimoine">Patrimoine</button>
+        <button data-tab="revenus"><span class="lbl-long">Revenus &amp; impôts</span><span class="lbl-short">Impôts</span></button>
         <button data-tab="operations">Opérations</button>
       </div>
 
@@ -78,49 +77,53 @@
         <ul class="todo-list" id="todoList"></ul>
       </div>
 
-      <div data-sub="synthese" class="card hidden" id="accSummary">
-        <div class="card-head"><h2>Mes comptes<button type="button" class="info" aria-label="Explication" data-tip="Cliquer sur un compte pour le filtrer">i</button></h2></div>
+      <div data-sub="synthese" class="card">
+        <div class="card-head">
+          <h2>Mes positions</h2>
+          <div class="actions">
+            <button class="btn primary" id="addTxBtn">+ Ajouter une opération</button>
+          </div>
+        </div>
         <div class="table-wrap">
-          <table class="data clickable">
-            <thead><tr><th>Compte</th><th class="num">Valeur</th><th class="num">Part</th><th class="num">Investi</th><th class="num">+/- latente</th><th class="num">Net d'impôt estimé</th></tr></thead>
-            <tbody id="accSummaryBody"></tbody>
+          <table class="data" id="positionsTable">
+            <thead>
+              <tr>
+                <th>ETF</th>
+                <th class="num">Parts</th>
+                <th class="num">PRU</th>
+                <th class="num">Investi</th>
+                <th class="num">% investi</th>
+                <th class="num">Cours</th>
+                <th class="num">Jour</th>
+                <th class="num">Valeur</th>
+                <th class="num">% actuel</th>
+                <th class="num">+/- latente</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+            <tfoot></tfoot>
           </table>
         </div>
+        <div class="pos-cards" id="positionsCards"></div>
+        <p class="empty hidden" id="positionsEmpty">Aucune position. Clique sur « Ajouter une opération » pour enregistrer ton premier achat d'ETF.</p>
       </div>
 
-      <div data-sub="synthese" class="grid-2">
+
+      <div data-sub="synthese" class="grid-2 grid-evo">
         <div class="card">
           <div class="card-head">
-            <h2>Mes positions</h2>
+            <h2>Évolution du portefeuille<button type="button" class="info" aria-label="Explication" data-tip="Reconstruite à partir de tes opérations et des cours de clôture (1 crédit par ETF, mis en cache 6 h).">i</button></h2>
             <div class="actions">
-              <button class="btn primary" id="addTxBtn">+ Ajouter une opération</button>
+              <span class="muted small" id="historyInfo"></span>
+              <label class="check small"><input type="checkbox" id="histBench" checked> vs MSCI World<button type="button" class="info" aria-label="Explication" data-tip="Courbe orange : ce que vaudraient tes versements s'ils avaient été placés aux mêmes dates dans un ETF MSCI World (iShares IWDA, en euros). Permet de voir si tes choix font mieux ou moins bien que le marché mondial.">i</button></label>
+              <button class="btn" id="loadHistoryBtn">Charger l'historique</button>
             </div>
           </div>
-          <div class="table-wrap">
-            <table class="data" id="positionsTable">
-              <thead>
-                <tr>
-                  <th>ETF</th>
-                  <th class="num">Parts</th>
-                  <th class="num">PRU</th>
-                  <th class="num">Investi</th>
-                  <th class="num">% investi</th>
-                  <th class="num">Cours</th>
-                  <th class="num">Jour</th>
-                  <th class="num">Valeur</th>
-                  <th class="num">% actuel</th>
-                  <th class="num">+/- latente</th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-              <tfoot></tfoot>
-            </table>
-          </div>
-          <div class="pos-cards" id="positionsCards"></div>
-          <p class="empty hidden" id="positionsEmpty">Aucune position. Clique sur « Ajouter une opération » pour enregistrer ton premier achat d'ETF.</p>
+          <div class="chart-box wide"><canvas id="historyChart"></canvas></div>
+          <div id="calendar"></div>
         </div>
 
-        <div class="card">
+        <div class="card" id="allocCard">
           <div class="card-head">
             <h2>Répartition</h2>
             <div class="seg" id="allocMode">
@@ -134,17 +137,30 @@
         </div>
       </div>
 
-      <div data-sub="synthese" class="card">
-        <div class="card-head">
-          <h2>Évolution du portefeuille<button type="button" class="info" aria-label="Explication" data-tip="Reconstruite à partir de tes opérations et des cours de clôture (1 crédit par ETF, mis en cache 6 h).">i</button></h2>
-          <div class="actions">
-            <span class="muted small" id="historyInfo"></span>
-            <label class="check small"><input type="checkbox" id="histBench" checked> vs MSCI World<button type="button" class="info" aria-label="Explication" data-tip="Courbe orange : ce que vaudraient tes versements s'ils avaient été placés aux mêmes dates dans un ETF MSCI World (iShares IWDA, en euros). Permet de voir si tes choix font mieux ou moins bien que le marché mondial.">i</button></label>
-            <button class="btn" id="loadHistoryBtn">Charger l'historique</button>
-          </div>
+      <div data-sub="synthese" class="card hidden" id="accSummary">
+        <div class="card-head"><h2>Mes comptes<button type="button" class="info" aria-label="Explication" data-tip="Cliquer sur un compte pour le filtrer">i</button></h2></div>
+        <div class="table-wrap">
+          <table class="data clickable">
+            <thead><tr><th>Compte</th><th class="num">Valeur</th><th class="num">Part</th><th class="num">Investi</th><th class="num">+/- latente</th><th class="num">Net d'impôt estimé</th></tr></thead>
+            <tbody id="accSummaryBody"></tbody>
+          </table>
         </div>
-        <div class="chart-box wide"><canvas id="historyChart"></canvas></div>
-        <div id="calendar"></div>
+      </div>
+
+      <div data-sub="synthese" class="card" id="wealthCard">
+        <div class="card-head">
+          <h2>Patrimoine global<button type="button" class="info" aria-label="Explication" data-tip="Titres, espèces, épargne et immobilier">i</button></h2>
+          <div class="actions"><button class="btn small" id="assetAdd">+ Ajouter un actif</button></div>
+        </div>
+        <div id="wealthBody"></div>
+      </div>
+
+      <div data-sub="synthese" class="card hidden" id="cashCard">
+        <div class="card-head">
+          <h2>Liquidités<button type="button" class="info" aria-label="Explication" data-tip="Espèces disponibles sur tes comptes">i</button></h2>
+          <div class="actions"><button class="btn small" id="cashAdd2">+ Versement / retrait</button></div>
+        </div>
+        <div id="cashBody"></div>
       </div>
 
       <div data-sub="analyse" class="card hidden" id="healthCard">
@@ -206,22 +222,6 @@
         <div id="taxBody"></div>
       </div>
 
-      <div data-sub="patrimoine" class="card" id="wealthCard">
-        <div class="card-head">
-          <h2>Patrimoine global<button type="button" class="info" aria-label="Explication" data-tip="Titres, espèces, épargne et immobilier">i</button></h2>
-          <div class="actions"><button class="btn small" id="assetAdd">+ Ajouter un actif</button></div>
-        </div>
-        <div id="wealthBody"></div>
-      </div>
-
-      <div data-sub="patrimoine" class="card hidden" id="cashCard">
-        <div class="card-head">
-          <h2>Liquidités<button type="button" class="info" aria-label="Explication" data-tip="Espèces disponibles sur tes comptes">i</button></h2>
-          <div class="actions"><button class="btn small" id="cashAdd2">+ Versement / retrait</button></div>
-        </div>
-        <div id="cashBody"></div>
-      </div>
-
       <div data-sub="operations" class="card">
         <div class="card-head">
           <h2>Opérations</h2>
@@ -269,7 +269,7 @@
     <!-- ============ MARCHÉS ============ -->
     <section id="view-markets" class="view">
       <div class="card">
-        <div class="card-head"><h2>Rechercher un ETF, une action, un indice…</h2></div>
+        <div class="card-head"><h2>Rechercher</h2></div>
         <div id="marketSearch"></div>
       </div>
 
@@ -309,6 +309,7 @@
           <div class="detail-price" id="detailPrice"></div>
           <div class="chart-box wide"><canvas id="detailChart"></canvas></div>
           <div class="stats" id="detailStats"></div>
+          <div id="detailSession"></div>
           <div id="detailManual"></div>
           <div id="detailSale"></div>
           <div id="detailNews"></div>
@@ -918,13 +919,13 @@
     <button data-view="portfolio"><svg viewBox="0 0 24 24"><path d="M3 12l9-8 9 8M5 10v10h5v-6h4v6h5V10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Portefeuille</span></button>
     <button data-view="markets"><svg viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8M15 7h6v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Marchés</span></button>
     <button data-view="invest"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg><span>Investir</span></button>
-    <button data-view="world"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 12h18M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3z" fill="none" stroke="currentColor" stroke-width="2"/></svg><span>Monde</span></button>
+    <button data-view="agenda"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Agenda</span></button>
     <button data-view="more"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.8" fill="currentColor"/><circle cx="12" cy="12" r="1.8" fill="currentColor"/><circle cx="19" cy="12" r="1.8" fill="currentColor"/></svg><span>Plus</span></button>
   </nav>
   <div class="sheet-backdrop" id="moreBackdrop"></div>
   <div class="sheet" id="moreSheet" role="dialog" aria-label="Plus">
     <div class="sheet-handle"></div>
-    <button data-view="agenda"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><div><b>Agenda</b><span>Versements, dividendes, jours fériés, échéances fiscales</span></div></button>
+    <button data-view="world"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 12h18M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3z" fill="none" stroke="currentColor" stroke-width="2"/></svg><div><b>Monde et horaires</b><span>Indices, devises, matières premières, horaires des bourses</span></div></button>
     <button data-view="catalog"><svg viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="18" cy="19" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/></svg><div><b>Catalogue d'ETF</b><span>Portefeuilles types, ETF par zone et par frais</span></div></button>
     <button data-view="compare"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><div><b>Comparer</b><span>Nasdaq vs S&amp;P 500, ton portefeuille vs le marché…</span></div></button>
     <button data-view="simulation"><svg viewBox="0 0 24 24"><path d="M12 3v3M12 18v3M4.2 7.5l2.6 1.5M17.2 15l2.6 1.5M4.2 16.5l2.6-1.5M17.2 9l2.6-1.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/></svg><div><b>Simulation</b><span>« Et si j'avais investi… », projection future</span></div></button>
@@ -935,26 +936,26 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-  <script src="js/utils.js?v=c566ce6cb8"></script>
-  <script src="js/store.js?v=c566ce6cb8"></script>
-  <script src="js/api.js?v=c566ce6cb8"></script>
-  <script src="js/markets.js?v=c566ce6cb8"></script>
-  <script src="js/portfolio.js?v=c566ce6cb8"></script>
-  <script src="js/charts.js?v=c566ce6cb8"></script>
-  <script src="js/app.js?v=c566ce6cb8"></script>
-  <script src="js/views.js?v=c566ce6cb8"></script>
-  <script src="js/compare.js?v=c566ce6cb8"></script>
-  <script src="js/extras.js?v=c566ce6cb8"></script>
-  <script src="js/mobile.js?v=c566ce6cb8"></script>
-  <script src="js/features.js?v=c566ce6cb8"></script>
-  <script src="js/money.js?v=c566ce6cb8"></script>
-  <script src="js/newsart.js?v=c566ce6cb8"></script>
-  <script src="js/insights.js?v=c566ce6cb8"></script>
-  <script src="js/wealth.js?v=c566ce6cb8"></script>
-  <script src="js/avis.js?v=c566ce6cb8"></script>
-  <script src="js/manual.js?v=c566ce6cb8"></script>
-  <script src="js/health.js?v=c566ce6cb8"></script>
-  <script src="js/agenda.js?v=c566ce6cb8"></script>
-  <script src="js/catalog.js?v=c566ce6cb8"></script>
+  <script src="js/utils.js?v=e6456b40b1"></script>
+  <script src="js/store.js?v=e6456b40b1"></script>
+  <script src="js/api.js?v=e6456b40b1"></script>
+  <script src="js/markets.js?v=e6456b40b1"></script>
+  <script src="js/portfolio.js?v=e6456b40b1"></script>
+  <script src="js/charts.js?v=e6456b40b1"></script>
+  <script src="js/app.js?v=e6456b40b1"></script>
+  <script src="js/views.js?v=e6456b40b1"></script>
+  <script src="js/compare.js?v=e6456b40b1"></script>
+  <script src="js/extras.js?v=e6456b40b1"></script>
+  <script src="js/mobile.js?v=e6456b40b1"></script>
+  <script src="js/features.js?v=e6456b40b1"></script>
+  <script src="js/money.js?v=e6456b40b1"></script>
+  <script src="js/newsart.js?v=e6456b40b1"></script>
+  <script src="js/insights.js?v=e6456b40b1"></script>
+  <script src="js/wealth.js?v=e6456b40b1"></script>
+  <script src="js/avis.js?v=e6456b40b1"></script>
+  <script src="js/manual.js?v=e6456b40b1"></script>
+  <script src="js/health.js?v=e6456b40b1"></script>
+  <script src="js/agenda.js?v=e6456b40b1"></script>
+  <script src="js/catalog.js?v=e6456b40b1"></script>
 </body>
 </html>
