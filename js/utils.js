@@ -148,3 +148,23 @@ function toast(message, kind = 'info', ms = 4000, action = null) {
 function undoToast(message, restore, ms = 7000) {
   toast(message, 'info', ms, { label: 'Annuler', fn: () => { restore(); toast('Suppression annulée', 'success', 2000); } });
 }
+
+/*
+ * Nom court et lisible d'un fonds, à partir de son nom officiel :
+ * « Amundi PEA S&P 500 UCITS ETF Acc » → « Amundi PEA S&P 500 ».
+ * On retire le jargon réglementaire (UCITS, ETF, Acc/Dist, devise de part…) qui n'aide pas à reconnaître le produit.
+ */
+function friendlyName(name, symbol) {
+  let s = String(name || '').trim();
+  if (!s || s.toUpperCase() === String(symbol || '').toUpperCase()) return '';
+  // « Amundi Index Solutions - Amundi MSCI World … » : garder la partie qui nomme le fonds
+  const dash = s.split(/\s+[-–]\s+/);
+  if (dash.length > 1 && dash[1].split(' ')[0].toLowerCase() === dash[0].split(' ')[0].toLowerCase()) s = dash.slice(1).join(' - ');
+  s = s.replace(/\([^)]*\)/g, ' ')
+    .replace(/\b(UCITS|ETFs?|ETP|Trust|SICAV|FCP|Fund|Class|Shares?|Acc|Accumulating|Dist|Distributing|Inc|Capitalisation|Capitalisante|Distribution|Distribuante)\b\.?/gi, ' ')
+    .replace(/\b(EUR|USD|GBP|CHF|JPY)\b(?!\s*(Hedged|Hdg|Couvert))/g, ' ')
+    .replace(/(\s+\b\d?[A-D]\b)+\s*$/i, ' ')
+    .replace(/[\s\-–,·/]+$/g, '').replace(/^[\s\-–,·/]+/, '').replace(/\s{2,}/g, ' ').trim();
+  if (!s) return '';
+  return s.length > 40 ? s.slice(0, 39).trimEnd() + '…' : s;
+}

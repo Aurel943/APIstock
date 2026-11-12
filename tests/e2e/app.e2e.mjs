@@ -26,7 +26,7 @@ const monthStart = (offset = 0) => { const d = new Date(); d.setDate(1); d.setMo
 
 test('ajout, modification et suppression d\'une opération, avec « Annuler »', () => run({ state: sampleState() }, async ({ page }) => {
   await page.click('#addTxBtn');
-  await page.locator('#txInstrument button', { hasText: 'ESE · XPAR' }).click();
+  await page.locator('#txInstrument button', { hasText: 'BNP Paribas Easy S&P 500' }).click();
   await page.selectOption('#txAccount', 'pea');
   await page.fill('#txDate', '2025-05-12');
   await page.fill('#txQty', '7');
@@ -62,7 +62,7 @@ test('ajout, modification et suppression d\'une opération, avec « Annuler »',
 test('division : le nombre de parts est multiplié, le prix de revient total ne change pas', () => run({ state: sampleState() }, async ({ page }) => {
   const before = await page.evaluate(() => Portfolio.positions('pea').find(p => p.key === 'CW8@XPAR'));
   await page.click('#addTxBtn');
-  await page.locator('#txInstrument button', { hasText: 'CW8 · XPAR' }).click();
+  await page.locator('#txInstrument button', { hasText: 'Amundi MSCI World' }).click();
   await page.selectOption('#txType', 'split');
   await page.selectOption('#txAccount', 'pea');
   await page.fill('#txDate', '2025-06-02');
@@ -78,7 +78,7 @@ test('division : le nombre de parts est multiplié, le prix de revient total ne 
 test('versement programmé confirmé depuis « À faire »', () => run({ state: sampleState({
   plans: [{ id: 'p1', key: 'CW8@XPAR', account: 'pea', amount: 1500, day: 5, start: monthStart(-1), fractional: false, active: true, done: {} }],
 }) }, async ({ page }) => {
-  const item = page.locator('#todoList .todo-item.plan', { hasText: 'Versement programmé · CW8' }).first();
+  const item = page.locator('#todoList .todo-item.plan', { hasText: 'Versement programmé · Amundi MSCI World' }).first();
   await item.waitFor();
   await item.locator('button', { hasText: 'Enregistrer…' }).click();
   await page.waitForSelector('#txDialog[open]');
@@ -90,7 +90,7 @@ test('versement programmé confirmé depuis « À faire »', () => run({ state: 
   const plan = s.plans[0];
   const doneId = plan.done[monthStart(-1).slice(0, 7)];
   assert.ok(s.transactions.some(t => t.id === doneId && t.note.startsWith('Versement programmé')));
-  assert.equal(await page.locator('#todoList .todo-item.plan', { hasText: 'Versement programmé · CW8' }).count(), 1); // reste l'échéance de ce mois
+  assert.equal(await page.locator('#todoList .todo-item.plan', { hasText: 'Versement programmé · Amundi MSCI World' }).count(), 1); // reste l'échéance de ce mois
 }));
 
 test('mouvement d\'espèces : le solde du compte apparaît', () => run({ state: sampleState() }, async ({ page }) => {

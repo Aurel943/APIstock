@@ -390,7 +390,7 @@ const App = {
       return el('tr', { onclick: () => { this.show('markets'); this.selectDetail(r.key); } },
         el('td', {},
           el('span', { class: 'sym' }, el('span', { class: 'dot', style: `display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;background:${PALETTE[i % PALETTE.length]}` }), Store.label(r.key)),
-          el('span', { class: 'name', title: r.inst ? r.inst.name : '' }, r.inst ? r.inst.name : ''),
+          el('span', { class: 'name', title: r.inst ? r.inst.name : '' }, Store.code(r.key)),
           this.marketBadge(r.key)),
         el('td', { class: 'num' }, fmtQty(r.qty)),
         el('td', { class: 'num' }, fmtMoney(r.pru, r.currency, 3)),
@@ -417,7 +417,7 @@ const App = {
     // Répartition
     const useValue = this.allocMode === 'value';
     const items = rows.map((r, i) => ({
-      label: Store.label(r.key), name: r.inst ? r.inst.name : '',
+      label: Store.label(r.key), name: Store.code(r.key), full: r.inst ? r.inst.name : '',
       v: useValue ? (isFinite(r.valueBase) ? r.valueBase : r.costBase) : r.costBase,
       color: PALETTE[i % PALETTE.length],
     })).filter(x => x.v > 0);
@@ -425,7 +425,7 @@ const App = {
     Charts.doughnut('allocChart', items.map(x => x.label), items.map(x => x.v), items.map(x => x.color), cur);
     $('#allocLegend').replaceChildren(...items.map(x => el('li', {},
       el('span', { class: 'dot', style: 'background:' + x.color }),
-      el('span', { class: 'lname', title: x.name }, x.label, el('span', { class: 'muted' }, ' ' + x.name)),
+      el('span', { class: 'lname', title: x.full }, x.label, el('span', { class: 'muted' }, ' ' + x.name)),
       el('b', { class: 'mono' }, fmtNum((x.v / sum) * 100, 1) + ' %'))));
     this.emit('rendered:portfolio');
   },
@@ -508,7 +508,7 @@ const App = {
     const renderKnown = () => {
       const keys = Object.keys(Store.state.instruments);
       known.replaceChildren(...(showKnown && keys.length ? [el('span', { class: 'muted small' }, 'Déjà suivis :'),
-        ...keys.map(k => el('button', { type: 'button', class: 'btn small', onclick: () => onPick(k) }, Store.label(k)))] : []));
+        ...keys.map(k => el('button', { type: 'button', class: 'btn small', title: Store.code(k), onclick: () => onPick(k) }, Store.label(k)))] : []));
     };
 
     const run = async () => {
@@ -634,7 +634,7 @@ const App = {
     } else {
       const inst = Store.instrument(key);
       box.replaceChildren(el('div', { class: 'picker-selected' },
-        el('div', { class: 'grow' }, el('div', { class: 'sym' }, Store.label(key)), el('div', { class: 'name' }, inst.name + ' · ' + inst.currency)),
+        el('div', { class: 'grow' }, el('div', { class: 'sym' }, Store.label(key)), el('div', { class: 'name' }, Store.code(key) + ' · ' + inst.name + ' · ' + inst.currency)),
         el('button', { type: 'button', class: 'btn small', onclick: () => this.setTxInstrument(null) }, 'Changer')));
       const q = Api.cachedQuote(key);
       if (q && !$('#txPrice').value && $('#txType').value !== 'div' && $('#txType').value !== 'split') $('#txPrice').value = q.price;
@@ -714,7 +714,7 @@ const App = {
       const inst = Store.instrument(k);
       const q = Api.cachedQuote(k);
       return el('tr', { class: k === this.detailKey ? 'selected' : '', onclick: () => this.selectDetail(k) },
-        el('td', {}, el('span', { class: 'sym' }, Store.label(k)), el('span', { class: 'name', title: inst.name }, inst.name)),
+        el('td', {}, el('span', { class: 'sym' }, Store.label(k)), el('span', { class: 'name', title: inst.name }, Store.code(k))),
         el('td', { class: 'num' }, q ? el('span', this.flashAttrs('wl:' + k, q.price), fmtMoney(q.price, inst.currency, 3)) : '—'),
         el('td', { class: 'num ' + (q ? trendClass(q.change) : '') }, q ? (q.change > 0 ? '+' : '') + fmtNum(q.change, 3) : '—'),
         el('td', { class: 'num' }, q ? el('span', { class: 'chip ' + trendClass(q.percentChange) }, fmtPct(q.percentChange)) : '—', this.daySpark(q, 64, 18)),
@@ -751,7 +751,7 @@ const App = {
     const inst = Store.instrument(k);
     const q = Api.cachedQuote(k);
     $('#detailTitle').textContent = Store.label(k);
-    $('#detailSub').textContent = `${inst.name} · ${inst.exchange || inst.mic} · ${inst.currency}`;
+    $('#detailSub').textContent = `${inst.name} · ${inst.symbol} · ${inst.exchange || inst.mic} · ${inst.currency}`;
     $('#detailPrice').replaceChildren(...(q ? [
       el('span', this.flashAttrs('dt:' + k, q.price, 'big'), fmtMoney(q.price, inst.currency, 3)),
       el('span', { class: 'chip ' + trendClass(q.change) }, (q.change > 0 ? '+' : '') + fmtNum(q.change, 3) + ' (' + fmtPct(q.percentChange) + ')'),
@@ -877,7 +877,7 @@ const App = {
         this.renderSimRows(false);
       });
       return el('div', { class: 'alloc-row' },
-        el('div', {}, el('span', { class: 'sym' }, Store.label(r.key)), el('span', { class: 'name' }, inst ? inst.name : '')),
+        el('div', {}, el('span', { class: 'sym' }, Store.label(r.key)), el('span', { class: 'name', title: inst ? inst.name : '' }, Store.code(r.key))),
         el('div', { class: 'pct' }, input),
         amt,
         el('button', { class: 'iconbtn', title: 'Retirer', onclick: () => { s.rows.splice(i, 1); Store.save(); this.renderSimRows(); } }, '✕'));
@@ -951,7 +951,7 @@ const App = {
       tbody.replaceChildren(...linesArr.map(l => {
         const inst = Store.instrument(l.key);
         return el('tr', {},
-          el('td', {}, el('span', { class: 'sym' }, Store.label(l.key)), el('span', { class: 'name' }, inst.name)),
+          el('td', {}, el('span', { class: 'sym' }, Store.label(l.key)), el('span', { class: 'name', title: inst.name }, Store.code(l.key))),
           el('td', { class: 'num' }, fmtPct(l.pct, 1, false)),
           el('td', { class: 'num' }, fmtMoney(l.invested, cur)),
           el('td', { class: 'num' }, fmtQty(l.qty)),
