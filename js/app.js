@@ -446,7 +446,9 @@ const App = {
       (() => {
         const x = rows.length ? Portfolio.portfolioXirr(totals.value) : NaN;
         const first = Portfolio.txs().reduce((m, t) => (t.date < m ? t.date : m), todayISO());
-        return this.kpi('Rendement annualisé', isFinite(x) ? fmtPct(x) : '—', isFinite(x) ? 'depuis le ' + fmtDate(first) : 'Pas assez d\'historique', trendClass(x),
+        const ytd = this.ytdPerf();
+        return this.kpi('Rendement annualisé', isFinite(x) ? fmtPct(x) : '—',
+          isFinite(x) ? el('span', {}, 'depuis le ' + fmtDate(first), isFinite(ytd) ? el('span', { class: 'kpi-line ' + trendClass(ytd) }, `${todayISO().slice(0, 4)} : ${fmtPct(ytd)}`) : null) : 'Pas assez d\'historique', trendClass(x),
           'Taux de rendement interne (XIRR) : rendement moyen par an, qui tient compte de la date et du montant de chacun de tes versements.');
       })(),
     ].filter(Boolean));
@@ -488,13 +490,24 @@ const App = {
       el('td', { class: 'num ' + trendClass(totals.pnl) }, fmtSignedMoney(totals.pnl, cur), el('div', { class: 'small' }, fmtPct(totals.pnlPct))),
     ) : '');
 
-    // Répartition
-    const useValue = this.allocMode === 'value';
-    const items = rows.map((r, i) => ({
-      label: Store.label(r.key), name: Store.code(r.key), full: r.inst ? r.inst.name : '',
-      v: useValue ? (isFinite(r.valueBase) ? r.valueBase : r.costBase) : r.costBase,
-      color: PALETTE[i % PALETTE.length],
-    })).filter(x => x.v > 0);
+    // Répartition (par ligne, ou par compte quand tous les comptes sont affichés)
+    const byAccOk = Store.state.accounts.length > 1 && (Store.state.accountFilter || 'all') === 'all';
+    $('#allocByAccount').classList.toggle('hidden', !byAccOk);
+    if (this.allocMode === 'account' && !byAccOk) {
+      this.allocMode = 'value';
+      $$('#allocMode button').forEach(x => x.classList.toggle('active', x.dataset.mode === 'value'));
+    }
+    const useValue = this.allocMode !== 'cost';
+    const items = this.allocMode === 'account'
+      ? Store.state.accounts.map((a, i) => {
+        const t = Portfolio.snapshot(a.id).totals;
+        return { label: a.name, name: ACCOUNT_TYPES[a.type] ? ACCOUNT_TYPES[a.type].label : '', full: a.name, v: t.value, color: PALETTE[(i + 3) % PALETTE.length] };
+      }).filter(x => x.v > 0)
+      : rows.map((r, i) => ({
+        label: Store.label(r.key), name: Store.code(r.key), full: r.inst ? r.inst.name : '',
+        v: useValue ? (isFinite(r.valueBase) ? r.valueBase : r.costBase) : r.costBase,
+        color: PALETTE[i % PALETTE.length],
+      })).filter(x => x.v > 0);
     const sum = items.reduce((a, b) => a + b.v, 0);
     Charts.doughnut('allocChart', items.map(x => x.label), items.map(x => x.v), items.map(x => x.color), cur);
     $('#allocLegend').replaceChildren(...items.map(x => el('li', {},
@@ -663,6 +676,7 @@ const App = {
       $('#historyChart').parentElement.classList.add('ready');
       this.renderCalendar(Portfolio.twr(points));
       if (this.renderTodo) this.renderTodo(true);
+      this.renderPortfolio();
       if (this.renderRisk) this.renderRisk(Portfolio.twr(points), start);
       const lastP = points[points.length - 1];
       const lastB = bench ? bench[bench.length - 1] : null;
@@ -966,6 +980,50 @@ const App = {
     ].map(([a, b]) => el('div', {}, el('span', {}, a), el('b', {}, b))) : []));
     this.renderManualPanel(k);
     this.renderSalePanel(k);
+    this.renderAlertShortcut(k);
+  },
+
+  /** Repères du graphique de la fiche : tes achats et ventes (au prix payé) et ton prix de revient moyen */
+  detailMarks(key, values) {
+    if (!values.length) return {};
+    const first = values[0][0];
+    const marks = [];
+    for (const t of Portfolio.txs('all')) {
+      if (t.key !== key || (t.type !== 'buy' && t.type !== 'sell') || t.date < first) continue;
+      let i = values.findIndex(v => v[0] >= t.date);
+      if (i < 0) i = values.length - 1;
+      marks.push({ i, type: t.type, price: parseNum(t.price) });
+    }
+    const pos = Portfolio.positions('all').find(p => p.key === key);
+    return { marks, pru: pos && pos.qty > 0 ? pos.pru : NaN };
+  },
+
+  /** Performance depuis le 1er janvier, pondérée dans le temps (hors versements), d'après l'historique chargé */
+  ytdPerf() {
+    const pts = this.historyPoints;
+    if (!pts || pts.length < 2) return NaN;
+    const series = Portfolio.twr(pts);
+    const jan1 = todayISO().slice(0, 4) + '-01-01';
+    const before = series.filter(p => p[0] < jan1).pop();
+    const base = before || (series[0][0] >= jan1 ? series[0] : null);
+    const last = series[series.length - 1];
+    return base && base[1] > 0 ? (last[1] / base[1] - 1) * 100 : NaN;
+  },
+
+  /** Fiche : bouton « M'alerter » qui ouvre le formulaire d'alerte pré-rempli au cours actuel */
+  renderAlertShortcut(key) {
+    const box = $('#detailPrice');
+    const q = key && Api.cachedQuote(key);
+    if (!box || !q || Manual.is(key) || box.querySelector('.alert-shortcut')) return;
+    box.append(el('button', { type: 'button', class: 'btn small alert-shortcut', title: 'Créer une alerte de prix sur cette ligne', onclick: () => {
+      this.show('invest');
+      if (this.renderAlerts) this.renderAlerts();
+      const sel = $('#alertKey');
+      if (sel && !sel.querySelector(`option[value="${CSS.escape(key)}"]`)) sel.append(el('option', { value: key }, Store.label(key)));
+      if (sel) { sel.value = key; sel.dispatchEvent(new Event('change')); }
+      const v = $('#alertValue');
+      if (v) { v.value = +q.price.toFixed(q.price < 10 ? 3 : 2); setTimeout(() => { $('#alertForm').scrollIntoView({ behavior: 'smooth', block: 'center' }); v.focus(); v.select(); }, 80); }
+    } }, '🔔 M\'alerter'));
   },
 
   async loadDetailChart() {
@@ -978,7 +1036,8 @@ const App = {
       if (k !== this.detailKey || range !== this.range) return;
       const inst = Store.instrument(k);
       const intraday = range === '1J' || range === '5J';
-      Charts.line('detailChart', values.map(v => (intraday ? v[0] : fmtDate(v[0]))), values.map(v => v[1]), { currency: inst.currency });
+      Charts.line('detailChart', values.map(v => (intraday ? v[0] : fmtDate(v[0]))), values.map(v => v[1]),
+        Object.assign({ currency: inst.currency }, intraday ? {} : this.detailMarks(k, values)));
       if (values.length > 1) {
         this.detailPerf = { key: k, range, value: (values[values.length - 1][1] / values[0][1] - 1) * 100 };
         this.renderDetailHeader();
