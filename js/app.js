@@ -65,6 +65,8 @@ const App = {
     this.bindMobile();
     this.bindManual();
     $('#optRun').addEventListener('click', () => this.runOptimizer());
+    this.bindLab();
+    $('#tgtShare').addEventListener('click', () => this.shareAllocation());
     $('#wrappedOpen').addEventListener('click', () => { this.toggleTabMenu(false); this.openWrapped(); });
     $$('#mapMode button').forEach(b => b.addEventListener('click', () => {
       this.treemapMode = b.dataset.mode;
@@ -93,9 +95,11 @@ const App = {
     // toutes les 5 s : crédits de la minute, et compteur du jour (autres onglets, passage à minuit)
     setInterval(() => { Api.emitUsage(); Api.emitDaily(); }, 5000);
 
+    const sharedHash = location.hash; // lu avant que la navigation ne réécrive l'adresse
     const hash = location.hash.replace('#', '');
     this.show(['portfolio', 'markets', 'agenda', 'catalog', 'compare', 'world', 'invest', 'simulation', 'settings'].includes(hash) ? hash : (Api.ready() ? 'portfolio' : 'settings'));
     this.renderAll();
+    this.openSharedFromHash(sharedHash); // lien de répartition partagée (#share=…)
     Api.detectProxy().finally(() => { if (!Api.ready() && $('#advancedSources')) $('#advancedSources').open = true; this.renderAll(); Promise.resolve(this.refresh()).finally(() => this.autoHistory()); this.preloadFx(); });
     // opérations modifiées : le graphique d'évolution déjà affiché est recalculé (sans bruit)
     this.on('data:saved', () => {

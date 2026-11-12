@@ -1014,3 +1014,20 @@ body.w-open { overflow: hidden; }
 .w-actions .btn { background: rgba(255,255,255,.18); color: #fff; border-color: transparent; }
 .w-actions .btn.primary { background: #fff; color: #111827; }
 @media (prefers-reduced-motion: reduce) { .w-slide { animation: none; } .w-bars span.now i { animation: none; width: 100%; } }
+
+/* Laboratoire de stratégies */
+.lab-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 10px; align-items: end; margin-bottom: 12px; }
+.lab-chart { height: 320px; }
+.lab-rank { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.lab-rank li { display: grid; grid-template-columns: 10px minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 10px; background: var(--surface-2); font-size: 13.5px; }
+.lab-rank li.best { outline: 2px solid var(--accent); }
+.lab-dot { width: 10px; height: 10px; border-radius: 3px; }
+.lab-lessons { margin: 14px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 8px; font-size: 14px; line-height: 1.5; }
+@media (max-width: 640px) {
+  .lab-form { grid-template-columns: 1fr 1fr; } .lab-form .btn { grid-column: 1 / -1; }
+  .lab-rank li { grid-template-columns: 10px minmax(0, 1fr) auto; } .lab-rank li > :nth-child(4), .lab-rank li > :nth-child(5) { grid-column: 2 / -1; }
+  .lab-chart { height: 260px; }
+}
+/* Répartition partagée */
+.share-dialog { max-width: 560px; width: calc(100% - 24px); }
+.share-dialog h2 { display: flex; align-items: center; }
