@@ -219,3 +219,47 @@ test('indice de référence : mêmes versements aux mêmes dates', () => {
   near(b[2], 1600);        // + 500 € investis à 110
   assert.equal(Portfolio.benchmark(points, []).every(v => v === null), true);
 });
+
+test('contribution de chaque ligne : latent + réalisé + dividendes, lignes vendues comprises', () => {
+  const app = loadApp(base({ transactions: [
+    { id: '1', key: 'CW8@XPAR', type: 'buy', date: '2024-01-01', account: 'pea', qty: 10, price: 100, fees: 0 },
+    { id: '2', key: 'CW8@XPAR', type: 'div', date: '2024-06-01', account: 'pea', qty: 1, price: 20, fees: 0 },
+    { id: '3', key: 'SPY@ARCX', type: 'buy', date: '2024-01-01', account: 'cto', qty: 5, price: 100, fees: 0 },
+    { id: '4', key: 'SPY@ARCX', type: 'sell', date: '2024-03-01', account: 'cto', qty: 5, price: 90, fees: 0 },
+  ] }));
+  app.Api.cachedQuote = k => (k === 'CW8@XPAR' ? { price: 130, change: 0, percentChange: 0 } : null);
+  app.Portfolio.invalidate();
+  const c = JSON.parse(JSON.stringify(app.Portfolio.contributions('all')));
+  assert.equal(c.length, 2);
+  assert.equal(c[0].key, 'CW8@XPAR');
+  near(c[0].total, 300 + 20);              // +300 latent, +20 de dividendes
+  assert.equal(c[1].open, false);          // SPY vendue
+  near(c[1].total, -50);                   // perte réalisée
+});
+
+test('vente simulée : frais du barème, plus-value au PMP, impôt au taux du compte', () => {
+  const app = loadApp(base({
+    accounts: [{ id: 'cto', name: 'CTO', type: 'cto', taxRate: 25, fees: { pct: 0.5, min: 2, fixed: 0 } }],
+    transactions: [{ id: '1', key: 'CW8@XPAR', type: 'buy', date: '2024-01-01', account: 'cto', qty: 10, price: 100, fees: 0 }],
+  }));
+  app.Api.cachedQuote = () => ({ price: 150, change: 0, percentChange: 0 });
+  const s = app.Portfolio.simulateSale('CW8@XPAR', 'cto', 4);
+  near(s.gross, 600);
+  near(s.fees, 3);                         // 0,5 % de 600 €
+  near(s.gain, 600 - 3 - 400);
+  near(s.tax, 197 * 0.25);
+  near(s.net, 600 - 3 - 197 * 0.25);
+  near(app.Portfolio.simulateSale('CW8@XPAR', 'cto', 99).qty, 10, 1e-9); // pas plus que la position
+});
+
+test('vente simulée : PEA de moins de 5 ans imposé au prélèvement forfaitaire unique', () => {
+  const app = loadApp(base({
+    accounts: [{ id: 'pea', name: 'PEA', type: 'pea', taxRate: 18.6 }],
+    transactions: [{ id: '1', key: 'CW8@XPAR', type: 'buy', date: '2099-01-01', account: 'pea', qty: 10, price: 100, fees: 0 }],
+  }));
+  app.Api.cachedQuote = () => ({ price: 150, change: 0, percentChange: 0 });
+  const s = app.Portfolio.simulateSale('CW8@XPAR', 'pea', 10);
+  assert.equal(s.peaEarly, true);
+  near(s.rate, 31.4);
+  near(s.tax, 500 * 0.314);
+});

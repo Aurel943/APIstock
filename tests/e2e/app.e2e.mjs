@@ -280,3 +280,28 @@ test('frais de courtage calculés avec le barème du compte, sauf saisie manuell
   await page.fill('#txQty', '200');
   assert.equal(await page.inputValue('#txFees'), '0.5');
 }));
+
+test('opérations filtrées, contribution des lignes et vente simulée', () => run({ state: sampleState({ transactions: [
+  ...sampleState().transactions,
+  ...[1, 2, 3, 4, 5, 6].map(i => ({ id: 'x' + i, key: 'CW8@XPAR', type: 'buy', date: `2025-0${i}-10`, account: 'pea', qty: 1, price: 500, fees: 1 })),
+] }) }, async ({ page }) => {
+  await page.click('#pfSubnav [data-tab=operations]');
+  const total = await page.locator('#txTable tbody tr').count();
+  await page.selectOption('#txFilters select >> nth=2', '2025');
+  const n2025 = await page.locator('#txTable tbody tr').count();
+  assert.ok(n2025 >= 6 && n2025 < total, `${n2025} opérations en 2025 sur ${total}`);
+  assert.match(await page.locator('#txCount').innerText(), /sur/);
+  await page.click('#txFilters .link');
+  assert.equal(await page.locator('#txTable tbody tr').count(), total);
+  // contribution : une ligne par ETF dans « Analyse »
+  await page.click('#pfSubnav [data-tab=analyse]');
+  await page.waitForSelector('#contribCard:not(.hidden)');
+  assert.ok(await page.locator('#contribList li').count() >= 2);
+  // vente simulée depuis la fiche
+  await page.evaluate(() => { App.show('markets'); App.selectDetail('CW8@XPAR'); });
+  await page.waitForSelector('#detailSale .sale-grid');
+  await page.fill('#detailSale .sale-qty', '1');
+  await page.press('#detailSale .sale-qty', 'Enter');
+  await page.waitForFunction(() => /Net pour toi/.test(document.querySelector('#detailSale').innerText));
+  assert.equal(await page.inputValue('#detailSale .sale-qty'), '1');
+}));

@@ -422,6 +422,7 @@ const App = {
       })(),
     ].filter(Boolean));
     this.renderAccountsSummary();
+    this.renderContrib();
     this.renderGoal();
 
     const tbody = $('#positionsTable tbody');
@@ -474,10 +475,89 @@ const App = {
     this.emit('rendered:portfolio');
   },
 
+  /** Filtres de l'historique (ligne, type, année) : affichés dès qu'il y a de quoi filtrer */
+  renderTxFilters(all) {
+    const box = $('#txFilters');
+    if (!box) return;
+    const f = this.txFilter = this.txFilter || { key: '', type: '', year: '' };
+    const keys = Array.from(new Set(all.map(t => t.key)));
+    const years = Array.from(new Set(all.map(t => t.date.slice(0, 4)))).sort().reverse();
+    if (all.length < 8) { box.replaceChildren(); Object.assign(f, { key: '', type: '', year: '' }); return; }
+    const sel = (name, label, opts) => {
+      const s = el('select', { 'aria-label': label, onchange: e => { f[name] = e.target.value; this.renderTransactions(); } },
+        el('option', { value: '' }, label), ...opts.map(([v, t]) => el('option', { value: v, selected: f[name] === v }, t)));
+      return s;
+    };
+    const active = f.key || f.type || f.year;
+    box.replaceChildren(
+      sel('key', 'Toutes les lignes', keys.map(k => [k, Store.label(k)]).sort((a, b) => a[1].localeCompare(b[1], 'fr'))),
+      sel('type', 'Tous les types', [['buy', 'Achats'], ['sell', 'Ventes'], ['div', 'Dividendes'], ['split', 'Divisions']]),
+      sel('year', 'Toutes les années', years.map(y => [y, y])),
+      active ? el('button', { type: 'button', class: 'link small', onclick: () => { Object.assign(f, { key: '', type: '', year: '' }); this.renderTransactions(); } }, 'Effacer les filtres') : null);
+  },
+
+  /** Barres divergentes : gain (vert, à droite) ou perte (rouge, à gauche) de chaque ligne */
+  renderContrib() {
+    const card = $('#contribCard');
+    if (!card) return;
+    const cur = this.base();
+    const list = Portfolio.contributions();
+    card.classList.toggle('hidden', list.length < 2);
+    if (list.length < 2) return;
+    const max = Math.max(...list.map(c => Math.abs(c.total)));
+    const sum = list.reduce((a, c) => a + c.total, 0);
+    const best = list[0];
+    $('#contribInfo').textContent = sum > 0 && best.total > 0 ? `${Store.label(best.key)} : ${fmtPct(best.total / sum * 100, 0, false)} du gain` : '';
+    $('#contribList').replaceChildren(...list.map(c => {
+      const w = max > 0 ? Math.abs(c.total) / max * 50 : 0;
+      const detail = [c.latent ? 'latent ' + fmtSignedMoney(c.latent, cur) : '', c.realized ? 'réalisé ' + fmtSignedMoney(c.realized, cur) : '',
+        c.dividends ? 'dividendes ' + fmtMoney(c.dividends, cur) : ''].filter(Boolean).join(' · ');
+      return el('li', { title: detail },
+        el('span', { class: 'contrib-name' }, Store.label(c.key), c.open ? null : el('span', { class: 'muted small' }, ' (vendue)')),
+        el('span', { class: 'contrib-bar' }, el('span', { class: c.total >= 0 ? 'pos' : 'neg', style: `width:${w}%` })),
+        el('b', { class: 'mono ' + trendClass(c.total) }, fmtSignedMoney(c.total, cur)));
+    }));
+  },
+
+  /** Fiche détaillée : « Et si je vendais ? » pour une ligne détenue (par compte) */
+  renderSalePanel(key, force = false) {
+    const box = $('#detailSale');
+    if (!box) return;
+    // rafraîchissement des cours : on ne redessine pas sous les doigts de quelqu'un qui saisit une quantité
+    if (!force && box.contains(document.activeElement) && this._sale && this._sale.key === key) return;
+    const held = key ? Store.state.accounts.filter(a => (Portfolio.positions(a.id).find(p => p.key === key) || {}).qty > 0) : [];
+    if (!held.length || !Api.cachedQuote(key)) { box.replaceChildren(); return; }
+    const cur = this.base();
+    const st = this._sale = this._sale && this._sale.key === key ? this._sale : { key, account: held[0].id, qty: null };
+    if (!held.some(a => a.id === st.account)) st.account = held[0].id;
+    const sim = Portfolio.simulateSale(key, st.account, st.qty === null ? Infinity : st.qty);
+    if (!sim) { box.replaceChildren(); return; }
+    const accSel = held.length > 1 ? el('select', { onchange: e => { st.account = e.target.value; st.qty = null; this.renderSalePanel(key, true); } },
+      ...held.map(a => el('option', { value: a.id, selected: a.id === st.account }, a.name))) : null;
+    const qty = el('input', { type: 'number', min: 0, max: sim.maxQty, step: 'any', inputmode: 'decimal', value: +sim.qty.toFixed(6), class: 'sale-qty' });
+    qty.addEventListener('change', () => { st.qty = parseNum(qty.value) || 0; this.renderSalePanel(key, true); });
+    const all = el('button', { type: 'button', class: 'link small', onclick: () => { st.qty = null; this.renderSalePanel(key, true); } }, 'tout');
+    const peaEarly = sim.peaEarly;
+    const line = (label, value, cls = '') => el('div', { class: 'sale-line ' + cls }, el('span', {}, label), el('b', { class: 'mono' }, value));
+    box.replaceChildren(
+      el('h3', {}, 'Et si je vendais ?', infoTip('Vente simulée au cours actuel. Plus-value au prix moyen pondéré (frais d\'achat inclus), frais selon le barème du compte, impôt estimé au taux du compte (Réglages → Mes comptes). Rien n\'est enregistré.')),
+      el('div', { class: 'sale-form' }, el('span', {}, 'Vendre'), qty, el('span', {}, 'part(s) sur ' + fmtQty(sim.maxQty)), all, accSel),
+      el('div', { class: 'sale-grid' },
+        line('Produit de la vente', fmtMoney(sim.gross, cur)),
+        sim.fees > 0 ? line('Frais de courtage', '− ' + fmtMoney(sim.fees, cur)) : null,
+        line('Plus-value', fmtSignedMoney(sim.gain, cur), trendClass(sim.gain)),
+        line(`Impôt estimé (${fmtNum(sim.rate, 1)} %)`, sim.tax > 0 ? '− ' + fmtMoney(sim.tax, cur) : fmtMoney(0, cur)),
+        line('Net pour toi', fmtMoney(sim.net, cur), 'sale-net')),
+      peaEarly ? el('p', { class: 'small down' }, '⚠ PEA de moins de 5 ans : un retrait le clôture, d\'où l\'impôt au prélèvement forfaitaire unique.') : null);
+  },
+
   renderTransactions() {
-    const txs = Portfolio.txs().slice().sort((a, b) => (a.date < b.date ? 1 : -1));
+    const all = Portfolio.txs().slice().sort((a, b) => (a.date < b.date ? 1 : -1));
+    this.renderTxFilters(all);
+    const f = this.txFilter || {};
+    const txs = all.filter(t => (!f.key || t.key === f.key) && (!f.type || t.type === f.type) && (!f.year || t.date.startsWith(f.year)));
     const multi = Store.state.accounts.length > 1;
-    $('#txCount').textContent = txs.length + ' opération(s)';
+    $('#txCount').textContent = txs.length === all.length ? all.length + ' opération(s)' : `${txs.length} sur ${all.length} opération(s)`;
     $('#txAccountCol').classList.toggle('hidden', !multi);
     $('#txTable tbody').replaceChildren(...txs.map(t => {
       const inst = Store.instrument(t.key);
@@ -504,7 +584,7 @@ const App = {
           } }, '🗑')),
       );
     }));
-    if (!txs.length) $('#txTable tbody').append(el('tr', {}, el('td', { colspan: 9, class: 'empty' }, 'Aucune opération enregistrée.')));
+    if (!txs.length) $('#txTable tbody').append(el('tr', {}, el('td', { colspan: 9, class: 'empty' }, all.length ? 'Aucune opération pour ces filtres.' : 'Aucune opération enregistrée.')));
   },
 
   /**
@@ -856,6 +936,7 @@ const App = {
       ['Volume', isFinite(q.volume) ? new Intl.NumberFormat('fr-FR').format(q.volume) : '—'],
     ].map(([a, b]) => el('div', {}, el('span', {}, a), el('b', {}, b))) : []));
     this.renderManualPanel(k);
+    this.renderSalePanel(k);
   },
 
   async loadDetailChart() {
