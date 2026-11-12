@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=bdefbe463b">
+  <link rel="stylesheet" href="css/style.css?v=f0067fe5f9">
 </head>
 <body>
   <header class="topbar">
@@ -433,6 +433,7 @@
           <div class="actions">
             <button class="btn" id="tgtFromPf">Reprendre les poids actuels</button>
             <button class="btn" id="tgtEqual">Répartir équitablement</button>
+            <button class="btn" id="tgtShare" title="Lien avec les ETF et les pourcentages seulement, sans aucun montant">🔗 Partager</button>
           </div>
         </div>
         <div class="table-wrap">
@@ -525,6 +526,18 @@
 
     <!-- ============ SIMULATION ============ -->
     <section id="view-simulation" class="view">
+      <div class="card" id="labCard">
+        <div class="card-head">
+          <h2>Laboratoire de stratégies<button type="button" class="info" aria-label="Explication" data-tip="Le même argent investi de quatre façons, rejoué sur l'historique réel de tes ETF (ta répartition cible, ou ton portefeuille actuel) : versements mensuels, tout au début, versements + rééquilibrage annuel, attendre les baisses. Pour voir ce qui a vraiment marché, et pourquoi.">i</button></h2>
+        </div>
+        <div class="lab-form">
+          <label><span>Versement mensuel (<span class="ccy"></span>)</span><input type="number" id="labMonthly" min="10" step="50" inputmode="decimal"></label>
+          <label>Période<select id="labYears"><option value="3">3 ans</option><option value="5" selected>5 ans</option><option value="10">10 ans</option><option value="15">15 ans</option></select></label>
+          <button class="btn primary" id="labRun" type="button">Comparer</button>
+        </div>
+        <div id="labBody"></div>
+      </div>
+
       <div class="card">
         <div class="card-head">
           <div>
@@ -952,30 +965,32 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-  <script src="js/utils.js?v=bdefbe463b"></script>
-  <script src="js/store.js?v=bdefbe463b"></script>
-  <script src="js/api.js?v=bdefbe463b"></script>
-  <script src="js/markets.js?v=bdefbe463b"></script>
-  <script src="js/portfolio.js?v=bdefbe463b"></script>
-  <script src="js/charts.js?v=bdefbe463b"></script>
-  <script src="js/app.js?v=bdefbe463b"></script>
-  <script src="js/views.js?v=bdefbe463b"></script>
-  <script src="js/compare.js?v=bdefbe463b"></script>
-  <script src="js/extras.js?v=bdefbe463b"></script>
-  <script src="js/mobile.js?v=bdefbe463b"></script>
-  <script src="js/features.js?v=bdefbe463b"></script>
-  <script src="js/money.js?v=bdefbe463b"></script>
-  <script src="js/newsart.js?v=bdefbe463b"></script>
-  <script src="js/insights.js?v=bdefbe463b"></script>
-  <script src="js/wealth.js?v=bdefbe463b"></script>
-  <script src="js/avis.js?v=bdefbe463b"></script>
-  <script src="js/manual.js?v=bdefbe463b"></script>
-  <script src="js/health.js?v=bdefbe463b"></script>
-  <script src="js/agenda.js?v=bdefbe463b"></script>
-  <script src="js/catalog.js?v=bdefbe463b"></script>
-  <script src="js/goals.js?v=bdefbe463b"></script>
-  <script src="js/optimizer.js?v=bdefbe463b"></script>
-  <script src="js/treemap.js?v=bdefbe463b"></script>
-  <script src="js/wrapped.js?v=bdefbe463b"></script>
+  <script src="js/utils.js?v=f0067fe5f9"></script>
+  <script src="js/store.js?v=f0067fe5f9"></script>
+  <script src="js/api.js?v=f0067fe5f9"></script>
+  <script src="js/markets.js?v=f0067fe5f9"></script>
+  <script src="js/portfolio.js?v=f0067fe5f9"></script>
+  <script src="js/charts.js?v=f0067fe5f9"></script>
+  <script src="js/app.js?v=f0067fe5f9"></script>
+  <script src="js/views.js?v=f0067fe5f9"></script>
+  <script src="js/compare.js?v=f0067fe5f9"></script>
+  <script src="js/extras.js?v=f0067fe5f9"></script>
+  <script src="js/mobile.js?v=f0067fe5f9"></script>
+  <script src="js/features.js?v=f0067fe5f9"></script>
+  <script src="js/money.js?v=f0067fe5f9"></script>
+  <script src="js/newsart.js?v=f0067fe5f9"></script>
+  <script src="js/insights.js?v=f0067fe5f9"></script>
+  <script src="js/wealth.js?v=f0067fe5f9"></script>
+  <script src="js/avis.js?v=f0067fe5f9"></script>
+  <script src="js/manual.js?v=f0067fe5f9"></script>
+  <script src="js/health.js?v=f0067fe5f9"></script>
+  <script src="js/agenda.js?v=f0067fe5f9"></script>
+  <script src="js/catalog.js?v=f0067fe5f9"></script>
+  <script src="js/goals.js?v=f0067fe5f9"></script>
+  <script src="js/optimizer.js?v=f0067fe5f9"></script>
+  <script src="js/treemap.js?v=f0067fe5f9"></script>
+  <script src="js/wrapped.js?v=f0067fe5f9"></script>
+  <script src="js/lab.js?v=f0067fe5f9"></script>
+  <script src="js/share.js?v=f0067fe5f9"></script>
 </body>
 </html>

@@ -431,3 +431,26 @@ test('carte du portefeuille, optimiseur de répartition et « Ton année en bour
   await page.keyboard.press('Escape');
   assert.equal(await page.locator('.wrapped').count(), 0);
 }));
+
+test('laboratoire de stratégies et répartition partagée par lien', { skip: !realCharts && 'Chart.js non installé' }, async () => {
+  await run({ state: sampleState() }, async ({ page }) => {
+    await page.evaluate(() => App.show('simulation'));
+    await page.selectOption('#labYears', '3');
+    await page.click('#labRun');
+    await page.waitForFunction(() => Chart.getChart('labChart') && Chart.getChart('labChart').data.datasets.length === 5, null, { timeout: 20000 });
+    assert.equal(await page.locator('.lab-rank li').count(), 4);
+    assert.equal(await page.locator('.lab-rank li.best').count(), 1);
+    assert.ok(await page.locator('.lab-lessons li').count() >= 2);
+  });
+  // lien partagé ouvert par quelqu'un d'autre : aperçu, puis adoption comme cible
+  const link = 'share=' + Buffer.from(JSON.stringify({ v: 1, t: 'Monde + émergents', l: [['CW8', 'XPAR', 'CW8.PA', 'Amundi MSCI World', 'EUR', 88], ['ESE', 'XPAR', 'ESE.PA', 'BNP S&P 500', 'EUR', 12]] })).toString('base64url');
+  await run({ state: sampleState(), hash: link }, async ({ page }) => {
+    await page.waitForSelector('dialog.share-dialog[open]');
+    assert.match(await page.locator('dialog.share-dialog').innerText(), /Monde \+ émergents/);
+    assert.ok(!/share=/.test(await page.evaluate(() => location.hash)), 'le lien est retiré de l\'adresse');
+    await page.locator('dialog.share-dialog button', { hasText: 'Utiliser comme cible' }).click();
+    await page.waitForFunction(() => App.view === 'invest');
+    const t = await page.evaluate(() => Object.fromEntries(Object.entries(Store.state.targets).filter(([, v]) => v > 0)));
+    assert.deepEqual(t, { 'CW8@XPAR': 88, 'ESE@XPAR': 12 });
+  });
+});
