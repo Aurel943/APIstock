@@ -46,3 +46,15 @@ test('valeur saisie : libellés lisibles', () => {
   assert.equal(Store.label('PERSO-AB12@'), 'GS Luxury Leaders 2038');
   assert.match(Store.code('PERSO-AB12@'), /^Valeur saisie le /);
 });
+
+test('rappel : valeur saisie de plus de 100 jours pour un placement encore détenu', () => {
+  const { App, Store } = loadApp(state());
+  const ids = d => JSON.parse(JSON.stringify(App.manualTodos(d).map(i => i.id)));
+  assert.deepEqual(ids('2026-12-01'), [], 'dernière valeur du 1er octobre : récente');
+  assert.deepEqual(ids('2027-01-15'), ['manual:PERSO-AB12@:2026-10-01']);
+  Store.state.dismissed = { 'manual:PERSO-AB12@:2026-10-01': Date.now() };
+  assert.deepEqual(ids('2027-01-15'), []);
+  Store.state.transactions.push({ id: '2', key: 'PERSO-AB12@', type: 'sell', date: '2026-11-01', account: 'av', qty: 2, price: 1080, fees: 0 });
+  Store.state.dismissed = {};
+  assert.deepEqual(ids('2027-01-15'), [], 'placement vendu : plus de rappel');
+});

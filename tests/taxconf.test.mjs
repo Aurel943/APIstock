@@ -50,3 +50,21 @@ test('valeur invalide ignorée', () => {
   assert.equal(c.ir, 12.8);
   assert.equal(c.peaCap, 150000);
 });
+
+test('PEA : date estimée du plafond avec les versements programmés du compte', () => {
+  const { get, Store } = loadApp({
+    accounts: [{ id: 'pea', name: 'PEA', type: 'pea', taxRate: 18.6 }, { id: 'cto', name: 'CTO', type: 'cto', taxRate: 31.4 }],
+    plans: [
+      { id: 'a', key: 'X@', account: 'pea', amount: 500, day: 5, start: '2026-01-01', active: true, done: {} },
+      { id: 'b', key: 'Y@', account: 'pea', amount: 500, day: 5, start: '2026-01-01', active: false, done: {} },
+      { id: 'c', key: 'Z@', account: 'cto', amount: 900, day: 5, start: '2026-01-01', active: true, done: {} },
+    ],
+  });
+  const Tax = get('Tax');
+  const r = Tax.peaCapDate(Store.account('pea'), 144000, 150000, '2026-11-12');
+  assert.equal(r.monthly, 500);              // seul le versement actif du PEA compte
+  assert.equal(r.months, 12);
+  assert.equal(r.date, '2027-11-12');
+  assert.equal(Tax.peaCapDate(Store.account('cto'), 0, 150000), null);
+  assert.equal(Tax.peaCapDate(Store.account('pea'), 150000, 150000), null);
+});
