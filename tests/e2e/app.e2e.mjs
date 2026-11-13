@@ -643,3 +643,42 @@ test('arène : univers parallèles, défi à l\'aveugle jusqu\'à la révélatio
   await page.waitForSelector('#toast.show');
   assert.match(await page.locator('#toast').innerText(), /semaines de ton parcours/);
 }));
+
+test('outils institutionnels : stress test inversé, Black-Litterman appliqué comme cible, planificateur probabiliste', { skip: !realCharts && 'Chart.js non installé' }, () => run({ state: sampleState({ goals: [{ id: 'g1', name: 'Apport maison', target: 60000, date: '2034-06-01', monthly: 400, rate: 6, accounts: [] }] }) }, async ({ page }) => {
+  await page.waitForFunction(() => Api.cachedQuote('CW8@XPAR') && Api.cachedQuote('ESE@XPAR'), null, { timeout: 20000 });
+  await page.evaluate(() => App.show('quant'));
+  // stress test inversé : la perte visée est atteinte, l'horizon change la fréquence
+  await page.click('#iStressRun');
+  await page.waitForSelector('#iStressBody .q-table', { timeout: 30000 });
+  await page.locator('#iStressBody input[type=range]').fill('20');
+  const lead = await page.locator('#iStressBody .q-lead').innerText();
+  assert.match(lead, /perdre 20 %/);
+  const pnl = await page.evaluate(() => { const r = Inst.reverseStress(App.stress.model, App.stress.values, -0.2, App.stress.weeks); return r.pnl / r.total; });
+  assert.ok(Math.abs(pnl + 0.2) < 1e-9, 'perte exacte');
+  const f1 = await page.locator('#iStressBody .q-kpi b').first().innerText();
+  await page.click('#iStressBody .seg button:has-text("1 an")');
+  assert.notEqual(await page.locator('#iStressBody .q-kpi b').first().innerText(), f1);
+  // Black-Litterman : une conviction forte change la répartition, appliquée comme cible
+  await page.click('#iBlRun');
+  await page.waitForSelector('#iBlBody .i-views', { timeout: 30000 });
+  assert.match(await page.locator('#iBlBody .q-lead').innerText(), /Sans conviction/);
+  await page.locator('#iBlBody .i-views input').nth(1).fill('20');
+  await page.locator('#iBlBody .i-views select').nth(1).selectOption('high');
+  await page.waitForFunction(() => /1 conviction/.test($('#iBlBody .q-lead').innerText));
+  await page.click('#iBlBody button:has-text("Utiliser comme cible")');
+  const targets = await page.evaluate(() => Store.state.targets);
+  const sum = Object.values(targets).reduce((a, b) => a + b, 0);
+  assert.ok(Math.abs(sum - 100) < 0.5, 'cible à 100 % : ' + sum);
+  assert.ok(Object.values(targets).every(v => v <= 60.05), 'poids maximum respecté');
+  assert.equal(await page.evaluate(() => App.view), 'invest');
+  // planificateur : objectif choisi, probabilité et versements nécessaires croissants
+  await page.evaluate(() => App.show('simulation'));
+  await page.selectOption('#iPlanGoal', 'g1');
+  assert.equal(await page.inputValue('#iPlanTarget'), '60000');
+  await page.click('#iPlanRun');
+  await page.waitForSelector('#iPlanBody .i-gauge', { timeout: 60000 });
+  assert.match(await page.locator('#iPlanBody .i-gauge').innerText(), /\d+ %/);
+  const need = await page.evaluate(() => App.plan.need.map(([, v]) => v));
+  assert.ok(need[0] <= need[1] && need[1] <= need[2], need.join(' ≤ '));
+  assert.ok(await page.evaluate(() => Chart.getChart('iPlanChart').data.datasets.length === 4));
+}));

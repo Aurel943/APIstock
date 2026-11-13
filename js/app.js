@@ -72,7 +72,7 @@ const App = {
       () => this.bindDialog(), () => this.bindWorld(), () => this.bindInvest(), () => this.bindCompare(), () => this.bindAccounts(),
       () => this.renderAccountsSettings(), () => this.bindGoal(), () => this.bindPrivacy(), () => this.bindCsv(), () => this.bindMobile(),
       () => this.bindManual(), () => $('#optRun').addEventListener('click', () => this.runOptimizer()), () => this.bindLab(),
-      () => this.bindQuant(), () => this.bindDesk(), () => this.bindArena(), () => this.bindFisc(), () => this.bindCopilot(),
+      () => this.bindQuant(), () => this.bindDesk(), () => this.bindArena(), () => this.bindInstitut(), () => this.bindFisc(), () => this.bindCopilot(),
       () => $('#tgtShare').addEventListener('click', () => this.shareAllocation()),
       () => $('#wrappedOpen').addEventListener('click', () => { this.toggleTabMenu(false); this.openWrapped(); }),
       () => $$('#mapMode button').forEach(b => b.addEventListener('click', () => {

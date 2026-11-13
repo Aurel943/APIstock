@@ -1293,3 +1293,37 @@ body.w-open { overflow: hidden; }
   .ar-game-chart { height: 220px; }
   .ar-podium li { grid-template-columns: 30px minmax(0, 1fr) auto; } .ar-podium li > :last-child { display: none; }
 }
+
+/* ---------- Outils institutionnels ---------- */
+.i-card { border-top: 3px solid #6366f1; }
+.i-stress-ctrl { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; margin-bottom: 12px; }
+.i-stress-ctrl label { display: flex; flex-direction: row !important; align-items: center; gap: 10px; font-size: 14px; flex: 1 1 320px; }
+.i-stress-ctrl input[type="range"] { flex: 1; min-width: 120px; accent-color: var(--down); }
+.i-views select, .i-rel select { font: inherit; font-size: 13px; padding: 4px 6px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text); max-width: 100%; }
+.i-view { display: inline-flex; align-items: center; gap: 4px; }
+.i-view input { width: 72px; text-align: right; }
+.i-rel { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0 14px; }
+.i-rel select { max-width: 180px; }
+.i-cap { margin-left: auto; display: inline-flex !important; flex-direction: row !important; align-items: center; gap: 6px; white-space: nowrap; }
+.i-views, .i-bl-out { min-width: 520px; }
+.i-cap input { width: 64px; }
+.i-plan-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; align-items: end; margin-bottom: 14px; }
+.i-plan-form label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
+.i-plan-form label.check { flex-direction: row; align-items: center; }
+.i-plan-hero { display: flex; gap: 20px; align-items: center; margin-bottom: 14px; }
+.i-plan-hero p { margin: 4px 0; line-height: 1.5; }
+.i-gauge { --p: 0; flex-shrink: 0; width: 120px; height: 120px; border-radius: 50%; display: grid; place-content: center; text-align: center;
+  background: radial-gradient(closest-side, var(--surface) 78%, transparent 79%), conic-gradient(var(--accent) calc(var(--p) * 1%), var(--surface-2) 0); }
+.i-gauge b { font-size: 26px; }
+.i-verdict { font-size: 18px; }
+.i-need { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
+.i-need > div { display: flex; flex-direction: column; gap: 2px; padding: 10px 14px; border-radius: 12px; background: var(--surface-2); }
+.i-need > div.ok { background: var(--up-bg); }
+.i-need b { font-size: 17px; }
+.i-plan-chart { height: 280px; }
+@media (max-width: 640px) {
+  .i-plan-hero { flex-direction: column; align-items: flex-start; }
+  .i-need { grid-template-columns: 1fr; }
+  .i-cap { margin-left: 0; }
+  .i-plan-chart { height: 230px; }
+}

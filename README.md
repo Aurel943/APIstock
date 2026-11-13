@@ -55,6 +55,11 @@ Site personnel (100 % statique, sans serveur ni compte) pour suivre ses ETF et l
 - *Projection dans le futur* : intérêts composés avec versements mensuels, rendement et frais annuels.
 - *Phase de retraite* : retraits mensuels indexés sur l'inflation sur un capital placé (bouton « Mon patrimoine ») → probabilité que le capital tienne jusqu'au bout, âge ou date d'épuisement dans les scénarios défavorable / médian / favorable, retrait maximal soutenable à 90 %, graphique en éventail (Monte-Carlo).
 
+**Outils institutionnels**
+- **Stress test inversé** (Labo quant) : choisis la perte que tu ne veux pas subir (−5 à −60 %) et l'horizon (1 semaine à 1 an) → le scénario de marché le plus plausible qui la provoquerait (plus petit choc au sens de Mahalanobis sur les actions mondiales, la tech, l'Europe, le dollar et l'or, d'après les sensibilités réelles de tes lignes), son impact ligne par ligne et sa fréquence théorique ; l'exercice que les régulateurs imposent aux banques
+- **Black-Litterman** (Labo quant) : tes convictions (rendement annuel attendu d'une ligne, ou « A fera mieux que B de x % ») avec un niveau de confiance, mélangées à l'équilibre implicite de ta répartition → rendements révisés et répartition optimale (sans vente à découvert, poids maximum réglable), applicable comme cible
+- **Planificateur probabiliste** (Simulation) : 3 000 futurs construits par bootstrap par blocs de 12 mois dans l'historique réel de ta répartition depuis 2000 (indices suivis), avec tes versements et l'inflation → probabilité d'atteindre un objectif, éventail des résultats et versement mensuel nécessaire pour 50, 75 ou 90 % de chances
+
 **Arène** (menu Plus) — la bourse côté jeu, sur de vraies données
 - **Univers parallèles** : chacun de tes vrais achats (même montant, même date) rejoué sous le matelas, sur un Livret A (taux officiels successifs), dans le MSCI World, le S&P 500, le Nasdaq-100, le CAC 40, l'or et le Bitcoin ; course animée jusqu'à aujourd'hui, podium, et ce que tu aurais en plus ou en moins dans chaque univers
 - **Défi à l'aveugle** : un vrai graphique historique tiré au hasard (S&P 500, Nasdaq, CAC 40, DAX, Nikkei, or, Bitcoin…), nom et dates cachés ; chaque semaine, investi ou en liquidités (0,1 % par aller-retour, clavier B / V / espace) ; révélation de la période, score face à « acheter et conserver », titre (du « Loup de Wall Street » au « Vendeur paniqué ») et record personnel
@@ -214,6 +219,7 @@ js/money.js       versements programmés, liquidités, divisions, ISIN, carte «
 js/insights.js    risque, rééquilibrage, dividendes à venir, actualités, rapport annuel, alertes push
 js/wealth.js      patrimoine global (autres actifs), phase de retraite
 js/labo-quant.js  labo quant (nom choisi pour ne pas être bloqué : « quant.js » figure dans les listes anti-pisteurs) : crash-tests, scénarios à facteurs, risque, régimes (HMM), audit comportemental
+js/institut.js    stress test inversé, Black-Litterman, planificateur probabiliste (bootstrap par blocs)
 js/arena.js       arène : univers parallèles, défi à l'aveugle, briefing vocal, parcours en musique
 js/desk.js        salle des marchés : P&L explain, signaux et stratégies tactiques, journal de trades
 js/fisc.js        fiscalité active : retrait malin (plan de vente au moindre impôt), radar fiscal
