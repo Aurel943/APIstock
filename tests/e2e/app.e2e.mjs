@@ -700,35 +700,94 @@ test('mode terminal (commandes, touches F), scanner de signaux et radiographie',
   await page.click('#tabMoreBtn');
   await page.click('#termOpen');
   await page.waitForSelector('#term:not(.hidden) #termPort tbody tr');
+  const pane = n => page.locator('#termGrid .tp').nth(n);
+  const run = async c => { await page.fill('#termCmd', c); await page.keyboard.press('Enter'); };
   assert.equal(await page.locator('#termGrid .tp').count(), 4, 'quatre fenêtres');
   assert.equal(await page.locator('#termPort tbody tr').count(), 3);
   assert.ok(await page.locator('#termTape .term-tk').count() >= 6, 'bandeau défilant (dupliqué pour boucler)');
-  // fenêtre 2 : graphique de la valeur chargée ; « 2 SPY GP 5A » la change
-  await page.fill('#termCmd', '2 spy gp 5a');
-  await page.keyboard.press('Enter');
-  await page.waitForFunction(() => /SPY/.test($$('#termGrid .tp')[1].querySelector('.tp-bar').innerText) && Chart.getChart('termChart1'));
-  assert.match(await page.locator('#termGrid .tp').nth(1).locator('.tp-acts button.on').innerText(), /5A/);
+  // graphique en chandeliers dans la fenêtre 2 : « 2 SPY GP 5A »
+  await run('2 spy gp 5a');
+  await page.waitForFunction(() => /SPY/.test($$('#termGrid .tp')[1].querySelector('.tp-bar').innerText) && App._termCharts[1] && App._termCharts[1].data && App._termCharts[1].data.bars.length > 100);
+  assert.match(await pane(1).locator('.tp-acts button.on').innerText(), /5A/);
   assert.match(await page.locator('#termPrompt').innerText(), /2</);
-  // « 3 » : action n° 3 du menu (YTD)
-  await page.fill('#termCmd', '3');
-  await page.keyboard.press('Enter');
-  assert.match(await page.locator('#termGrid .tp').nth(1).locator('.tp-acts button.on').innerText(), /YTD/);
+  assert.equal(await page.evaluate(() => App._termCharts[1].data.style), 'candle');
+  assert.equal(await page.evaluate(() => App._termCharts[1].data.unit), 'S', '5 ans : bougies hebdomadaires');
+  // outils : barres OHLC, RSI et MACD (panneaux sous le graphique), échelle log
+  for (const b of ['BARRES', 'RSI', 'MACD', 'LOG']) await pane(1).locator('.tc-tools button', { hasText: new RegExp('^' + b + '$') }).click();
+  await page.waitForFunction(() => { const c = App._termCharts[1]; return c.data.style === 'ohlc' && c.data.studies.rsi && c.data.studies.macd && c.data.log && c.layout().panels.length === 2; });
+  // réticule et zoom à la molette
+  const box = await pane(1).locator('canvas').boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 3);
+  const n0 = await page.evaluate(() => App._termCharts[1].view.to - App._termCharts[1].view.from);
+  await page.mouse.wheel(0, -300);
+  await page.waitForFunction(n => App._termCharts[1].view.to - App._termCharts[1].view.from < n, n0);
+  await page.mouse.dblclick(box.x + box.width / 2, box.y + box.height / 3);
+  await page.waitForFunction(n => App._termCharts[1].view.to - App._termCharts[1].view.from === n, n0);
+  // « 3 » : action n° 3 du menu (6M) ; GPC remet les chandeliers
+  await run('3');
+  assert.match(await pane(1).locator('.tp-acts button.on').innerText(), /6M/);
+  await run('GPC');
+  await page.waitForFunction(() => App._termCharts[1].data.style === 'candle' && App._termCharts[1].data.unit === 'J');
   // fenêtre 4 : description avec performances
   await page.waitForFunction(() => /PERFORMANCE/.test($$('#termGrid .tp')[3].innerText) && /1A/.test(($$('#termGrid .tp')[3].querySelector('.des-perf') || {}).innerText || ''));
-  // touche F4 : XRAY dans la fenêtre active
+  // HP : cours d'ouverture, haut, bas, clôture ; DVD : dividendes
+  await run('4 HP');
+  await page.waitForFunction(() => /CLÔT/.test($$('#termGrid .tp')[3].innerText) && $$('#termGrid .tp')[3].querySelectorAll('tbody tr').length > 30);
+  await run('4 DVD');
+  await page.waitForFunction(() => /DIVIDENDE 12 MOIS/.test($$('#termGrid .tp')[3].innerText));
+  // toutes les matières premières, par famille
+  await run('3 CMDTY');
+  const nC = await page.evaluate(() => TERM_CMDTY.length);
+  assert.equal(await pane(2).locator('tbody tr:not(.grp)').count(), nC);
+  assert.equal(await pane(2).locator('tbody tr.grp').count(), 6);
+  assert.match(await pane(2).innerText(), /CACAO[\s\S]*\$\/tonne/);
+  await run('3 CMAP');
+  assert.equal(await pane(2).locator('.term-tile').count(), nC);
+  // comparaison, corrélations, risque
+  await run('2 COMP SPY CW8 ESE 5A');
+  await page.waitForFunction(() => App._termCharts[1] && App._termCharts[1].data && App._termCharts[1].data.lines && App._termCharts[1].data.lines.length === 3 && $$('#termGrid .tp')[1].querySelectorAll('.tc-table tbody tr').length === 3);
+  await run('1 CORR SPY CW8 ESE');
+  await page.waitForFunction(() => $$('#termGrid .tp')[0].querySelectorAll('.corr tbody tr').length === 3);
+  assert.equal(await pane(0).locator('.corr tbody tr').first().locator('td').nth(1).innerText(), '1,00');
+  await run('1 RSK');
+  await page.waitForFunction(() => /VAR 95 %/.test($$('#termGrid .tp')[0].innerText) && $$('#termGrid .tp')[0].querySelectorAll('tbody tr').length === 3);
+  // recherche de valeurs, journal des opérations, liste de suivi
+  await run('3 SECF SPY');
+  await page.waitForFunction(() => $$('#termGrid .tp')[2].querySelectorAll('tbody tr').length > 0);
+  await run('3 BLT');
+  assert.ok(await pane(2).locator('tbody tr').count() >= 3, 'opérations listées');
+  await run('ADD GOLD');
+  await page.waitForFunction(() => /GOLD/.test($$('#termGrid .tp')[2].innerText) && /MON/.test($$('#termGrid .tp')[2].querySelector('.tp-bar').innerText));
+  // écrans prédéfinis et zoom
+  await run('LAY 4');
+  assert.deepEqual(await page.evaluate(() => App.termPanes.map(p => p.fn)), ['CMDTY', 'GP', 'CMAP', 'DES']);
+  assert.equal(await page.evaluate(() => App.termKey), 'Y:GC=F');
+  await run('ZOOM');
+  assert.equal(await page.locator('#termGrid .tp:visible').count(), 1);
+  await page.keyboard.press('Escape');
+  assert.equal(await page.locator('#termGrid .tp:visible').count(), 4, 'Échap : sortie du zoom d\'abord');
+  // saisie assistée et historique
+  await page.fill('#termCmd', '');
+  await page.type('#termCmd', 'cma');
+  await page.waitForSelector('#termSug:not(.hidden) li');
+  assert.match(await page.locator('#termSug li').first().innerText(), /CMAP/);
+  await page.keyboard.press('Tab');
+  assert.equal((await page.inputValue('#termCmd')).trim(), 'CMAP');
+  await page.fill('#termCmd', '');
+  await page.keyboard.press('ArrowUp');
+  assert.equal(await page.inputValue('#termCmd'), 'ZOOM', 'dernière commande rappelée');
+  await page.fill('#termCmd', '');
+  // touche F4 : XRAY ; commande inconnue ; aide ; touches jaunes
+  await page.keyboard.press('Alt+1');
   await page.keyboard.press('F4');
-  assert.match(await page.locator('#termGrid .tp').nth(1).locator('.tp-bar').innerText(), /XRAY/);
-  // clic sur une ligne du portefeuille : charge la valeur dans la description
-  await page.locator('#termPort tbody tr', { hasText: 'CW8' }).click();
-  await page.waitForFunction(() => /CW8/.test($$('#termGrid .tp')[3].querySelector('.tp-bar').innerText));
-  await page.fill('#termCmd', 'inconnu');
-  await page.keyboard.press('Enter');
+  assert.match(await pane(0).locator('.tp-bar').innerText(), /XRAY/);
+  await run('inconnu');
   await page.waitForFunction(() => /commande inconnue/.test($('#termMsg').innerText));
   await page.locator('#termKeys button', { hasText: 'HELP' }).click();
   assert.match(await page.locator('#termGrid').innerText(), /CW8 GP <GO>/);
-  // touches jaunes : secteur ajouté à la ligne de commande
   await page.locator('#termKeys .k-yel', { hasText: 'INDEX' }).click();
   assert.match(await page.inputValue('#termCmd'), /INDEX/);
+  await page.keyboard.press('Escape');
   await page.keyboard.press('Escape');
   assert.ok(await page.locator('#term').evaluate(t => t.classList.contains('hidden')));
 }));

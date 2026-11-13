@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=f0ba267b82">
+  <link rel="stylesheet" href="css/style.css?v=97ecb03212">
 </head>
 <body>
   <header class="topbar">
@@ -1149,7 +1149,7 @@
       <span class="term-clock" id="termClock"></span>
       <button type="button" class="term-close" id="termClose" aria-label="Quitter le mode terminal">ÉCHAP ✕</button>
     </div>
-    <div class="term-cmd"><span class="term-prompt" id="termPrompt">1&lt;</span><input id="termCmd" autocomplete="off" spellcheck="false" placeholder="CW8 GP &lt;GO&gt;  ·  SPX INDEX DES  ·  EURUSD CURNCY GP  ·  WEI  ·  HELP" aria-label="Commande"><span class="term-msg" id="termMsg"></span></div>
+    <div class="term-cmd"><span class="term-prompt" id="termPrompt">1&lt;</span><input id="termCmd" autocomplete="off" spellcheck="false" placeholder="CW8 GP &lt;GO&gt;  ·  GOLD CMDTY GPC 5A  ·  COMP SPX CAC DAX  ·  SECF LVMH  ·  LAY 4  ·  HELP" aria-label="Commande"><span class="term-msg" id="termMsg"></span><ul class="term-sug hidden" id="termSug" role="listbox"></ul></div>
     <div class="term-keys" id="termKeys">
       <button type="button" class="k-red" data-cmd="EXIT">CANCEL</button>
       <button type="button" class="k-yel" data-ins="EQUITY">EQUITY</button>
@@ -1166,9 +1166,18 @@
       <button type="button" data-cmd="FX"><b>F5</b> FX</button>
       <button type="button" data-cmd="CMDTY"><b>F6</b> CMDTY</button>
       <button type="button" data-cmd="MOV"><b>F7</b> MOV</button>
-      <button type="button" data-cmd="NEWS"><b>F8</b> NEWS</button>
+      <button type="button" data-cmd="TOP"><b>F8</b> TOP</button>
       <button type="button" data-cmd="DES"><b>F9</b> DES</button>
       <button type="button" data-cmd="EXIT"><b>F10</b> EXIT</button>
+      <button type="button" data-cmd="GP"><b>F11</b> GP</button>
+      <button type="button" data-cmd="COMP"><b>F12</b> COMP</button>
+      <span class="k-sep"></span>
+      <button type="button" class="k-lay" data-cmd="LAY 1">LAY 1</button>
+      <button type="button" class="k-lay" data-cmd="LAY 2">MARCHÉS</button>
+      <button type="button" class="k-lay" data-cmd="LAY 3">VALEUR</button>
+      <button type="button" class="k-lay" data-cmd="LAY 4">MAT. PREM.</button>
+      <button type="button" class="k-lay" data-cmd="LAY 5">RISQUE</button>
+      <button type="button" class="k-lay" data-cmd="LAY 6">VEILLE</button>
     </div>
     <div class="term-tape" id="termTape"></div>
     <div class="term-grid" id="termGrid"></div>
@@ -1218,39 +1227,40 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-  <script src="js/utils.js?v=f0ba267b82"></script>
-  <script src="js/store.js?v=f0ba267b82"></script>
-  <script src="js/api.js?v=f0ba267b82"></script>
-  <script src="js/markets.js?v=f0ba267b82"></script>
-  <script src="js/portfolio.js?v=f0ba267b82"></script>
-  <script src="js/charts.js?v=f0ba267b82"></script>
-  <script src="js/app.js?v=f0ba267b82"></script>
-  <script src="js/views.js?v=f0ba267b82"></script>
-  <script src="js/compare.js?v=f0ba267b82"></script>
-  <script src="js/extras.js?v=f0ba267b82"></script>
-  <script src="js/mobile.js?v=f0ba267b82"></script>
-  <script src="js/features.js?v=f0ba267b82"></script>
-  <script src="js/money.js?v=f0ba267b82"></script>
-  <script src="js/newsart.js?v=f0ba267b82"></script>
-  <script src="js/insights.js?v=f0ba267b82"></script>
-  <script src="js/wealth.js?v=f0ba267b82"></script>
-  <script src="js/avis.js?v=f0ba267b82"></script>
-  <script src="js/manual.js?v=f0ba267b82"></script>
-  <script src="js/health.js?v=f0ba267b82"></script>
-  <script src="js/agenda.js?v=f0ba267b82"></script>
-  <script src="js/catalog.js?v=f0ba267b82"></script>
-  <script src="js/goals.js?v=f0ba267b82"></script>
-  <script src="js/optimizer.js?v=f0ba267b82"></script>
-  <script src="js/treemap.js?v=f0ba267b82"></script>
-  <script src="js/wrapped.js?v=f0ba267b82"></script>
-  <script src="js/lab.js?v=f0ba267b82"></script>
-  <script src="js/share.js?v=f0ba267b82"></script>
-  <script src="js/labo-quant.js?v=f0ba267b82"></script>
-  <script src="js/fisc.js?v=f0ba267b82"></script>
-  <script src="js/desk.js?v=f0ba267b82"></script>
-  <script src="js/arena.js?v=f0ba267b82"></script>
-  <script src="js/institut.js?v=f0ba267b82"></script>
-  <script src="js/terminal.js?v=f0ba267b82"></script>
-  <script src="js/copilot.js?v=f0ba267b82"></script>
+  <script src="js/utils.js?v=97ecb03212"></script>
+  <script src="js/store.js?v=97ecb03212"></script>
+  <script src="js/api.js?v=97ecb03212"></script>
+  <script src="js/markets.js?v=97ecb03212"></script>
+  <script src="js/portfolio.js?v=97ecb03212"></script>
+  <script src="js/charts.js?v=97ecb03212"></script>
+  <script src="js/app.js?v=97ecb03212"></script>
+  <script src="js/views.js?v=97ecb03212"></script>
+  <script src="js/compare.js?v=97ecb03212"></script>
+  <script src="js/extras.js?v=97ecb03212"></script>
+  <script src="js/mobile.js?v=97ecb03212"></script>
+  <script src="js/features.js?v=97ecb03212"></script>
+  <script src="js/money.js?v=97ecb03212"></script>
+  <script src="js/newsart.js?v=97ecb03212"></script>
+  <script src="js/insights.js?v=97ecb03212"></script>
+  <script src="js/wealth.js?v=97ecb03212"></script>
+  <script src="js/avis.js?v=97ecb03212"></script>
+  <script src="js/manual.js?v=97ecb03212"></script>
+  <script src="js/health.js?v=97ecb03212"></script>
+  <script src="js/agenda.js?v=97ecb03212"></script>
+  <script src="js/catalog.js?v=97ecb03212"></script>
+  <script src="js/goals.js?v=97ecb03212"></script>
+  <script src="js/optimizer.js?v=97ecb03212"></script>
+  <script src="js/treemap.js?v=97ecb03212"></script>
+  <script src="js/wrapped.js?v=97ecb03212"></script>
+  <script src="js/lab.js?v=97ecb03212"></script>
+  <script src="js/share.js?v=97ecb03212"></script>
+  <script src="js/labo-quant.js?v=97ecb03212"></script>
+  <script src="js/fisc.js?v=97ecb03212"></script>
+  <script src="js/desk.js?v=97ecb03212"></script>
+  <script src="js/arena.js?v=97ecb03212"></script>
+  <script src="js/institut.js?v=97ecb03212"></script>
+  <script src="js/termchart.js?v=97ecb03212"></script>
+  <script src="js/terminal.js?v=97ecb03212"></script>
+  <script src="js/copilot.js?v=97ecb03212"></script>
 </body>
 </html>
