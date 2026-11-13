@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=0a730c46d9">
+  <link rel="stylesheet" href="css/style.css?v=ff123946fd">
 </head>
 <body>
   <header class="topbar">
@@ -554,6 +554,21 @@
 
     <!-- ============ SIMULATION ============ -->
     <section id="view-simulation" class="view">
+      <div class="card i-card" id="iPlanCard">
+        <div class="card-head">
+          <h2>Planificateur probabiliste <span class="q-new">nouveau</span><button type="button" class="info" aria-label="Explication" data-tip="3 000 futurs possibles construits à partir de 26 ans d'historique réel de ta répartition (krachs compris), avec tes versements et l'inflation : la probabilité d'atteindre ton objectif, et combien verser chaque mois pour avoir 50, 75 ou 90 % de chances.">i</button></h2>
+        </div>
+        <div class="i-plan-form">
+          <label>Objectif<select id="iPlanGoal"></select></label>
+          <label id="iPlanCustom"><span>Montant visé (<span class="ccy"></span>)</span><input type="number" id="iPlanTarget" min="0" step="1000" inputmode="decimal" placeholder="ex. 100000"></label>
+          <label>Date<input type="date" id="iPlanDate"></label>
+          <label><span>Versement mensuel (<span class="ccy"></span>)</span><input type="number" id="iPlanMonthly" min="0" step="50" value="300" inputmode="decimal"></label>
+          <label class="check"><input type="checkbox" id="iPlanReal" checked> <span>En euros d'aujourd'hui (inflation 2 %)</span></label>
+          <button class="btn primary" id="iPlanRun" type="button">Simuler 3 000 futurs</button>
+        </div>
+        <div id="iPlanBody"></div>
+      </div>
+
       <div class="card" id="labCard">
         <div class="card-head">
           <h2>Laboratoire de stratégies<button type="button" class="info" aria-label="Explication" data-tip="Le même argent investi de quatre façons, rejoué sur l'historique réel de tes ETF (ta répartition cible, ou ton portefeuille actuel) : versements mensuels, tout au début, versements + rééquilibrage annuel, attendre les baisses. Pour voir ce qui a vraiment marché, et pourquoi.">i</button></h2>
@@ -734,6 +749,22 @@
           <button class="btn small" id="qBehavRun" type="button">Auditer</button>
         </div>
         <div id="qBehavBody"><p class="muted">Le premier risque d'un investisseur, c'est lui-même. Voyons ce que disent tes opérations.</p></div>
+      </div>
+    
+      <div class="card i-card" id="iStressCard">
+        <div class="card-head">
+          <h2>Stress test inversé <span class="q-new">nouveau</span><button type="button" class="info" aria-label="Explication" data-tip="La question retournée : quel est le scénario de marché le plus probable qui te ferait perdre 25 % ? Le plus petit choc, d'après les corrélations historiques, sur les actions mondiales, la tech, l'Europe, le dollar et l'or. C'est l'exercice que les régulateurs imposent aux banques.">i</button></h2>
+          <button class="btn small" id="iStressRun" type="button">Lancer</button>
+        </div>
+        <div id="iStressBody"><p class="muted">Choisis la perte que tu ne veux pas subir : le site trouve le scénario le plus plausible qui la provoquerait, et à quelle fréquence il arrive.</p></div>
+      </div>
+
+      <div class="card i-card" id="iBlCard">
+        <div class="card-head">
+          <h2>Black-Litterman : tes convictions <span class="q-new">nouveau</span><button type="button" class="info" aria-label="Explication" data-tip="Le modèle de Goldman Sachs : tu donnes tes convictions (« le Nasdaq fera 12 % par an », « l'Europe fera mieux que les États-Unis de 2 % ») avec un niveau de confiance ; il les mélange proprement à l'équilibre de ta répartition et calcule la répartition optimale, sans les excès d'un optimiseur classique.">i</button></h2>
+          <button class="btn small" id="iBlRun" type="button">Préparer</button>
+        </div>
+        <div id="iBlBody"><p class="muted">Un optimiseur classique met tout sur la ligne qui a le plus monté. Black-Litterman part de ta répartition et ne la déplace qu'autant que tes convictions le justifient.</p></div>
       </div>
     </section>
 
@@ -1137,37 +1168,38 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-  <script src="js/utils.js?v=0a730c46d9"></script>
-  <script src="js/store.js?v=0a730c46d9"></script>
-  <script src="js/api.js?v=0a730c46d9"></script>
-  <script src="js/markets.js?v=0a730c46d9"></script>
-  <script src="js/portfolio.js?v=0a730c46d9"></script>
-  <script src="js/charts.js?v=0a730c46d9"></script>
-  <script src="js/app.js?v=0a730c46d9"></script>
-  <script src="js/views.js?v=0a730c46d9"></script>
-  <script src="js/compare.js?v=0a730c46d9"></script>
-  <script src="js/extras.js?v=0a730c46d9"></script>
-  <script src="js/mobile.js?v=0a730c46d9"></script>
-  <script src="js/features.js?v=0a730c46d9"></script>
-  <script src="js/money.js?v=0a730c46d9"></script>
-  <script src="js/newsart.js?v=0a730c46d9"></script>
-  <script src="js/insights.js?v=0a730c46d9"></script>
-  <script src="js/wealth.js?v=0a730c46d9"></script>
-  <script src="js/avis.js?v=0a730c46d9"></script>
-  <script src="js/manual.js?v=0a730c46d9"></script>
-  <script src="js/health.js?v=0a730c46d9"></script>
-  <script src="js/agenda.js?v=0a730c46d9"></script>
-  <script src="js/catalog.js?v=0a730c46d9"></script>
-  <script src="js/goals.js?v=0a730c46d9"></script>
-  <script src="js/optimizer.js?v=0a730c46d9"></script>
-  <script src="js/treemap.js?v=0a730c46d9"></script>
-  <script src="js/wrapped.js?v=0a730c46d9"></script>
-  <script src="js/lab.js?v=0a730c46d9"></script>
-  <script src="js/share.js?v=0a730c46d9"></script>
-  <script src="js/labo-quant.js?v=0a730c46d9"></script>
-  <script src="js/fisc.js?v=0a730c46d9"></script>
-  <script src="js/desk.js?v=0a730c46d9"></script>
-  <script src="js/arena.js?v=0a730c46d9"></script>
-  <script src="js/copilot.js?v=0a730c46d9"></script>
+  <script src="js/utils.js?v=ff123946fd"></script>
+  <script src="js/store.js?v=ff123946fd"></script>
+  <script src="js/api.js?v=ff123946fd"></script>
+  <script src="js/markets.js?v=ff123946fd"></script>
+  <script src="js/portfolio.js?v=ff123946fd"></script>
+  <script src="js/charts.js?v=ff123946fd"></script>
+  <script src="js/app.js?v=ff123946fd"></script>
+  <script src="js/views.js?v=ff123946fd"></script>
+  <script src="js/compare.js?v=ff123946fd"></script>
+  <script src="js/extras.js?v=ff123946fd"></script>
+  <script src="js/mobile.js?v=ff123946fd"></script>
+  <script src="js/features.js?v=ff123946fd"></script>
+  <script src="js/money.js?v=ff123946fd"></script>
+  <script src="js/newsart.js?v=ff123946fd"></script>
+  <script src="js/insights.js?v=ff123946fd"></script>
+  <script src="js/wealth.js?v=ff123946fd"></script>
+  <script src="js/avis.js?v=ff123946fd"></script>
+  <script src="js/manual.js?v=ff123946fd"></script>
+  <script src="js/health.js?v=ff123946fd"></script>
+  <script src="js/agenda.js?v=ff123946fd"></script>
+  <script src="js/catalog.js?v=ff123946fd"></script>
+  <script src="js/goals.js?v=ff123946fd"></script>
+  <script src="js/optimizer.js?v=ff123946fd"></script>
+  <script src="js/treemap.js?v=ff123946fd"></script>
+  <script src="js/wrapped.js?v=ff123946fd"></script>
+  <script src="js/lab.js?v=ff123946fd"></script>
+  <script src="js/share.js?v=ff123946fd"></script>
+  <script src="js/labo-quant.js?v=ff123946fd"></script>
+  <script src="js/fisc.js?v=ff123946fd"></script>
+  <script src="js/desk.js?v=ff123946fd"></script>
+  <script src="js/arena.js?v=ff123946fd"></script>
+  <script src="js/institut.js?v=ff123946fd"></script>
+  <script src="js/copilot.js?v=ff123946fd"></script>
 </body>
 </html>
