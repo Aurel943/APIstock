@@ -67,6 +67,8 @@ const App = {
     $('#optRun').addEventListener('click', () => this.runOptimizer());
     this.bindLab();
     this.bindQuant();
+    this.bindFisc();
+    this.bindCopilot();
     $('#tgtShare').addEventListener('click', () => this.shareAllocation());
     $('#wrappedOpen').addEventListener('click', () => { this.toggleTabMenu(false); this.openWrapped(); });
     $$('#mapMode button').forEach(b => b.addEventListener('click', () => {

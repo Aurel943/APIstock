@@ -62,6 +62,16 @@ Site personnel (100 % statique, sans serveur ni compte) pour suivre ses ETF et l
 - **Anatomie du risque** : contribution de chaque ligne au risque (décomposition d'Euler), nombre effectif de paris indépendants (composantes principales, Meucci), ratio de diversification, perte à un mois (VaR historique 95 %, Expected Shortfall, VaR de Cornish-Fisher) et répartition à risque égal (risk parity) applicable comme cible
 - **Audit de tes décisions** : ce que tes dates d'achat t'ont rapporté ou coûté face à un achat le 1er du mois (et face au meilleur / pire jour possible), tendance à acheter après les hausses, ventes dans les baisses et leur manque à gagner, écart comportemental (rendement de l'investisseur XIRR − rendement des placements TWR)
 
+**Copilote** (`Ctrl+K` / `⌘K`, `/` ou la barre « Demander… » en haut) — pose tes questions en français, réponse immédiate calculée dans le navigateur sur tes données (rien n'est envoyé)
+- « Combien vaut mon portefeuille ? », « plus-value sur CW8 », « dividendes 2025 », « combien j'ai investi en 2024 », « part des États-Unis », « part en dollar », « ma meilleure ligne », « rendement annualisé », « frais », « liquidités », « plafond PEA », « objectif »
+- Calculs à la volée : « 300 €/mois pendant 20 ans à 6 % » (intérêts composés à partir de ton portefeuille actuel), « j'ai besoin de 8 000 € » (plan de retrait optimisé)
+- Actions : « acheter 3 CW8 à 520 » prépare l'opération, « mode sombre », « mode discret », « rafraîchir », « exporter »
+- Raccourcis vers toutes les cartes du site (« crash-test », « fiscalité », « alertes »…), navigation au clavier
+
+**Fiscalité active** (onglet Investir)
+- **Retrait malin** : « j'ai besoin de X € nets » → quoi vendre, sur quel compte, pour payer le moins d'impôt et de frais. Liquidités d'abord, moins-values du compte-titres (qui effacent d'abord les plus-values déjà réalisées dans l'année), gains couverts par les moins-values reportées des 10 dernières années, PEA de plus de 5 ans (prélèvements sociaux sur la seule part de gains du retrait), assurance-vie (abattement annuel après 8 ans, puis 7,5 %), et seulement ensuite les lignes les plus imposées ; frais selon le barème de chaque compte. Comparaison chiffrée avec « vendre un peu de tout », PEA de moins de 5 ans et PER laissés de côté (avec explication), ventes enregistrables en un clic
+- **Radar fiscal** : moins-values à constater avant le 31 décembre pour effacer l'impôt de l'année (vente puis rachat d'un ETF équivalent), moins-values à mettre en réserve pour 10 ans, reports qui expirent en fin d'année et gains à réaliser sans impôt pour relever le prix de revient, purge des gains d'assurance-vie dans l'abattement annuel, anniversaires PEA (5 ans) et assurance-vie (8 ans) à attendre, impôt annuel sur les dividendes du compte-titres — chaque piste avec l'impôt économisé estimé
+
 **Temps réel**
 - Rafraîchissement automatique réglable de **1 seconde** à 15 min, mis en pause quand l'onglet est caché
 - Prix qui s'allument brièvement en vert ou en rouge quand ils changent
@@ -193,6 +203,8 @@ js/money.js       versements programmés, liquidités, divisions, ISIN, carte «
 js/insights.js    risque, rééquilibrage, dividendes à venir, actualités, rapport annuel, alertes push
 js/wealth.js      patrimoine global (autres actifs), phase de retraite
 js/quant.js       labo quant : crash-tests, scénarios à facteurs, risque, régimes (HMM), audit comportemental
+js/fisc.js        fiscalité active : retrait malin (plan de vente au moindre impôt), radar fiscal
+js/copilot.js     copilote Ctrl+K : questions en français, réponses calculées, raccourcis
 js/avis.js        import des avis d'opéré PDF (lecture du texte avec pdf.js)
 sw.js, manifest.webmanifest, icons/   application installable (PWA)
 js/app.js         interface et bus d'événements (App.on / App.emit, liste des événements en tête du fichier)
