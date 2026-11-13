@@ -6,7 +6,7 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { chromium, startServer, openApp, sampleState, realCharts } from './helpers.mjs';
 
-const VIEWS = ['portfolio', 'markets', 'agenda', 'catalog', 'compare', 'world', 'invest', 'simulation', 'quant', 'settings'];
+const VIEWS = ['portfolio', 'markets', 'agenda', 'catalog', 'compare', 'world', 'invest', 'simulation', 'quant', 'desk', 'settings'];
 let server, url, browser;
 
 before(async () => { ({ server, url } = await startServer()); browser = await chromium.launch(); });
@@ -561,4 +561,43 @@ test('une erreur au démarrage d\'un module ne désactive pas les autres boutons
   await page.waitForSelector('#txDialog[open]');
   assert.ok(app.errors.some(e => /addEventListener|null/.test(e)), 'erreur notée dans la console');
   app.errors.length = 0;
+}));
+
+test('salle des marchés : P&L explain, signaux et stratégies, journal de trades avec alertes', { skip: !realCharts && 'Chart.js non installé' }, () => run({ state: sampleState() }, async ({ page }) => {
+  await page.waitForFunction(() => Api.cachedQuote('CW8@XPAR') && Api.cachedQuote('ESE@XPAR'), null, { timeout: 20000 });
+  await page.evaluate(() => App.show('desk'));
+  // P&L explain lancé à l'ouverture, période modifiable ; le pont de valeur boucle
+  await page.waitForSelector('#dkPnlBody .dk-hero', { timeout: 30000 });
+  await page.click('#dkPeriods button[data-p="ytd"]');
+  await page.waitForFunction(() => App.explainResult && App.explainResult.period === 'ytd' && !App._explaining, null, { timeout: 30000 });
+  const R = await page.evaluate(() => { const r = App.explainResult; return { gap: r.endValue - r.startValue - r.inflow + r.outflow - r.total, rows: $$('#dkPnlBody .dk-bridge-row').length, lines: $$('#dkPnlBody .dk-table tbody tr').length }; });
+  assert.ok(Math.abs(R.gap) < 1e-6, 'identité comptable');
+  assert.equal(R.rows, 8);
+  assert.equal(R.lines, 3);
+  assert.match(await page.locator('#dkPnlBody').innerText(), /dollar t'a (rapporté|coûté)/i);
+  assert.ok(await page.locator('#dkPnlBody .dk-cell').count() > 20, 'calendrier des séances');
+  assert.doesNotMatch(await page.locator('#dkPnlCard').innerText(), /\bnull\b|-0,00/);
+
+  // signaux et stratégies : 4 règles comparées, courbes dessinées
+  await page.click('#dkSigRun');
+  await page.waitForSelector('#dkSigBody .dk-sig', { timeout: 60000 });
+  assert.equal(await page.locator('#dkSigBody .dk-sig').count(), 3);
+  assert.equal(await page.evaluate(() => Chart.getChart('dkSigChart').data.datasets.length), 4);
+  assert.match(await page.locator('#dkSigBody').innerText(), /Tendance 10 mois[\s\S]*Momentum 12-1/);
+
+  // journal : taille de position, ajout, alertes sur l'objectif et le stop
+  await page.selectOption('#dkJKey', 'ESE@XPAR');
+  const px = await page.evaluate(() => Api.cachedQuote('ESE@XPAR').price);
+  await page.fill('#dkJStop', String(Math.floor(px * 0.9)));
+  await page.fill('#dkJTarget', String(Math.ceil(px * 1.25)));
+  await page.fill('#dkJText', 'Rebond du S&P 500');
+  await page.waitForFunction(() => /parts? au maximum/.test(document.querySelector('#dkJSize').innerText));
+  assert.match(await page.locator('#dkJSize').innerText(), /Rapport gain \/ risque : [\d,]+ pour 1/);
+  await page.click('#dkJForm button[type="submit"]');
+  await page.waitForSelector('#dkJList .dk-trade');
+  assert.match(await page.locator('#dkJList .dk-trade').innerText(), /en cours[\s\S]*Rebond du S&P 500/);
+  await page.click('#dkJList button:has-text("Alertes")');
+  const alerts = await page.evaluate(() => Store.state.alerts.filter(a => a.thesis).map(a => a.kind).sort());
+  assert.deepEqual(alerts, ['above', 'below']);
+  assert.equal(await page.evaluate(() => Store.state.theses.length), 1);
 }));
