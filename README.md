@@ -56,7 +56,13 @@ Site personnel (100 % statique, sans serveur ni compte) pour suivre ses ETF et l
 - *Phase de retraite* : retraits mensuels indexés sur l'inflation sur un capital placé (bouton « Mon patrimoine ») → probabilité que le capital tienne jusqu'au bout, âge ou date d'épuisement dans les scénarios défavorable / médian / favorable, retrait maximal soutenable à 90 %, graphique en éventail (Monte-Carlo).
 
 **Mode terminal, scanner, radiographie**
-- **Mode terminal** (menu Plus) : écran plein façon salle de marchés, en ambre sur noir ; bandeau de cours défilant (tes valeurs et les indices mondiaux), horloges de Paris, Londres, New York et Tokyo avec l'état des séances, positions en direct, carte de chaleur, graphique 1 an avec moyenne 50 jours ; ligne de commande (`CW8 <GO>`, `SCAN`, `WEI`, `XRAY`, `HELP`, `EXIT`) et touches F1 à F4, F10, Échap
+- **Mode terminal** (menu Plus) : écran plein de salle de marchés, en ambre sur noir, en **4 fenêtres indépendantes** (Alt+1…4 ou clic pour changer de fenêtre active, disposition gardée d'une visite à l'autre)
+  - ligne de commande `<VALEUR> [SECTEUR] <FONCTION> <GO>` : `CW8 GP`, `SPX INDEX DES`, `EURUSD CURNCY GP`, `BTC CRYPTO HP`, `AAPL US EQUITY DES`, `2 WEI` (dans la fenêtre 2), `3` (action n° 3 du menu rouge de la fenêtre) ; n'importe quel symbole Yahoo (`MC.PA`, `AAPL`…) et alias courants (`SPX`, `CCMP`, `INDU`, `CAC`, `DAX`, `UKX`, `SX5E`, `NKY`, `VIX`, `GOLD`, `BRENT`, `US10Y`, `DXY`…)
+  - touches de couleur : rouge CANCEL, jaunes EQUITY / INDEX / CURNCY / CMDTY / CRYPTO (ajoutent le secteur), verte GO ; F1 à F10
+  - fonctions « valeur » : `DES` (profil, performances 1S → 5A, fourchette 52 semaines, RSI, moyennes 50 / 200, volatilité, pire baisse, ta position), `GP` (graphique 1M / 6M / YTD / 1A / 5A / MAX avec MM50 et MM200), `GIP` (intraday), `HP` (60 dernières séances), `NEWS` (dépêches)
+  - fonctions « marchés » : `WEI` (indices mondiaux par région), `FX` (devises + matrice des changes croisés), `CMDTY` (matières premières), `CRYPTO`, `GOVT` (taux US et courbe des taux), `MOV` (plus fortes hausses / baisses), `CLK` (horloges des bourses)
+  - fonctions « toi » : `PORT` (moniteur de portefeuille), `MON` (liste de suivi), `HEAT` (carte de chaleur), `SCAN`, `XRAY`
+  - bandeau de cours défilant, horloges NY / Londres / Paris / Francfort / Tokyo / Hong Kong, barre d'état
 - **Scanner de signaux** (Salle des marchés et terminal) : RSI 14 (suracheté / survendu), croisement des moyennes 50 et 200 jours (golden cross / death cross), plus haut ou plus bas sur 52 semaines, mouvement inhabituel (en écarts-types), séries de hausses ou de baisses, marché baissier ; sur tes lignes et ta liste de suivi
 - **Radiographie** (Portefeuille → Analyse, et `XRAY` dans le terminal) : les entreprises que tu possèdes vraiment à travers tes ETF (principales lignes de chaque indice, pondérations approximatives 2025), actions détenues en direct rapprochées, part des « 7 Magnifiques »
 
