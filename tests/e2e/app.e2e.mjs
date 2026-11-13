@@ -486,3 +486,46 @@ test('labo quant : météo des marchés, anatomie du risque, scénarios, crash-t
   await page.waitForSelector('#qBehavBody .q-kpis', { timeout: 20000 });
   assert.match(await page.locator('#qBehavBody').innerText(), /Ton timing/);
 }));
+
+test('copilote (Ctrl+K), retrait malin et radar fiscal', () => run({ state: sampleState({ transactions: sampleState().transactions.concat([
+  { id: 't5', key: 'ESE@XPAR', type: 'buy', date: '2024-05-02', account: 'cto', qty: 20, price: 40, fees: 1 },
+]) }) }, async ({ page }) => {
+  await page.waitForFunction(() => Api.cachedQuote('CW8@XPAR') && Api.cachedQuote('ESE@XPAR'), null, { timeout: 20000 });
+  // Ctrl+K ouvre le copilote ; une question reçoit une réponse chiffrée
+  await page.keyboard.press('Control+k');
+  await page.waitForSelector('#copilot[open]');
+  assert.ok(await page.locator('#cpOut .cp-chip').count() >= 4, 'exemples proposés');
+  await page.fill('#cpInput', 'combien vaut mon portefeuille ?');
+  await page.waitForSelector('#cpOut .cp-value');
+  assert.match(await page.locator('#cpOut .cp-answer').innerText(), /Ton portefeuille vaut[\s\S]*€/);
+  await page.fill('#cpInput', 'plus-value sur CW8');
+  await page.waitForFunction(() => /Gain sur/.test(document.querySelector('#cpOut .cp-answer')?.innerText || ''));
+  // un raccourci ouvre la carte concernée
+  await page.fill('#cpInput', 'crash test');
+  await page.waitForFunction(() => /Crash-test/.test(document.querySelector('#cpOut .cp-item.active')?.innerText || ''));
+  assert.equal(await page.locator('#cpOut .cp-answer').count(), 0, 'pas de réponse chiffrée pour un raccourci');
+  await page.keyboard.press('Escape');
+
+  // « j'ai besoin de 1 000 € » : plan de retrait depuis le copilote
+  await page.keyboard.press('Control+k');
+  await page.fill('#cpInput', 'j\'ai besoin de 1 000 €');
+  await page.waitForFunction(() => /Pour obtenir/.test(document.querySelector('#cpOut .cp-answer')?.innerText || ''));
+  await page.keyboard.press('Enter');
+  await page.waitForSelector('#wdBody .wd-hero');
+  assert.equal(await page.evaluate(() => App.view), 'invest');
+  assert.equal(await page.inputValue('#wdAmount'), '1000');
+  const plan = await page.locator('#wdBody').innerText();
+  assert.match(plan, /Vendre/);
+  assert.match(plan, /Compte-titres/, 'le PEA récent (moins de 5 ans) est laissé de côté');
+  assert.match(plan, /PEA : un retrait avant les 5 ans/);
+  // enregistrement des ventes proposées
+  const before = await page.evaluate(() => Store.state.transactions.length);
+  await page.click('#wdBody button:has-text("Enregistrer ces ventes")');
+  assert.ok(await page.evaluate(() => Store.state.transactions.filter(t => t.note === 'Retrait malin').length) >= 1);
+  assert.ok(await page.evaluate(() => Store.state.transactions.length) > before);
+
+  // radar fiscal visible dans Investir (pas d'erreur, contenu présent)
+  await page.evaluate(() => App.show('invest'));
+  assert.ok(await page.locator('#radarCard').isVisible());
+  assert.ok((await page.locator('#radarBody').innerText()).length > 20);
+}));

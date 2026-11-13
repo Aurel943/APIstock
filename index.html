@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=0af5f0c70a">
+  <link rel="stylesheet" href="css/style.css?v=e96bb7567b">
 </head>
 <body>
   <header class="topbar">
@@ -41,6 +41,10 @@
       </div>
     </nav>
     <div class="status">
+      <button id="copilotBtn" class="cp-trigger" type="button" title="Pose une question sur ton portefeuille (Ctrl+K)" aria-label="Copilote : poser une question">
+        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <span class="cp-trigger-text">Demander…</span><kbd class="cp-kbd">⌘K</kbd>
+      </button>
       <button id="marketState" class="pill" title="Horaires des marchés" data-goto="world">—</button>
       <span id="lastUpdate" class="muted small">Jamais mis à jour</span>
       <span id="refreshWarn" class="refresh-warn hidden" tabindex="0"></span>
@@ -459,6 +463,27 @@
           <label class="check"><input type="checkbox" id="planSell"> Autoriser les ventes (rééquilibrage complet)</label>
         </div>
         <div id="planResult"></div>
+      </div>
+
+      <div class="card wd-card" id="wdCard">
+        <div class="card-head">
+          <h2>Retrait malin<span class="q-new">nouveau</span><button type="button" class="info" aria-label="Explication" data-tip="Tu as besoin d'argent ? Indique le montant net : le site cherche quoi vendre, et sur quel compte, pour payer le moins d'impôt et de frais possible (liquidités, moins-values, reports de pertes, PEA de plus de 5 ans, abattement de l'assurance-vie…), et te montre l'économie face à « vendre un peu de tout ».">i</button></h2>
+        </div>
+        <div class="wd-form">
+          <label><span>J'ai besoin de (<span class="ccy"></span>, net d'impôt)</span>
+            <input type="number" id="wdAmount" min="0" step="100" inputmode="decimal" placeholder="ex. 10000">
+          </label>
+          <label class="check"><input type="checkbox" id="wdWhole" checked> Parts entières</label>
+          <button class="btn primary" id="wdRun" type="button">Trouver le moins cher</button>
+        </div>
+        <div id="wdBody"><p class="muted">Un apport, des travaux, un imprévu : avant de vendre, regarde combien d'impôt tu peux éviter.</p></div>
+      </div>
+
+      <div class="card hidden" id="radarCard">
+        <div class="card-head">
+          <h2>Radar fiscal<span class="q-new">nouveau</span><button type="button" class="info" aria-label="Explication" data-tip="Le site surveille tes comptes et repère l'impôt évitable : moins-values à constater avant le 31 décembre, reports de pertes qui vont expirer, gains à purger sans impôt (compte-titres et assurance-vie), anniversaires du PEA et de l'assurance-vie à attendre, dividendes taxés chaque année.">i</button></h2>
+        </div>
+        <div id="radarBody"></div>
       </div>
 
       <div class="card" id="plansCard">
@@ -992,6 +1017,19 @@
     </form>
   </dialog>
 
+  <!-- Copilote -->
+  <dialog id="copilot" class="cp-dialog" aria-label="Copilote">
+    <div class="cp-box">
+      <div class="cp-search">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <input type="text" id="cpInput" autocomplete="off" spellcheck="false" placeholder="Pose une question : « dividendes 2025 », « j'ai besoin de 5 000 € »…" aria-label="Question">
+        <kbd class="cp-kbd">Échap</kbd>
+      </div>
+      <div id="cpOut" class="cp-out"></div>
+      <p class="cp-foot muted small">Calculé dans ton navigateur, sur tes données · ↑↓ pour choisir · ↵ pour ouvrir</p>
+    </div>
+  </dialog>
+
   <!-- Navigation mobile -->
   <button class="fab" id="fabAdd" aria-label="Ajouter une opération">
     <svg viewBox="0 0 24 24" width="26" height="26"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
@@ -1019,33 +1057,35 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-  <script src="js/utils.js?v=0af5f0c70a"></script>
-  <script src="js/store.js?v=0af5f0c70a"></script>
-  <script src="js/api.js?v=0af5f0c70a"></script>
-  <script src="js/markets.js?v=0af5f0c70a"></script>
-  <script src="js/portfolio.js?v=0af5f0c70a"></script>
-  <script src="js/charts.js?v=0af5f0c70a"></script>
-  <script src="js/app.js?v=0af5f0c70a"></script>
-  <script src="js/views.js?v=0af5f0c70a"></script>
-  <script src="js/compare.js?v=0af5f0c70a"></script>
-  <script src="js/extras.js?v=0af5f0c70a"></script>
-  <script src="js/mobile.js?v=0af5f0c70a"></script>
-  <script src="js/features.js?v=0af5f0c70a"></script>
-  <script src="js/money.js?v=0af5f0c70a"></script>
-  <script src="js/newsart.js?v=0af5f0c70a"></script>
-  <script src="js/insights.js?v=0af5f0c70a"></script>
-  <script src="js/wealth.js?v=0af5f0c70a"></script>
-  <script src="js/avis.js?v=0af5f0c70a"></script>
-  <script src="js/manual.js?v=0af5f0c70a"></script>
-  <script src="js/health.js?v=0af5f0c70a"></script>
-  <script src="js/agenda.js?v=0af5f0c70a"></script>
-  <script src="js/catalog.js?v=0af5f0c70a"></script>
-  <script src="js/goals.js?v=0af5f0c70a"></script>
-  <script src="js/optimizer.js?v=0af5f0c70a"></script>
-  <script src="js/treemap.js?v=0af5f0c70a"></script>
-  <script src="js/wrapped.js?v=0af5f0c70a"></script>
-  <script src="js/lab.js?v=0af5f0c70a"></script>
-  <script src="js/share.js?v=0af5f0c70a"></script>
-  <script src="js/quant.js?v=0af5f0c70a"></script>
+  <script src="js/utils.js?v=e96bb7567b"></script>
+  <script src="js/store.js?v=e96bb7567b"></script>
+  <script src="js/api.js?v=e96bb7567b"></script>
+  <script src="js/markets.js?v=e96bb7567b"></script>
+  <script src="js/portfolio.js?v=e96bb7567b"></script>
+  <script src="js/charts.js?v=e96bb7567b"></script>
+  <script src="js/app.js?v=e96bb7567b"></script>
+  <script src="js/views.js?v=e96bb7567b"></script>
+  <script src="js/compare.js?v=e96bb7567b"></script>
+  <script src="js/extras.js?v=e96bb7567b"></script>
+  <script src="js/mobile.js?v=e96bb7567b"></script>
+  <script src="js/features.js?v=e96bb7567b"></script>
+  <script src="js/money.js?v=e96bb7567b"></script>
+  <script src="js/newsart.js?v=e96bb7567b"></script>
+  <script src="js/insights.js?v=e96bb7567b"></script>
+  <script src="js/wealth.js?v=e96bb7567b"></script>
+  <script src="js/avis.js?v=e96bb7567b"></script>
+  <script src="js/manual.js?v=e96bb7567b"></script>
+  <script src="js/health.js?v=e96bb7567b"></script>
+  <script src="js/agenda.js?v=e96bb7567b"></script>
+  <script src="js/catalog.js?v=e96bb7567b"></script>
+  <script src="js/goals.js?v=e96bb7567b"></script>
+  <script src="js/optimizer.js?v=e96bb7567b"></script>
+  <script src="js/treemap.js?v=e96bb7567b"></script>
+  <script src="js/wrapped.js?v=e96bb7567b"></script>
+  <script src="js/lab.js?v=e96bb7567b"></script>
+  <script src="js/share.js?v=e96bb7567b"></script>
+  <script src="js/quant.js?v=e96bb7567b"></script>
+  <script src="js/fisc.js?v=e96bb7567b"></script>
+  <script src="js/copilot.js?v=e96bb7567b"></script>
 </body>
 </html>

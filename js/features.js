@@ -177,7 +177,7 @@ const Tax = {
         if (p.qty < 1e-9) { p.qty = 0; p.cost = 0; p.costBase = 0; }
       } else { p.qty += qty; p.cost += qty * price + fees; p.costBase += (qty * price + fees) * fx; }
     }
-    return { sales, divs };
+    return { sales, divs, pos };
   },
 
   /** Plus-values par année avec imputation des moins-values des 10 années précédentes */
