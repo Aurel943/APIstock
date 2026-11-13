@@ -1193,8 +1193,16 @@ body.w-open { overflow: hidden; }
 .dk-heat-wrap { margin: 14px 0; }
 .dk-heat-head { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
 .dk-heat { display: flex; gap: 3px; overflow-x: auto; padding-bottom: 4px; }
-.dk-heat-days, .dk-week { display: grid; grid-template-rows: repeat(5, 13px); gap: 3px; }
+.dk-heat-days, .dk-week { display: grid; grid-template-rows: 14px repeat(5, 13px); gap: 3px; flex-shrink: 0; }
 .dk-heat-days span { font-size: 10px; line-height: 13px; width: 12px; }
+.dk-month { font-size: 10px; line-height: 14px; width: 13px; white-space: nowrap; overflow: visible; }
+.dk-year { margin-top: 10px; }
+.dk-year-head { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; margin-bottom: 2px; }
+.dk-legend { display: inline-flex; align-items: center; gap: 3px; }
+.dk-legend .dk-cell { width: 11px; height: 11px; }
+.dk-heat-detail { margin: 8px 0 0; min-height: 1.3em; }
+.dk-cell:not(.empty) { cursor: pointer; }
+.dk-cell:not(.empty):hover { outline: 2px solid var(--text); outline-offset: -1px; }
 .dk-cell { width: 13px; height: 13px; border-radius: 3px; background: var(--surface-2); }
 .dk-cell.empty { background: transparent; }
 .dk-cell.pos.l0, .dk-cell.neg.l0 { background: var(--surface-2); }

@@ -117,6 +117,47 @@ const Desk = {
     return out;
   },
 
+  /**
+   * Calendrier des séances, une entrée par année (la plus récente d'abord) : semaines (lundi → vendredi) avec le mois
+   * affiché au-dessus de la première semaine de chaque mois, total et part de séances gagnantes.
+   * `scale` : rendement quotidien qui donne la couleur la plus intense (95e centile des écarts, pour qu'un krach isolé
+   * n'efface pas toutes les autres journées). Couleur selon le rendement en %, comparable d'une année à l'autre.
+   */
+  calendar(days) {
+    const list = days.filter(d => d && d.date && isFinite(d.ret));
+    if (list.length < 5) return null;
+    const MOIS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+    const abs = list.map(d => Math.abs(d.ret)).filter(x => x > 0).sort((a, b) => a - b);
+    const scale = abs.length ? abs[Math.min(abs.length - 1, Math.floor(abs.length * 0.95))] : 0;
+    const byYear = new Map();
+    for (const d of list) {
+      const dow = (new Date(d.date + 'T12:00:00Z').getUTCDay() + 6) % 7;
+      if (dow > 4) continue;
+      const y = +d.date.slice(0, 4);
+      if (!byYear.has(y)) byYear.set(y, { year: y, weeks: [], total: 0, sessions: 0, wins: 0 });
+      const Y = byYear.get(y), monday = addDaysISO(d.date, -dow);
+      let w = Y.weeks[Y.weeks.length - 1];
+      if (!w || w.monday !== monday) {
+        // nom du mois au-dessus de la première semaine dont le lundi tombe dans ce mois (ou de la première semaine de l'année)
+        const prev = Y.weeks[Y.weeks.length - 1], month = (monday < y + '-01-01' ? d.date : monday).slice(5, 7);
+        Y.weeks.push(w = { monday, days: new Array(5).fill(null), month: !prev || prev.mk !== month ? MOIS[+month - 1] : '', mk: month });
+      }
+      w.days[dow] = d;
+      Y.total += d.pnl;
+      if (Math.abs(d.pnl) > 0.005) { Y.sessions++; if (d.pnl > 0) Y.wins++; }
+    }
+    const years = Array.from(byYear.values()).sort((a, b) => b.year - a.year);
+    for (const Y of years) { Y.hit = Y.sessions ? Y.wins / Y.sessions : NaN; for (const w of Y.weeks) delete w.mk; }
+    return { years, scale };
+  },
+
+  /** Intensité de couleur (0 à 4) d'un rendement quotidien face à l'échelle du calendrier */
+  heatLevel(ret, scale) {
+    if (!(scale > 0) || !isFinite(ret)) return 0;
+    const a = Math.min(1, Math.abs(ret) / scale);
+    return a < 0.08 ? 0 : Math.ceil(a * 4);
+  },
+
   /** Effet de change regroupé par devise : { USD: −340, … } (`ccyOf` : clé → devise) */
   fxByCurrency(lines, ccyOf) {
     const o = {};
@@ -406,31 +447,34 @@ Object.assign(App, {
       noteTip(`Chaque jour, la position de la veille est valorisée : effet prix = parts × variation du cours dans sa devise × taux de change de la veille ; effet de change = parts × cours × variation du taux. Exécution : écart entre ton prix d'achat ou de vente et la clôture du jour (positif = tu as fait mieux que la clôture). Part du marché : bêta de tes rendements quotidiens face au ${HIST_BENCH.name} sur la période × rendement de l'indice ; l'alpha est le reste. Cours de clôture (cours en direct pour aujourd'hui).`, 'Méthode')].filter(Boolean));
   },
 
-  /** Calendrier des P&L quotidiens (dernières 26 semaines au plus) */
+  /** Calendrier des P&L quotidiens de toute la période, une ligne par année (la plus récente en haut) */
   deskHeatmap(days) {
-    const list = days.slice(-130);
-    if (list.length < 5) return null;
+    const cal = Desk.calendar(days);
+    if (!cal) return null;
     const cur = this.base();
-    const maxAbs = Math.max(1, ...list.map(d => Math.abs(d.pnl)));
-    const weeks = [];
-    for (const d of list) {
-      const dt = new Date(d.date + 'T12:00:00Z'), dow = (dt.getUTCDay() + 6) % 7;
-      if (dow > 4) continue;
-      const monday = addDaysISO(d.date, -dow);
-      let w = weeks[weeks.length - 1];
-      if (!w || w.monday !== monday) weeks.push(w = { monday, days: new Array(5).fill(null) });
-      w.days[dow] = d;
-    }
+    const detail = el('p', { class: 'dk-heat-detail small muted', 'aria-live': 'polite' }, 'Survole ou touche une séance pour son détail.');
+    const show = d => detail.replaceChildren(el('b', {}, fmtDate(d.date)), ' : ', el('b', { class: 'mono ' + trendClass(d.pnl) }, fmtSignedMoney(d.pnl, cur)), ` (${fmtPct(d.ret * 100, 2)})`);
     const cell = d => {
       if (!d) return el('span', { class: 'dk-cell empty' });
-      const a = Math.min(1, Math.abs(d.pnl) / maxAbs), lvl = a < 0.05 ? 0 : Math.ceil(a * 4);
-      return el('span', { class: `dk-cell ${d.pnl >= 0 ? 'pos' : 'neg'} l${lvl}`, title: `${fmtDate(d.date)} : ${fmtSignedMoney(d.pnl, cur)} (${fmtPct(d.ret * 100, 2)})` });
+      const lvl = Desk.heatLevel(d.ret, cal.scale);
+      const label = `${fmtDate(d.date)} : ${fmtSignedMoney(d.pnl, cur)} (${fmtPct(d.ret * 100, 2)})`;
+      return el('span', { class: `dk-cell ${d.ret >= 0 ? 'pos' : 'neg'} l${lvl}`, title: label, onmouseenter: () => show(d), onclick: () => show(d) });
     };
+    const rows = cal.years.map(Y => {
+      const strip = el('div', { class: 'dk-heat' },
+        el('div', { class: 'dk-heat-days muted' }, el('span', {}), ...['L', 'M', 'M', 'J', 'V'].map(x => el('span', {}, x))),
+        ...Y.weeks.map(w => el('div', { class: 'dk-week' }, el('span', { class: 'dk-month muted' }, w.month || ''), ...w.days.map(cell))));
+      return el('div', { class: 'dk-year' },
+        el('div', { class: 'dk-year-head small' }, el('b', {}, String(Y.year)), el('span', { class: 'mono ' + trendClass(Y.total) }, fmtSignedMoney(Y.total, cur)),
+          el('span', { class: 'muted' }, `${Y.sessions} séances · ${fmtNum(Y.hit * 100, 0)} % gagnantes`)),
+        strip);
+    });
+    // écran étroit : l'année en cours s'ouvre sur les dernières séances, les années passées sur janvier
+    requestAnimationFrame(() => { const s = rows[0] && rows[0].querySelector('.dk-heat'); if (s) s.scrollLeft = s.scrollWidth; });
     return el('div', { class: 'dk-heat-wrap' },
-      el('div', { class: 'dk-heat-head' }, el('b', { class: 'small' }, 'P&L séance par séance'), el('span', { class: 'muted small' }, 'survole une case pour le détail')),
-      el('div', { class: 'dk-heat', role: 'img', 'aria-label': 'Calendrier des P&L quotidiens' },
-        el('div', { class: 'dk-heat-days muted' }, ...['L', 'M', 'M', 'J', 'V'].map(x => el('span', {}, x))),
-        ...weeks.map(w => el('div', { class: 'dk-week' }, ...w.days.map(cell)))));
+      el('div', { class: 'dk-heat-head' }, el('b', { class: 'small' }, 'P&L séance par séance'),
+        el('span', { class: 'dk-legend muted small' }, 'baisse', ...[4, 2, 0].map(l => el('span', { class: 'dk-cell neg l' + l })), ...[2, 4].map(l => el('span', { class: 'dk-cell pos l' + l })), 'hausse')),
+      ...rows, detail);
   },
 
   /* ---------- signaux & stratégies tactiques ---------- */
