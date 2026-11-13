@@ -72,7 +72,7 @@ const App = {
       () => this.bindDialog(), () => this.bindWorld(), () => this.bindInvest(), () => this.bindCompare(), () => this.bindAccounts(),
       () => this.renderAccountsSettings(), () => this.bindGoal(), () => this.bindPrivacy(), () => this.bindCsv(), () => this.bindMobile(),
       () => this.bindManual(), () => $('#optRun').addEventListener('click', () => this.runOptimizer()), () => this.bindLab(),
-      () => this.bindQuant(), () => this.bindFisc(), () => this.bindCopilot(),
+      () => this.bindQuant(), () => this.bindDesk(), () => this.bindFisc(), () => this.bindCopilot(),
       () => $('#tgtShare').addEventListener('click', () => this.shareAllocation()),
       () => $('#wrappedOpen').addEventListener('click', () => { this.toggleTabMenu(false); this.openWrapped(); }),
       () => $$('#mapMode button').forEach(b => b.addEventListener('click', () => {
@@ -107,7 +107,7 @@ const App = {
     const sharedHash = location.hash; // lu avant que la navigation ne réécrive l'adresse
     const hash = location.hash.replace('#', '');
     const guard = fn => { try { fn(); } catch (e) { this.reportError(e); } };
-    guard(() => this.show(['portfolio', 'markets', 'agenda', 'catalog', 'compare', 'world', 'invest', 'simulation', 'quant', 'settings'].includes(hash) ? hash : (Api.ready() ? 'portfolio' : 'settings')));
+    guard(() => this.show(['portfolio', 'markets', 'agenda', 'catalog', 'compare', 'world', 'invest', 'simulation', 'quant', 'desk', 'settings'].includes(hash) ? hash : (Api.ready() ? 'portfolio' : 'settings')));
     guard(() => this.renderAll());
     guard(() => this.openSharedFromHash(sharedHash)); // lien de répartition partagée (#share=…)
     Api.detectProxy().finally(() => {

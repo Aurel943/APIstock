@@ -1171,3 +1171,78 @@ body.w-open { overflow: hidden; }
 .q-step.err, .q-step.slow { color: var(--warn-ink); border-color: rgba(245, 158, 11, .5); }
 @keyframes q-pulse { 50% { opacity: .3; } }
 @media (prefers-reduced-motion: reduce) { .q-step.run span { animation: none; } }
+
+/* ---------- Salle des marchés ---------- */
+.dk-hero-card { background: linear-gradient(135deg, rgba(15, 23, 42, .06), rgba(245, 158, 11, .10)); }
+.dk-loading { opacity: .55; transition: opacity .2s; }
+.dk-hero { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+.dk-hero > div { display: flex; flex-direction: column; gap: 2px; padding: 12px 16px; border-radius: 12px; background: var(--surface-2); min-width: 180px; flex: 1; }
+.dk-hero b { font-size: 24px; letter-spacing: -.01em; }
+.dk-alpha.up { background: var(--up-bg) !important; color: var(--up); }
+.dk-alpha.down { background: var(--down-bg) !important; color: var(--down); }
+.dk-alpha small { opacity: .85; }
+.dk-bridge { display: flex; flex-direction: column; gap: 4px; margin: 4px 0 14px; }
+.dk-bridge-row { display: grid; grid-template-columns: minmax(120px, 230px) minmax(0, 1fr) 120px; gap: 12px; align-items: center; font-size: 14px; }
+.dk-bridge-row.base { font-weight: 600; }
+.dk-bridge-row > b { text-align: right; }
+.dk-bar { height: 10px; background: var(--surface-2); border-radius: 5px; overflow: hidden; }
+.dk-bar span { display: block; height: 100%; border-radius: 5px; }
+.dk-bar .pos { background: var(--up); }
+.dk-bar .neg { background: var(--down); }
+.dk-bar .neutral { background: var(--muted); opacity: .45; }
+.dk-heat-wrap { margin: 14px 0; }
+.dk-heat-head { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.dk-heat { display: flex; gap: 3px; overflow-x: auto; padding-bottom: 4px; }
+.dk-heat-days, .dk-week { display: grid; grid-template-rows: repeat(5, 13px); gap: 3px; }
+.dk-heat-days span { font-size: 10px; line-height: 13px; width: 12px; }
+.dk-cell { width: 13px; height: 13px; border-radius: 3px; background: var(--surface-2); }
+.dk-cell.empty { background: transparent; }
+.dk-cell.pos.l0, .dk-cell.neg.l0 { background: var(--surface-2); }
+.dk-cell.pos.l1 { background: color-mix(in srgb, var(--up) 30%, transparent); }
+.dk-cell.pos.l2 { background: color-mix(in srgb, var(--up) 55%, transparent); }
+.dk-cell.pos.l3 { background: color-mix(in srgb, var(--up) 78%, transparent); }
+.dk-cell.pos.l4 { background: var(--up); }
+.dk-cell.neg.l1 { background: color-mix(in srgb, var(--down) 30%, transparent); }
+.dk-cell.neg.l2 { background: color-mix(in srgb, var(--down) 55%, transparent); }
+.dk-cell.neg.l3 { background: color-mix(in srgb, var(--down) 78%, transparent); }
+.dk-cell.neg.l4 { background: var(--down); }
+.dk-table .dk-total { font-weight: 600; }
+.dk-table { min-width: 620px; }
+.dk-table td:first-child { min-width: 150px; }
+.dk-chart { height: 300px; margin: 14px 0; }
+.dk-vol { display: inline-flex !important; flex-direction: row !important; align-items: center; gap: 6px; color: var(--muted); white-space: nowrap; }
+#dkPnlCard .card-head, #dkSigCard .card-head { flex-wrap: wrap; gap: 8px; }
+#dkPeriods { flex-wrap: wrap; }
+.dk-vol input { width: 64px; }
+.dk-sig { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 12.5px; font-weight: 500; white-space: nowrap; }
+.dk-sig.on { color: var(--up); background: var(--up-bg); }
+.dk-sig.off { color: var(--down); background: var(--down-bg); }
+.dk-sig.mixed { color: var(--warn-ink); background: rgba(245, 158, 11, .14); }
+.dk-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: 0; }
+.dk-best td { background: var(--up-bg); }
+.dk-jform { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; align-items: end; }
+.dk-jform label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); min-width: 0; }
+.dk-jform .dk-jthesis { grid-column: span 2; }
+.dk-size { margin: 10px 0 4px; min-height: 1.2em; }
+.dk-trades { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.dk-trade { border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px; border-left: 4px solid var(--border); }
+.dk-trade.open { border-left-color: #6366f1; }
+.dk-trade.target { border-left-color: var(--up); }
+.dk-trade.stop { border-left-color: var(--down); }
+.dk-trade-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.dk-trade-actions { margin-left: auto; display: inline-flex; gap: 6px; align-items: center; }
+.dk-badge { font-size: 12px; padding: 2px 8px; border-radius: 6px; background: var(--surface-2); color: var(--muted); }
+.dk-badge.target { background: var(--up-bg); color: var(--up); }
+.dk-badge.stop, .dk-badge.late { background: var(--down-bg); color: var(--down); }
+.dk-thesis { margin: 6px 0; font-style: italic; color: var(--muted); }
+.dk-trade-nums { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 6px; }
+.dk-range { position: relative; height: 6px; margin: 12px 4px 4px; border-radius: 3px; background: linear-gradient(90deg, var(--down), var(--surface-2) 50%, var(--up)); }
+.dk-range-dot { position: absolute; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: var(--text); border: 2px solid var(--surface); }
+@media (max-width: 640px) {
+  .dk-hero > div { min-width: 0; flex: 1 1 100%; } .dk-hero b { font-size: 20px; }
+  .dk-bridge-row { grid-template-columns: minmax(0, 1fr) 96px; gap: 4px 10px; }
+  .dk-bridge-row .dk-bar { grid-column: 1 / -1; grid-row: 2; }
+  .dk-jform { grid-template-columns: 1fr 1fr; } .dk-jform .dk-jthesis, .dk-jform button { grid-column: 1 / -1; }
+  .dk-chart { height: 240px; }
+  .dk-trade-actions { margin-left: 0; }
+}

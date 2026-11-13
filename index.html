@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=043dd94218">
+  <link rel="stylesheet" href="css/style.css?v=c1024a96fd">
 </head>
 <body>
   <header class="topbar">
@@ -34,7 +34,8 @@
           <button class="tab" data-view="world" role="menuitem">Monde et horaires</button>
           <button class="tab" data-view="compare" role="menuitem">Comparer</button>
           <button class="tab" data-view="simulation" role="menuitem">Simulation</button>
-          <button class="tab" data-view="quant" role="menuitem">Labo quant <span class="q-new">nouveau</span></button>
+          <button class="tab" data-view="desk" role="menuitem">Salle des marchés <span class="q-new">nouveau</span></button>
+          <button class="tab" data-view="quant" role="menuitem">Labo quant</button>
           <button class="tab" data-view="settings" role="menuitem">Réglages</button>
           <button class="tab-action" type="button" id="wrappedOpen" role="menuitem">🎉 Mon année en bourse</button>
         </div>
@@ -735,6 +736,51 @@
       </div>
     </section>
 
+    <section id="view-desk" class="view">
+      <div class="card q-hero dk-hero-card">
+        <div>
+          <h2>Salle des marchés</h2>
+          <p class="muted">Les écrans d'un desk de gestion, sur <b>ton</b> argent : d'où vient chaque euro de P&amp;L, quelles lignes sont en tendance et ce qu'aurait donné chaque règle tactique depuis 2000, et un journal de trades avec objectif, stop et taille de position.</p>
+        </div>
+      </div>
+
+      <div class="card" id="dkPnlCard">
+        <div class="card-head">
+          <h2>P&amp;L explain<button type="button" class="info" aria-label="Explication" data-tip="Le rapport qu'un gérant reçoit chaque soir : ton gain ou ta perte décomposé en effet des cours, effet des devises, qualité de tes prix d'achat et de vente, dividendes et frais ; puis la part due au marché et celle qui vient de tes choix.">i</button></h2>
+          <div class="seg small" id="dkPeriods" role="group" aria-label="Période"></div>
+        </div>
+        <div id="dkPnlBody"><p class="muted">Chargement des historiques…</p></div>
+      </div>
+
+      <div class="card" id="dkSigCard">
+        <div class="card-head">
+          <h2>Signaux &amp; stratégies tactiques<button type="button" class="info" aria-label="Explication" data-tip="Les règles des fonds « trend following » : rester investi quand le marché est au-dessus de sa moyenne 10 mois ou que son momentum 12 mois est positif, passer en liquidités sinon, ou ajuster l'exposition pour viser une volatilité. Chacune est rejouée sur ton portefeuille depuis 2000.">i</button></h2>
+          <div class="actions">
+            <label class="dk-vol small">Volatilité cible <input type="number" id="dkVol" min="2" max="40" step="1" value="10" inputmode="decimal"> %</label>
+            <button class="btn small" id="dkSigRun" type="button">Tester</button>
+          </div>
+        </div>
+        <div id="dkSigBody"><p class="muted">Bulle internet, subprimes, Covid, 2022 : une règle simple aurait-elle protégé ton portefeuille ? Et que disent les signaux aujourd'hui ?</p></div>
+      </div>
+
+      <div class="card" id="dkJournalCard">
+        <div class="card-head">
+          <h2>Journal de trades<button type="button" class="info" aria-label="Explication" data-tip="Avant chaque achat, un trader note pourquoi il achète, où il prendra ses gains et où il coupera ses pertes. Le site calcule le rapport gain / risque, la taille de position pour ne risquer qu'un pourcentage fixe de ton capital, et crée les alertes.">i</button></h2>
+        </div>
+        <form class="dk-jform" id="dkJForm">
+          <label>Ligne<select id="dkJKey" required></select></label>
+          <label class="dk-jthesis">Thèse<input type="text" id="dkJText" maxlength="400" placeholder="ex. Rebond attendu après la baisse des taux"></label>
+          <label>Objectif<input type="number" id="dkJTarget" step="any" min="0" inputmode="decimal" placeholder="cours visé"></label>
+          <label>Stop<input type="number" id="dkJStop" step="any" min="0" inputmode="decimal" placeholder="cours de sortie"></label>
+          <label>Risque max (%)<input type="number" id="dkJRisk" step="0.25" min="0.25" max="10" value="1" inputmode="decimal"></label>
+          <label>À revoir le<input type="date" id="dkJReview"></label>
+          <button class="btn primary" type="submit">Ajouter au journal</button>
+        </form>
+        <p class="small dk-size" id="dkJSize" aria-live="polite"></p>
+        <div id="dkJList" class="dk-trades"></div>
+      </div>
+    </section>
+
     <section id="view-settings" class="view">
       <div class="card reload-card">
         <div>
@@ -1049,6 +1095,7 @@
     <button data-view="catalog"><svg viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="18" cy="19" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/></svg><div><b>Catalogue d'ETF</b><span>Portefeuilles types, ETF par zone et par frais</span></div></button>
     <button data-view="compare"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><div><b>Comparer</b><span>Nasdaq vs S&amp;P 500, ton portefeuille vs le marché…</span></div></button>
     <button data-view="simulation"><svg viewBox="0 0 24 24"><path d="M12 3v3M12 18v3M4.2 7.5l2.6 1.5M17.2 15l2.6 1.5M4.2 16.5l2.6-1.5M17.2 9l2.6-1.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/></svg><div><b>Simulation</b><span>« Et si j'avais investi… », projection future</span></div></button>
+    <button data-view="desk"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6 12l3-3 3 2 5-5M8 20h8M12 16v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><div><b>Salle des marchés</b><span>P&amp;L explain, signaux de tendance, journal de trades</span></div></button>
     <button data-view="quant"><svg viewBox="0 0 24 24"><path d="M3 20h18M5 16l4-6 4 3 6-9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="19" cy="4" r="1.6" fill="currentColor"/></svg><div><b>Labo quant</b><span>Crash-tests, scénarios, risque caché, météo des marchés</span></div></button>
     <button data-view="settings"><svg viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="16" cy="6" r="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="10" cy="12" r="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="18" r="2" fill="none" stroke="currentColor" stroke-width="2"/></svg><div><b>Réglages</b><span>Clé API, relais Yahoo, comptes, sauvegarde</span></div></button>
     <button data-action="wrapped"><svg viewBox="0 0 24 24"><path d="M12 3l2.6 5.6 6 .8-4.4 4.2 1.1 6-5.3-2.9-5.3 2.9 1.1-6L3.4 9.4l6-.8z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><div><b>Mon année en bourse</b><span>Ton récap animé : performance, ligne star, meilleur mois…</span></div></button>
@@ -1058,35 +1105,36 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-  <script src="js/utils.js?v=043dd94218"></script>
-  <script src="js/store.js?v=043dd94218"></script>
-  <script src="js/api.js?v=043dd94218"></script>
-  <script src="js/markets.js?v=043dd94218"></script>
-  <script src="js/portfolio.js?v=043dd94218"></script>
-  <script src="js/charts.js?v=043dd94218"></script>
-  <script src="js/app.js?v=043dd94218"></script>
-  <script src="js/views.js?v=043dd94218"></script>
-  <script src="js/compare.js?v=043dd94218"></script>
-  <script src="js/extras.js?v=043dd94218"></script>
-  <script src="js/mobile.js?v=043dd94218"></script>
-  <script src="js/features.js?v=043dd94218"></script>
-  <script src="js/money.js?v=043dd94218"></script>
-  <script src="js/newsart.js?v=043dd94218"></script>
-  <script src="js/insights.js?v=043dd94218"></script>
-  <script src="js/wealth.js?v=043dd94218"></script>
-  <script src="js/avis.js?v=043dd94218"></script>
-  <script src="js/manual.js?v=043dd94218"></script>
-  <script src="js/health.js?v=043dd94218"></script>
-  <script src="js/agenda.js?v=043dd94218"></script>
-  <script src="js/catalog.js?v=043dd94218"></script>
-  <script src="js/goals.js?v=043dd94218"></script>
-  <script src="js/optimizer.js?v=043dd94218"></script>
-  <script src="js/treemap.js?v=043dd94218"></script>
-  <script src="js/wrapped.js?v=043dd94218"></script>
-  <script src="js/lab.js?v=043dd94218"></script>
-  <script src="js/share.js?v=043dd94218"></script>
-  <script src="js/labo-quant.js?v=043dd94218"></script>
-  <script src="js/fisc.js?v=043dd94218"></script>
-  <script src="js/copilot.js?v=043dd94218"></script>
+  <script src="js/utils.js?v=c1024a96fd"></script>
+  <script src="js/store.js?v=c1024a96fd"></script>
+  <script src="js/api.js?v=c1024a96fd"></script>
+  <script src="js/markets.js?v=c1024a96fd"></script>
+  <script src="js/portfolio.js?v=c1024a96fd"></script>
+  <script src="js/charts.js?v=c1024a96fd"></script>
+  <script src="js/app.js?v=c1024a96fd"></script>
+  <script src="js/views.js?v=c1024a96fd"></script>
+  <script src="js/compare.js?v=c1024a96fd"></script>
+  <script src="js/extras.js?v=c1024a96fd"></script>
+  <script src="js/mobile.js?v=c1024a96fd"></script>
+  <script src="js/features.js?v=c1024a96fd"></script>
+  <script src="js/money.js?v=c1024a96fd"></script>
+  <script src="js/newsart.js?v=c1024a96fd"></script>
+  <script src="js/insights.js?v=c1024a96fd"></script>
+  <script src="js/wealth.js?v=c1024a96fd"></script>
+  <script src="js/avis.js?v=c1024a96fd"></script>
+  <script src="js/manual.js?v=c1024a96fd"></script>
+  <script src="js/health.js?v=c1024a96fd"></script>
+  <script src="js/agenda.js?v=c1024a96fd"></script>
+  <script src="js/catalog.js?v=c1024a96fd"></script>
+  <script src="js/goals.js?v=c1024a96fd"></script>
+  <script src="js/optimizer.js?v=c1024a96fd"></script>
+  <script src="js/treemap.js?v=c1024a96fd"></script>
+  <script src="js/wrapped.js?v=c1024a96fd"></script>
+  <script src="js/lab.js?v=c1024a96fd"></script>
+  <script src="js/share.js?v=c1024a96fd"></script>
+  <script src="js/labo-quant.js?v=c1024a96fd"></script>
+  <script src="js/fisc.js?v=c1024a96fd"></script>
+  <script src="js/desk.js?v=c1024a96fd"></script>
+  <script src="js/copilot.js?v=c1024a96fd"></script>
 </body>
 </html>

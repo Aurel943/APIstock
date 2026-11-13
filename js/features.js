@@ -716,7 +716,7 @@ const Sync = {
     return j;
   },
   /** Listes fusionnées par identifiant (et filtrées des éléments supprimés) */
-  LISTS: ['transactions', 'alerts', 'accounts', 'cashMoves', 'plans', 'assets', 'goals'],
+  LISTS: ['transactions', 'alerts', 'accounts', 'cashMoves', 'plans', 'assets', 'goals', 'theses'],
 
   /**
    * Suppressions des deux appareils : pour chaque identifiant, la date la plus récente l'emporte entre

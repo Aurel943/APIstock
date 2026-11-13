@@ -55,6 +55,7 @@ const DEFAULT_STATE = {
   cashMoves: [],     // { id, account, type: 'deposit'|'withdraw', date, amount (devise de base), note }
   assets: [],        // autres actifs (patrimoine global) { id, type, name, value, date, rate?, debt? }
   plans: [],
+  theses: [],        // journal de trades { id, key, thesis, entry, target, stop, review, created }
   goals: [],         // objectifs supplémentaires { id, name, target, date, monthly, rate, accounts: [ids] (vide = tous), includeAssets }         // versements programmés { id, key, account, amount, day, start, fractional, active, done: { 'AAAA-MM': idOpération | 'skip' } }
   watchlist: [],     // [key]
   deleted: {},       // id -> horodatage de suppression (synchronisation : un élément supprimé ne réapparaît pas)
@@ -76,6 +77,7 @@ const Store = {
     if (!Array.isArray(this.state.cashMoves)) this.state.cashMoves = [];
     if (!Array.isArray(this.state.plans)) this.state.plans = [];
     if (!Array.isArray(this.state.goals)) this.state.goals = [];
+    if (!Array.isArray(this.state.theses)) this.state.theses = [];
     if (!Array.isArray(this.state.assets)) this.state.assets = [];
     for (const k of ['deleted', 'restored']) if (!this.state[k] || typeof this.state[k] !== 'object' || Array.isArray(this.state[k])) this.state[k] = {};
     this.purgeTombstones();
@@ -213,6 +215,7 @@ const Store = {
     for (const k of Object.keys(this.state.targets || {})) set.add(k);
     for (const a of this.state.alerts || []) if (a.active) set.add(a.key);
     for (const p of this.state.plans || []) if (p.active !== false) set.add(p.key);
+    for (const t of this.state.theses || []) set.add(t.key);
     return Array.from(set).filter(k => this.state.instruments[k]);
   },
 
