@@ -55,6 +55,11 @@ Site personnel (100 % statique, sans serveur ni compte) pour suivre ses ETF et l
 - *Projection dans le futur* : intérêts composés avec versements mensuels, rendement et frais annuels.
 - *Phase de retraite* : retraits mensuels indexés sur l'inflation sur un capital placé (bouton « Mon patrimoine ») → probabilité que le capital tienne jusqu'au bout, âge ou date d'épuisement dans les scénarios défavorable / médian / favorable, retrait maximal soutenable à 90 %, graphique en éventail (Monte-Carlo).
 
+**Mode terminal, scanner, radiographie**
+- **Mode terminal** (menu Plus) : écran plein façon salle de marchés, en ambre sur noir ; bandeau de cours défilant (tes valeurs et les indices mondiaux), horloges de Paris, Londres, New York et Tokyo avec l'état des séances, positions en direct, carte de chaleur, graphique 1 an avec moyenne 50 jours ; ligne de commande (`CW8 <GO>`, `SCAN`, `WEI`, `XRAY`, `HELP`, `EXIT`) et touches F1 à F4, F10, Échap
+- **Scanner de signaux** (Salle des marchés et terminal) : RSI 14 (suracheté / survendu), croisement des moyennes 50 et 200 jours (golden cross / death cross), plus haut ou plus bas sur 52 semaines, mouvement inhabituel (en écarts-types), séries de hausses ou de baisses, marché baissier ; sur tes lignes et ta liste de suivi
+- **Radiographie** (Portefeuille → Analyse, et `XRAY` dans le terminal) : les entreprises que tu possèdes vraiment à travers tes ETF (principales lignes de chaque indice, pondérations approximatives 2025), actions détenues en direct rapprochées, part des « 7 Magnifiques »
+
 **Outils institutionnels**
 - **Stress test inversé** (Labo quant) : choisis la perte que tu ne veux pas subir (−5 à −60 %) et l'horizon (1 semaine à 1 an) → le scénario de marché le plus plausible qui la provoquerait (plus petit choc au sens de Mahalanobis sur les actions mondiales, la tech, l'Europe, le dollar et l'or, d'après les sensibilités réelles de tes lignes), son impact ligne par ligne et sa fréquence théorique ; l'exercice que les régulateurs imposent aux banques
 - **Black-Litterman** (Labo quant) : tes convictions (rendement annuel attendu d'une ligne, ou « A fera mieux que B de x % ») avec un niveau de confiance, mélangées à l'équilibre implicite de ta répartition → rendements révisés et répartition optimale (sans vente à découvert, poids maximum réglable), applicable comme cible
@@ -219,6 +224,7 @@ js/money.js       versements programmés, liquidités, divisions, ISIN, carte «
 js/insights.js    risque, rééquilibrage, dividendes à venir, actualités, rapport annuel, alertes push
 js/wealth.js      patrimoine global (autres actifs), phase de retraite
 js/labo-quant.js  labo quant (nom choisi pour ne pas être bloqué : « quant.js » figure dans les listes anti-pisteurs) : crash-tests, scénarios à facteurs, risque, régimes (HMM), audit comportemental
+js/terminal.js    mode terminal, scanner de signaux techniques, radiographie des entreprises détenues
 js/institut.js    stress test inversé, Black-Litterman, planificateur probabiliste (bootstrap par blocs)
 js/arena.js       arène : univers parallèles, défi à l'aveugle, briefing vocal, parcours en musique
 js/desk.js        salle des marchés : P&L explain, signaux et stratégies tactiques, journal de trades

@@ -682,3 +682,35 @@ test('outils institutionnels : stress test inversé, Black-Litterman appliqué c
   assert.ok(need[0] <= need[1] && need[1] <= need[2], need.join(' ≤ '));
   assert.ok(await page.evaluate(() => Chart.getChart('iPlanChart').data.datasets.length === 4));
 }));
+
+test('mode terminal (commandes, touches F), scanner de signaux et radiographie', { skip: !realCharts && 'Chart.js non installé' }, () => run({ state: sampleState() }, async ({ page }) => {
+  await page.waitForFunction(() => Api.cachedQuote('CW8@XPAR') && Api.cachedQuote('ESE@XPAR') && Api.cachedQuote('SPY@ARCX'), null, { timeout: 20000 });
+  // radiographie : les 7 Magnifiques vus à travers les ETF
+  await page.evaluate(() => { App.show('portfolio'); App.portfolioTab('analyse'); });
+  await page.waitForSelector('#xrayCard:not(.hidden) .xr-list');
+  assert.match(await page.locator('#xrayBody .q-lead').innerText(), /7 Magnifiques[\s\S]*représentent [\d,]+ %/);
+  assert.match(await page.locator('#xrayBody .xr-list li').first().innerText(), /NVIDIA/);
+  // scanner
+  await page.evaluate(() => App.show('desk'));
+  await page.click('#scanRun');
+  await page.waitForSelector('#scanBody .sc-table');
+  assert.equal(await page.locator('#scanBody .sc-table tbody tr').count(), 3);
+  // terminal : menu Plus, commandes, touches F, Échap
+  await page.click('#tabMoreBtn');
+  await page.click('#termOpen');
+  await page.waitForSelector('#term:not(.hidden) #termPort .term-t');
+  assert.equal(await page.locator('#termPort .term-t tr').count(), 3);
+  assert.ok(await page.locator('#termTape .term-tk').count() >= 6, 'bandeau défilant (dupliqué pour boucler)');
+  await page.fill('#termCmd', 'spy');
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(() => /SPY/.test($('#termChartHead').innerText) && Chart.getChart('termChart'));
+  await page.keyboard.press('F4');
+  assert.match(await page.locator('#termSide .term-h').innerText(), /XRAY/);
+  await page.fill('#termCmd', 'inconnu');
+  await page.keyboard.press('Enter');
+  assert.match(await page.locator('#termMsg').innerText(), /commande inconnue/);
+  await page.locator('#termKeys button', { hasText: 'HELP' }).click();
+  assert.match(await page.locator('#termSide').innerText(), /CW8 <GO>/);
+  await page.keyboard.press('Escape');
+  assert.ok(await page.locator('#term').evaluate(t => t.classList.contains('hidden')));
+}));
