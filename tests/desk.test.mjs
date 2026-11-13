@@ -115,3 +115,27 @@ test('journal : rapport gain / risque, progression, statut ; taille de position 
   assert.equal(desk.positionSize({ capital: 50000, riskPct: 1, price: 100, stop: 92, cash: 3000 }).qty, 30, 'plafonné par les liquidités');
   assert.equal(desk.positionSize({ capital: 50000, riskPct: 1, price: 100, stop: 100 }), null);
 });
+
+test('calendrier des séances : toute la période, une ligne par année, mois repérés, échelle robuste', () => {
+  const desk = D();
+  const days = [];
+  let d = Date.parse('2024-05-17T00:00:00Z');
+  for (let i = 0; i < 420; i++) {
+    const iso = new Date(d).toISOString().slice(0, 10);
+    if (![0, 6].includes(new Date(d).getUTCDay())) days.push({ date: iso, pnl: i % 3 ? 10 : -5, ret: i % 3 ? 0.001 : -0.0005, value: 1000 });
+    d += 864e5;
+  }
+  days.push({ date: '2025-07-09', pnl: -900, ret: -0.2, value: 800 }); // krach isolé
+  const cal = plain(desk.calendar(days));
+  assert.deepEqual(cal.years.map(y => y.year), [2025, 2024], 'la plus récente en haut, depuis le début');
+  const y24 = cal.years[1];
+  assert.equal(y24.weeks[0].monday, '2024-05-13');
+  assert.equal(y24.weeks[0].month, 'mai');
+  assert.ok(y24.weeks.some(w => w.month === 'déc.'));
+  assert.equal(y24.weeks.filter(w => w.month).length, 8, 'un repère par mois, de mai à décembre');
+  assert.ok(cal.scale < 0.01, 'le krach isolé ne fixe pas l\'échelle');
+  assert.equal(desk.heatLevel(-0.2, cal.scale), 4);
+  assert.equal(desk.heatLevel(0, cal.scale), 0);
+  near(y24.total, days.filter(x => x.date < '2025').reduce((s, x) => s + x.pnl, 0), 1e-9);
+  assert.equal(desk.calendar(days.slice(0, 3)), null);
+});

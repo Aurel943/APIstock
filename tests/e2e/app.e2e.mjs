@@ -576,6 +576,13 @@ test('salle des marchés : P&L explain, signaux et stratégies, journal de trade
   assert.equal(R.lines, 3);
   assert.match(await page.locator('#dkPnlBody').innerText(), /dollar t'a (rapporté|coûté)/i);
   assert.ok(await page.locator('#dkPnlBody .dk-cell').count() > 20, 'calendrier des séances');
+  // « Depuis le début » : le calendrier couvre toute la période, une ligne par année
+  await page.click('#dkPeriods button[data-p="all"]');
+  await page.waitForFunction(() => App.explainResult && App.explainResult.period === 'all' && !App._explaining, null, { timeout: 30000 });
+  const years = await page.locator('#dkPnlBody .dk-year-head b').allInnerTexts();
+  assert.deepEqual(years, ['2026', '2025', '2024']);
+  await page.locator('#dkPnlBody .dk-year').last().locator('.dk-cell.pos, .dk-cell.neg').first().click();
+  assert.match(await page.locator('#dkPnlBody .dk-heat-detail').innerText(), /2024 : [+−-]/);
   assert.doesNotMatch(await page.locator('#dkPnlCard').innerText(), /\bnull\b|-0,00/);
 
   // signaux et stratégies : 4 règles comparées, courbes dessinées
