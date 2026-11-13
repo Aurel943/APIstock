@@ -485,6 +485,13 @@ test('labo quant : météo des marchés, anatomie du risque, scénarios, crash-t
   await page.click('#qBehavRun');
   await page.waitForSelector('#qBehavBody .q-kpis', { timeout: 20000 });
   assert.match(await page.locator('#qBehavBody').innerText(), /Ton timing/);
+
+  // « Tout analyser » : progression visible, les cinq étapes terminées, confirmation
+  await page.click('#qAllRun');
+  await page.waitForSelector('#qAllProgress .q-step');
+  await page.waitForFunction(() => $$('#qAllProgress .q-step.ok').length === 5, null, { timeout: 60000 });
+  assert.equal(await page.locator('#qAllRun').innerText(), 'Tout réanalyser');
+  assert.match(await page.locator('#toast').innerText(), /5 analyses sont prêtes/);
 }));
 
 test('copilote (Ctrl+K), retrait malin et radar fiscal', () => run({ state: sampleState({ transactions: sampleState().transactions.concat([

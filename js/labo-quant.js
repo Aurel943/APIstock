@@ -512,12 +512,50 @@ Object.assign(App, {
     $('#qRiskRun').addEventListener('click', () => this.runRiskAnatomy());
     $('#qRegimeRun').addEventListener('click', () => this.runRegime());
     $('#qBehavRun').addEventListener('click', () => this.runBehavior());
-    $('#qAllRun').addEventListener('click', async () => {
-      const b = $('#qAllRun');
-      b.disabled = true;
-      for (const f of ['runRegime', 'runRiskAnatomy', 'runScenario', 'runCrash', 'runBehavior']) { try { await this[f](); } catch (e) { /* chaque carte affiche son erreur */ } }
+    $('#qAllRun').addEventListener('click', () => this.runAllQuant());
+  },
+
+  /**
+   * « Tout analyser » : les cinq analyses l'une après l'autre, avec la progression affichée sous le bouton.
+   * Une analyse trop longue (requête sans réponse, file d'attente des crédits Twelve Data) est laissée de côté
+   * au bout de `limit` ms pour que les suivantes se lancent quand même.
+   */
+  async runAllQuant(limit = 90000) {
+    if (this._qAllBusy) return;
+    this._qAllBusy = true;
+    const b = $('#qAllRun'), box = $('#qAllProgress');
+    const steps = [['runRegime', 'Météo', '#qRegimeCard'], ['runRiskAnatomy', 'Risque', '#qRiskCard'], ['runScenario', 'Scénarios', '#qScenCard'],
+      ['runCrash', 'Crash-test', '#qCrashCard'], ['runBehavior', 'Audit', '#qBehavCard']];
+    const state = steps.map(() => 'wait');
+    const icon = { wait: '○', run: '…', ok: '✓', slow: '⏱', err: '⚠' };
+    const draw = () => box.replaceChildren(...steps.map(([, name, card], i) => el('button', { type: 'button', class: 'q-step ' + state[i], onclick: () => $(card).scrollIntoView({ behavior: 'smooth', block: 'start' }) },
+      el('span', { 'aria-hidden': 'true' }, icon[state[i]]), name)));
+    box.classList.remove('hidden');
+    b.disabled = true;
+    let slow = 0;
+    try {
+      for (let i = 0; i < steps.length; i++) {
+        state[i] = 'run';
+        b.textContent = `Analyse ${i + 1}/${steps.length}…`;
+        draw();
+        let timer = null;
+        const res = await Promise.race([
+          Promise.resolve().then(() => this[steps[i][0]]()).then(() => 'ok', () => 'err'),
+          new Promise(ok => { timer = setTimeout(() => ok('slow'), limit); }),
+        ]);
+        clearTimeout(timer);
+        state[i] = res;
+        if (res === 'slow') slow++;
+        draw();
+      }
+    } finally {
       b.disabled = false;
-    });
+      b.textContent = 'Tout réanalyser';
+      this._qAllBusy = false;
+    }
+    toast(slow ? `Analyses lancées : ${slow} encore en cours (réponse lente des données), elles s'afficheront dans leur carte.` : 'Les 5 analyses sont prêtes : résultats dans les cartes ci-dessous.', slow ? 'info' : 'success', 5000);
+    const first = $('#qRegimeCard');
+    if (first && first.getBoundingClientRect().top > innerHeight * 0.6) first.scrollIntoView({ behavior: 'smooth', block: 'start' });
   },
 
   /* ---------- crash-test ---------- */

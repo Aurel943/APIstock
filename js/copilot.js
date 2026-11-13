@@ -56,23 +56,25 @@ const Copilot = {
    */
   numbers(t) {
     const out = [];
-    const re = /(?<![a-z0-9.,])(\d{1,3}(?:[ .]\d{3})+(?:,\d+)?|\d+(?:[.,]\d+)?)(?:\s*(k|m|millions?|milliers?|mille)(?![a-z]))?(?:\s*(%|€|eur(?:os?)?(?![a-z])|ans?(?![a-z])|annees?|mois(?![a-z])|pourcents?|pour cent))?(?![a-z0-9])/g;
+    // pas de « lookbehind » (?<!…) : non compris par Safari avant la version 16.4 ; le caractère qui précède est capturé à la place
+    const re = /(^|[^a-z0-9.,])(\d{1,3}(?:[ .]\d{3})+(?:,\d+)?|\d+(?:[.,]\d+)?)(?:\s*(k|m|millions?|milliers?|mille)(?![a-z]))?(?:\s*(%|€|eur(?:os?)?(?![a-z])|ans?(?![a-z])|annees?|mois(?![a-z])|pourcents?|pour cent))?(?![a-z0-9])/g;
     let m;
     while ((m = re.exec(t))) {
-      let raw = m[1];
+      const at = m.index + m[1].length;
+      let raw = m[2];
       if (/[ .]\d{3}/.test(raw) && !/^\d+\.\d{1,2}$/.test(raw)) raw = raw.replace(/[ .](?=\d{3}(\D|$))/g, '');
       let v = parseFloat(raw.replace(',', '.'));
-      const mult = m[2] ? (/^k|mill(e|ier)/.test(m[2]) ? 1e3 : 1e6) : 1;
+      const mult = m[3] ? (/^k|mill(e|ier)/.test(m[3]) ? 1e3 : 1e6) : 1;
       v *= mult;
-      const u = m[3] || '';
+      const u = m[4] || '';
       let unit = '';
       if (/^%|^pour/.test(u)) unit = 'pct';
       else if (/^€|^eur/.test(u)) unit = 'money';
       else if (/^an|^annee/.test(u)) unit = 'years';
       else if (/^mois/.test(u)) unit = 'months';
       else if (mult > 1) unit = 'money';
-      else if (Number.isInteger(v) && v >= 1990 && v <= 2100 && !/[ .,]/.test(m[1])) unit = 'year';
-      if (isFinite(v)) out.push({ value: v, unit, index: m.index, end: m.index + m[0].length });
+      else if (Number.isInteger(v) && v >= 1990 && v <= 2100 && !/[ .,]/.test(m[2])) unit = 'year';
+      if (isFinite(v)) out.push({ value: v, unit, index: at, end: m.index + m[0].length });
     }
     return out;
   },
