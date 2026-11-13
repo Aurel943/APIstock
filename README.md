@@ -55,6 +55,12 @@ Site personnel (100 % statique, sans serveur ni compte) pour suivre ses ETF et l
 - *Projection dans le futur* : intérêts composés avec versements mensuels, rendement et frais annuels.
 - *Phase de retraite* : retraits mensuels indexés sur l'inflation sur un capital placé (bouton « Mon patrimoine ») → probabilité que le capital tienne jusqu'au bout, âge ou date d'épuisement dans les scénarios défavorable / médian / favorable, retrait maximal soutenable à 90 %, graphique en éventail (Monte-Carlo).
 
+**Arène** (menu Plus) — la bourse côté jeu, sur de vraies données
+- **Univers parallèles** : chacun de tes vrais achats (même montant, même date) rejoué sous le matelas, sur un Livret A (taux officiels successifs), dans le MSCI World, le S&P 500, le Nasdaq-100, le CAC 40, l'or et le Bitcoin ; course animée jusqu'à aujourd'hui, podium, et ce que tu aurais en plus ou en moins dans chaque univers
+- **Défi à l'aveugle** : un vrai graphique historique tiré au hasard (S&P 500, Nasdaq, CAC 40, DAX, Nikkei, or, Bitcoin…), nom et dates cachés ; chaque semaine, investi ou en liquidités (0,1 % par aller-retour, clavier B / V / espace) ; révélation de la période, score face à « acheter et conserver », titre (du « Loup de Wall Street » au « Vendeur paniqué ») et record personnel
+- **Briefing vocal** : ton point marché lu à voix haute par le navigateur (valeur, variation du jour, meilleure et pire ligne, gain depuis le début, alertes)
+- **Ton parcours en musique** : une note par semaine de ta performance (aiguë quand ça monte, grave quand ça baisse, gamme pentatonique)
+
 **Salle des marchés** (menu Plus) — les écrans d'un desk de gestion
 - **P&L explain** : le gain ou la perte d'une période (mois en cours, 1 mois, 3 mois, depuis janvier, 1 an, depuis le début) décomposé en effet prix, **effet de change par devise** (« le dollar t'a coûté 340 € »), exécution (prix obtenu face à la clôture du jour), dividendes et frais ; pont de valeur départ → arrivée ; part expliquée par le marché (bêta face au MSCI World) et **alpha** (tes choix) ; calendrier des P&L séance par séance ; statistiques de trader (jours gagnants, gain moyen / perte moyenne, profit factor, meilleure et pire séance, pire baisse)
 - **Signaux & stratégies tactiques** : pour chaque ligne, écart à la moyenne 10 mois, momentum 12-1 et 6 mois, volatilité, signal haussier / mitigé / baissier ; quatre règles (conserver, tendance 10 mois, momentum 12-1, tendance + volatilité cible réglable) rejouées mois par mois sur ton portefeuille depuis 2000 (indice suivi quand l'ETF est plus récent), liquidités au taux sans risque, 0,1 % de frais par euro échangé → rendement annuel, volatilité, pire baisse, Sharpe, Calmar, temps investi, courbes, et part investie ce mois-ci selon chaque règle
@@ -208,6 +214,7 @@ js/money.js       versements programmés, liquidités, divisions, ISIN, carte «
 js/insights.js    risque, rééquilibrage, dividendes à venir, actualités, rapport annuel, alertes push
 js/wealth.js      patrimoine global (autres actifs), phase de retraite
 js/labo-quant.js  labo quant (nom choisi pour ne pas être bloqué : « quant.js » figure dans les listes anti-pisteurs) : crash-tests, scénarios à facteurs, risque, régimes (HMM), audit comportemental
+js/arena.js       arène : univers parallèles, défi à l'aveugle, briefing vocal, parcours en musique
 js/desk.js        salle des marchés : P&L explain, signaux et stratégies tactiques, journal de trades
 js/fisc.js        fiscalité active : retrait malin (plan de vente au moindre impôt), radar fiscal
 js/copilot.js     copilote Ctrl+K : questions en français, réponses calculées, raccourcis

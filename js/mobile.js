@@ -1,7 +1,7 @@
 /* Interface mobile : barre de navigation basse, panneau « Plus », bouton flottant, cartes de positions */
 'use strict';
 
-const MORE_VIEWS = ['catalog', 'world', 'compare', 'simulation', 'desk', 'quant', 'settings'];
+const MORE_VIEWS = ['catalog', 'world', 'compare', 'simulation', 'arena', 'desk', 'quant', 'settings'];
 const isMobile = () => matchMedia('(max-width: 760px)').matches;
 
 Object.assign(App, {

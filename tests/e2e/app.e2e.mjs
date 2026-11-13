@@ -6,7 +6,7 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { chromium, startServer, openApp, sampleState, realCharts } from './helpers.mjs';
 
-const VIEWS = ['portfolio', 'markets', 'agenda', 'catalog', 'compare', 'world', 'invest', 'simulation', 'quant', 'desk', 'settings'];
+const VIEWS = ['portfolio', 'markets', 'agenda', 'catalog', 'compare', 'world', 'invest', 'simulation', 'quant', 'desk', 'arena', 'settings'];
 let server, url, browser;
 
 before(async () => { ({ server, url } = await startServer()); browser = await chromium.launch(); });
@@ -607,4 +607,39 @@ test('salle des marchés : P&L explain, signaux et stratégies, journal de trade
   const alerts = await page.evaluate(() => Store.state.alerts.filter(a => a.thesis).map(a => a.kind).sort());
   assert.deepEqual(alerts, ['above', 'below']);
   assert.equal(await page.evaluate(() => Store.state.theses.length), 1);
+}));
+
+test('arène : univers parallèles, défi à l\'aveugle jusqu\'à la révélation, briefing vocal et musique', { skip: !realCharts && 'Chart.js non installé' }, () => run({ state: sampleState() }, async ({ page }) => {
+  await page.waitForFunction(() => Api.cachedQuote('CW8@XPAR') && Api.cachedQuote('ESE@XPAR'), null, { timeout: 20000 });
+  await page.evaluate(() => App.show('arena'));
+  // univers : lancés à l'ouverture ; ceux sans historique enregistré sont signalés, pas d'erreur
+  await page.waitForSelector('#arMvBody .ar-podium', { timeout: 30000 });
+  const podium = await page.locator('#arMvBody .ar-podium li').allInnerTexts();
+  assert.equal(podium.length, 5, podium.join(' | '));
+  assert.ok(podium.some(x => /Ton vrai portefeuille/.test(x)) && podium.some(x => /Livret A/.test(x)) && podium.some(x => /MSCI World/.test(x)));
+  assert.match(await page.locator('#arMvBody .q-lead').innerText(), /Tu as investi [\d\s ]+€ depuis le/);
+  assert.match(await page.locator('#arMvBody .lab-warn').innerText(), /Bitcoin/);
+  assert.equal(await page.locator('#arMvBody .ar-row').count(), 5);
+  // défi : une partie complète, au clavier et aux boutons
+  await page.click('#arGameNew');
+  await page.waitForSelector('#arGameBody .ar-game-head');
+  assert.match(await page.locator('#arGameBody .ar-game-head').innerText(), /0 \/ 104/);
+  await page.locator('#arGameBody button', { hasText: 'Liquidités' }).click();
+  await page.keyboard.press('Space');
+  await page.keyboard.press('b');
+  assert.match(await page.locator('#arGameBody .ar-game-head').innerText(), /3 \/ 104/);
+  for (let i = 0; i < 26; i++) { const b = page.locator('#arGameBody button', { hasText: '+4' }); if (await b.count()) await b.click(); }
+  await page.waitForSelector('#arGameBody .ar-reveal');
+  const reveal = await page.locator('#arGameBody .ar-reveal').innerText();
+  assert.match(reveal, /C'était .+ du .+ au /);
+  assert.match(reveal, /Allers-retours\s*2/);
+  assert.ok(await page.evaluate(() => JSON.parse(localStorage.getItem('apistock:arena:best')).title.length > 3), 'record enregistré');
+  // briefing vocal (texte affiché même sans voix) et parcours en musique
+  await page.click('#arBrief');
+  assert.match(await page.locator('#arBriefText').innerText(), /^Bonjour|^Bonsoir/);
+  assert.match(await page.locator('#arBriefText').innerText(), /Ton portefeuille vaut \d+ euros/);
+  assert.equal(await page.locator('#arPlay').isDisabled(), false);
+  await page.click('#arPlay');
+  await page.waitForSelector('#toast.show');
+  assert.match(await page.locator('#toast').innerText(), /semaines de ton parcours/);
 }));

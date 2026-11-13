@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=df1d40680b">
+  <link rel="stylesheet" href="css/style.css?v=0a730c46d9">
 </head>
 <body>
   <header class="topbar">
@@ -34,7 +34,8 @@
           <button class="tab" data-view="world" role="menuitem">Monde et horaires</button>
           <button class="tab" data-view="compare" role="menuitem">Comparer</button>
           <button class="tab" data-view="simulation" role="menuitem">Simulation</button>
-          <button class="tab" data-view="desk" role="menuitem">Salle des marchés <span class="q-new">nouveau</span></button>
+          <button class="tab" data-view="arena" role="menuitem">Arène <span class="q-new">nouveau</span></button>
+          <button class="tab" data-view="desk" role="menuitem">Salle des marchés</button>
           <button class="tab" data-view="quant" role="menuitem">Labo quant</button>
           <button class="tab" data-view="settings" role="menuitem">Réglages</button>
           <button class="tab-action" type="button" id="wrappedOpen" role="menuitem">🎉 Mon année en bourse</button>
@@ -736,6 +737,36 @@
       </div>
     </section>
 
+    <section id="view-arena" class="view">
+      <div class="card q-hero ar-hero">
+        <div>
+          <h2>Arène</h2>
+          <p class="muted">La bourse côté jeu, sur de vraies données : ce que serait devenu chacun de tes euros dans d'autres univers, un défi de trading à l'aveugle sur une vraie période historique, et ton portefeuille lu à voix haute ou joué en musique.</p>
+        </div>
+        <div class="ar-hero-actions">
+          <button class="btn" id="arBrief" type="button">🔊 Briefing vocal</button>
+          <button class="btn" id="arPlay" type="button" disabled>🎵 Écouter mon parcours</button>
+        </div>
+      </div>
+      <p class="ar-brief-text small hidden" id="arBriefText" aria-live="polite"></p>
+
+      <div class="card" id="arMvCard">
+        <div class="card-head">
+          <h2>Univers parallèles<button type="button" class="info" aria-label="Explication" data-tip="Chacun de tes vrais achats, au même montant et à la même date, rejoué dans d'autres univers : argent sous le matelas, Livret A, MSCI World, S&amp;P 500, Nasdaq-100, CAC 40, or, Bitcoin. Course animée jusqu'à aujourd'hui.">i</button></h2>
+          <button class="btn small" id="arMvRun" type="button">Recalculer</button>
+        </div>
+        <div id="arMvBody"><p class="muted">Chargement des univers…</p></div>
+      </div>
+
+      <div class="card" id="arGameCard">
+        <div class="card-head">
+          <h2>Défi à l'aveugle<button type="button" class="info" aria-label="Explication" data-tip="Un vrai graphique de marché tiré au hasard (S&amp;P 500, Nasdaq, CAC 40, DAX, Nikkei, or, Bitcoin…), nom et dates cachés. Chaque semaine, investi ou en liquidités ? À la fin, révélation de la période et ton score face à « acheter et conserver ».">i</button></h2>
+          <button class="btn small primary" id="arGameNew" type="button">🎲 Jouer</button>
+        </div>
+        <div id="arGameBody"><p class="muted">Penses-tu pouvoir battre le marché en sentant venir les krachs ? Deux ans de vraie bourse, une semaine à la fois.</p></div>
+      </div>
+    </section>
+
     <section id="view-desk" class="view">
       <div class="card q-hero dk-hero-card">
         <div>
@@ -1095,6 +1126,7 @@
     <button data-view="catalog"><svg viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="18" cy="19" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/></svg><div><b>Catalogue d'ETF</b><span>Portefeuilles types, ETF par zone et par frais</span></div></button>
     <button data-view="compare"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><div><b>Comparer</b><span>Nasdaq vs S&amp;P 500, ton portefeuille vs le marché…</span></div></button>
     <button data-view="simulation"><svg viewBox="0 0 24 24"><path d="M12 3v3M12 18v3M4.2 7.5l2.6 1.5M17.2 15l2.6 1.5M4.2 16.5l2.6-1.5M17.2 9l2.6-1.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/></svg><div><b>Simulation</b><span>« Et si j'avais investi… », projection future</span></div></button>
+    <button data-view="arena"><svg viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4zM7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><div><b>Arène</b><span>Univers parallèles, défi à l'aveugle, ton portefeuille en musique</span></div></button>
     <button data-view="desk"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6 12l3-3 3 2 5-5M8 20h8M12 16v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><div><b>Salle des marchés</b><span>P&amp;L explain, signaux de tendance, journal de trades</span></div></button>
     <button data-view="quant"><svg viewBox="0 0 24 24"><path d="M3 20h18M5 16l4-6 4 3 6-9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="19" cy="4" r="1.6" fill="currentColor"/></svg><div><b>Labo quant</b><span>Crash-tests, scénarios, risque caché, météo des marchés</span></div></button>
     <button data-view="settings"><svg viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="16" cy="6" r="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="10" cy="12" r="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="18" r="2" fill="none" stroke="currentColor" stroke-width="2"/></svg><div><b>Réglages</b><span>Clé API, relais Yahoo, comptes, sauvegarde</span></div></button>
@@ -1105,36 +1137,37 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-  <script src="js/utils.js?v=df1d40680b"></script>
-  <script src="js/store.js?v=df1d40680b"></script>
-  <script src="js/api.js?v=df1d40680b"></script>
-  <script src="js/markets.js?v=df1d40680b"></script>
-  <script src="js/portfolio.js?v=df1d40680b"></script>
-  <script src="js/charts.js?v=df1d40680b"></script>
-  <script src="js/app.js?v=df1d40680b"></script>
-  <script src="js/views.js?v=df1d40680b"></script>
-  <script src="js/compare.js?v=df1d40680b"></script>
-  <script src="js/extras.js?v=df1d40680b"></script>
-  <script src="js/mobile.js?v=df1d40680b"></script>
-  <script src="js/features.js?v=df1d40680b"></script>
-  <script src="js/money.js?v=df1d40680b"></script>
-  <script src="js/newsart.js?v=df1d40680b"></script>
-  <script src="js/insights.js?v=df1d40680b"></script>
-  <script src="js/wealth.js?v=df1d40680b"></script>
-  <script src="js/avis.js?v=df1d40680b"></script>
-  <script src="js/manual.js?v=df1d40680b"></script>
-  <script src="js/health.js?v=df1d40680b"></script>
-  <script src="js/agenda.js?v=df1d40680b"></script>
-  <script src="js/catalog.js?v=df1d40680b"></script>
-  <script src="js/goals.js?v=df1d40680b"></script>
-  <script src="js/optimizer.js?v=df1d40680b"></script>
-  <script src="js/treemap.js?v=df1d40680b"></script>
-  <script src="js/wrapped.js?v=df1d40680b"></script>
-  <script src="js/lab.js?v=df1d40680b"></script>
-  <script src="js/share.js?v=df1d40680b"></script>
-  <script src="js/labo-quant.js?v=df1d40680b"></script>
-  <script src="js/fisc.js?v=df1d40680b"></script>
-  <script src="js/desk.js?v=df1d40680b"></script>
-  <script src="js/copilot.js?v=df1d40680b"></script>
+  <script src="js/utils.js?v=0a730c46d9"></script>
+  <script src="js/store.js?v=0a730c46d9"></script>
+  <script src="js/api.js?v=0a730c46d9"></script>
+  <script src="js/markets.js?v=0a730c46d9"></script>
+  <script src="js/portfolio.js?v=0a730c46d9"></script>
+  <script src="js/charts.js?v=0a730c46d9"></script>
+  <script src="js/app.js?v=0a730c46d9"></script>
+  <script src="js/views.js?v=0a730c46d9"></script>
+  <script src="js/compare.js?v=0a730c46d9"></script>
+  <script src="js/extras.js?v=0a730c46d9"></script>
+  <script src="js/mobile.js?v=0a730c46d9"></script>
+  <script src="js/features.js?v=0a730c46d9"></script>
+  <script src="js/money.js?v=0a730c46d9"></script>
+  <script src="js/newsart.js?v=0a730c46d9"></script>
+  <script src="js/insights.js?v=0a730c46d9"></script>
+  <script src="js/wealth.js?v=0a730c46d9"></script>
+  <script src="js/avis.js?v=0a730c46d9"></script>
+  <script src="js/manual.js?v=0a730c46d9"></script>
+  <script src="js/health.js?v=0a730c46d9"></script>
+  <script src="js/agenda.js?v=0a730c46d9"></script>
+  <script src="js/catalog.js?v=0a730c46d9"></script>
+  <script src="js/goals.js?v=0a730c46d9"></script>
+  <script src="js/optimizer.js?v=0a730c46d9"></script>
+  <script src="js/treemap.js?v=0a730c46d9"></script>
+  <script src="js/wrapped.js?v=0a730c46d9"></script>
+  <script src="js/lab.js?v=0a730c46d9"></script>
+  <script src="js/share.js?v=0a730c46d9"></script>
+  <script src="js/labo-quant.js?v=0a730c46d9"></script>
+  <script src="js/fisc.js?v=0a730c46d9"></script>
+  <script src="js/desk.js?v=0a730c46d9"></script>
+  <script src="js/arena.js?v=0a730c46d9"></script>
+  <script src="js/copilot.js?v=0a730c46d9"></script>
 </body>
 </html>
