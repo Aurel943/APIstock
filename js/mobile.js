@@ -21,6 +21,7 @@ Object.assign(App, {
       openSheet(false);
       if (b.dataset.action === 'theme') { $('#themeBtn').click(); return; }
       if (b.dataset.action === 'wrapped') { this.openWrapped(); return; }
+      if (b.dataset.action === 'terminal') { this.openTerminal(); return; }
       this.show(b.dataset.view);
       window.scrollTo({ top: 0 });
     }));

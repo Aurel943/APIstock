@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=ff123946fd">
+  <link rel="stylesheet" href="css/style.css?v=9640108e44">
 </head>
 <body>
   <header class="topbar">
@@ -38,6 +38,7 @@
           <button class="tab" data-view="desk" role="menuitem">Salle des marchés</button>
           <button class="tab" data-view="quant" role="menuitem">Labo quant</button>
           <button class="tab" data-view="settings" role="menuitem">Réglages</button>
+          <button class="tab-action" type="button" id="termOpen" role="menuitem">🖥️ Mode terminal</button>
           <button class="tab-action" type="button" id="wrappedOpen" role="menuitem">🎉 Mon année en bourse</button>
         </div>
       </div>
@@ -225,6 +226,13 @@
           <h2>Exposition réelle &amp; frais<button type="button" class="info" aria-label="Explication" data-tip="Ce que contiennent vraiment tes ETF (pondéré par leur valeur)">i</button></h2>
         </div>
         <div id="exposureBody"></div>
+      </div>
+
+      <div data-sub="analyse" class="card hidden" id="xrayCard">
+        <div class="card-head">
+          <h2>Radiographie : tes vraies entreprises <span class="q-new">nouveau</span><button type="button" class="info" aria-label="Explication" data-tip="À travers tes ETF, les entreprises dans lesquelles ton argent est réellement placé (principales lignes de chaque indice, pondérations approximatives) et ta dépendance aux « 7 Magnifiques » de la tech américaine.">i</button></h2>
+        </div>
+        <div id="xrayBody"></div>
       </div>
 
       <div data-sub="analyse" class="card hidden" id="newsCard">
@@ -814,6 +822,14 @@
         <div id="dkPnlBody"><p class="muted">Chargement des historiques…</p></div>
       </div>
 
+      <div class="card" id="scanCard">
+        <div class="card-head">
+          <h2>Scanner de signaux <span class="q-new">nouveau</span><button type="button" class="info" aria-label="Explication" data-tip="Tes lignes et ta liste de suivi passées au crible des signaux qu'observent les traders : RSI (suracheté / survendu), croisement des moyennes 50 et 200 jours (golden cross, death cross), plus haut ou plus bas sur 52 semaines, mouvement inhabituel, séries de hausses ou de baisses, marché baissier.">i</button></h2>
+          <button class="btn small" id="scanRun" type="button">Scanner</button>
+        </div>
+        <div id="scanBody"><p class="muted">Un balayage de toutes tes valeurs en quelques secondes : ce qui sort de l'ordinaire aujourd'hui.</p></div>
+      </div>
+
       <div class="card" id="dkSigCard">
         <div class="card-head">
           <h2>Signaux &amp; stratégies tactiques<button type="button" class="info" aria-label="Explication" data-tip="Les règles des fonds « trend following » : rester investi quand le marché est au-dessus de sa moyenne 10 mois ou que son momentum 12 mois est positif, passer en liquidités sinon, ou ajuster l'exposition pour viser une volatilité. Chacune est rejouée sur ton portefeuille depuis 2000.">i</button></h2>
@@ -1126,6 +1142,30 @@
     </form>
   </dialog>
 
+  <!-- Mode terminal -->
+  <div id="term" class="term hidden" role="dialog" aria-label="Mode terminal">
+    <div class="term-top">
+      <span class="term-brand">APISTOCK<b>TERMINAL</b></span>
+      <span class="term-clock" id="termClock"></span>
+      <button type="button" class="term-close" id="termClose" aria-label="Quitter le mode terminal">ÉCHAP ✕</button>
+    </div>
+    <div class="term-tape" id="termTape"></div>
+    <div class="term-cmd"><span>&gt;</span><input id="termCmd" autocomplete="off" spellcheck="false" placeholder="CW8 &lt;GO&gt;  ·  SCAN  ·  WEI  ·  XRAY  ·  HELP" aria-label="Commande"><span class="term-msg" id="termMsg"></span></div>
+    <div class="term-keys" id="termKeys">
+      <button type="button" data-cmd="HELP"><b>F1</b> HELP</button>
+      <button type="button" data-cmd="SCAN"><b>F2</b> SCAN</button>
+      <button type="button" data-cmd="WEI"><b>F3</b> WEI</button>
+      <button type="button" data-cmd="XRAY"><b>F4</b> XRAY</button>
+      <button type="button" data-cmd="EXIT"><b>F10</b> EXIT</button>
+    </div>
+    <div class="term-grid">
+      <section class="term-panel" id="termPort"></section>
+      <section class="term-panel term-chart-panel"><div class="term-h" id="termChartHead">GP</div><div class="term-chart"><canvas id="termChart"></canvas></div></section>
+      <section class="term-panel" id="termHeat"></section>
+      <section class="term-panel" id="termSide"></section>
+    </div>
+  </div>
+
   <!-- Copilote -->
   <dialog id="copilot" class="cp-dialog" aria-label="Copilote">
     <div class="cp-box">
@@ -1161,6 +1201,7 @@
     <button data-view="desk"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6 12l3-3 3 2 5-5M8 20h8M12 16v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><div><b>Salle des marchés</b><span>P&amp;L explain, signaux de tendance, journal de trades</span></div></button>
     <button data-view="quant"><svg viewBox="0 0 24 24"><path d="M3 20h18M5 16l4-6 4 3 6-9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="19" cy="4" r="1.6" fill="currentColor"/></svg><div><b>Labo quant</b><span>Crash-tests, scénarios, risque caché, météo des marchés</span></div></button>
     <button data-view="settings"><svg viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="16" cy="6" r="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="10" cy="12" r="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="18" r="2" fill="none" stroke="currentColor" stroke-width="2"/></svg><div><b>Réglages</b><span>Clé API, relais Yahoo, comptes, sauvegarde</span></div></button>
+    <button data-action="terminal"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7 9l3 3-3 3M12 15h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><div><b>Mode terminal</b><span>Écran de salle de marchés : bandeau de cours, commandes, signaux</span></div></button>
     <button data-action="wrapped"><svg viewBox="0 0 24 24"><path d="M12 3l2.6 5.6 6 .8-4.4 4.2 1.1 6-5.3-2.9-5.3 2.9 1.1-6L3.4 9.4l6-.8z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><div><b>Mon année en bourse</b><span>Ton récap animé : performance, ligne star, meilleur mois…</span></div></button>
     <button data-action="theme"><svg viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><div><b>Thème clair / sombre</b><span>Changer l'apparence</span></div></button>
   </div>
@@ -1168,38 +1209,39 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-  <script src="js/utils.js?v=ff123946fd"></script>
-  <script src="js/store.js?v=ff123946fd"></script>
-  <script src="js/api.js?v=ff123946fd"></script>
-  <script src="js/markets.js?v=ff123946fd"></script>
-  <script src="js/portfolio.js?v=ff123946fd"></script>
-  <script src="js/charts.js?v=ff123946fd"></script>
-  <script src="js/app.js?v=ff123946fd"></script>
-  <script src="js/views.js?v=ff123946fd"></script>
-  <script src="js/compare.js?v=ff123946fd"></script>
-  <script src="js/extras.js?v=ff123946fd"></script>
-  <script src="js/mobile.js?v=ff123946fd"></script>
-  <script src="js/features.js?v=ff123946fd"></script>
-  <script src="js/money.js?v=ff123946fd"></script>
-  <script src="js/newsart.js?v=ff123946fd"></script>
-  <script src="js/insights.js?v=ff123946fd"></script>
-  <script src="js/wealth.js?v=ff123946fd"></script>
-  <script src="js/avis.js?v=ff123946fd"></script>
-  <script src="js/manual.js?v=ff123946fd"></script>
-  <script src="js/health.js?v=ff123946fd"></script>
-  <script src="js/agenda.js?v=ff123946fd"></script>
-  <script src="js/catalog.js?v=ff123946fd"></script>
-  <script src="js/goals.js?v=ff123946fd"></script>
-  <script src="js/optimizer.js?v=ff123946fd"></script>
-  <script src="js/treemap.js?v=ff123946fd"></script>
-  <script src="js/wrapped.js?v=ff123946fd"></script>
-  <script src="js/lab.js?v=ff123946fd"></script>
-  <script src="js/share.js?v=ff123946fd"></script>
-  <script src="js/labo-quant.js?v=ff123946fd"></script>
-  <script src="js/fisc.js?v=ff123946fd"></script>
-  <script src="js/desk.js?v=ff123946fd"></script>
-  <script src="js/arena.js?v=ff123946fd"></script>
-  <script src="js/institut.js?v=ff123946fd"></script>
-  <script src="js/copilot.js?v=ff123946fd"></script>
+  <script src="js/utils.js?v=9640108e44"></script>
+  <script src="js/store.js?v=9640108e44"></script>
+  <script src="js/api.js?v=9640108e44"></script>
+  <script src="js/markets.js?v=9640108e44"></script>
+  <script src="js/portfolio.js?v=9640108e44"></script>
+  <script src="js/charts.js?v=9640108e44"></script>
+  <script src="js/app.js?v=9640108e44"></script>
+  <script src="js/views.js?v=9640108e44"></script>
+  <script src="js/compare.js?v=9640108e44"></script>
+  <script src="js/extras.js?v=9640108e44"></script>
+  <script src="js/mobile.js?v=9640108e44"></script>
+  <script src="js/features.js?v=9640108e44"></script>
+  <script src="js/money.js?v=9640108e44"></script>
+  <script src="js/newsart.js?v=9640108e44"></script>
+  <script src="js/insights.js?v=9640108e44"></script>
+  <script src="js/wealth.js?v=9640108e44"></script>
+  <script src="js/avis.js?v=9640108e44"></script>
+  <script src="js/manual.js?v=9640108e44"></script>
+  <script src="js/health.js?v=9640108e44"></script>
+  <script src="js/agenda.js?v=9640108e44"></script>
+  <script src="js/catalog.js?v=9640108e44"></script>
+  <script src="js/goals.js?v=9640108e44"></script>
+  <script src="js/optimizer.js?v=9640108e44"></script>
+  <script src="js/treemap.js?v=9640108e44"></script>
+  <script src="js/wrapped.js?v=9640108e44"></script>
+  <script src="js/lab.js?v=9640108e44"></script>
+  <script src="js/share.js?v=9640108e44"></script>
+  <script src="js/labo-quant.js?v=9640108e44"></script>
+  <script src="js/fisc.js?v=9640108e44"></script>
+  <script src="js/desk.js?v=9640108e44"></script>
+  <script src="js/arena.js?v=9640108e44"></script>
+  <script src="js/institut.js?v=9640108e44"></script>
+  <script src="js/terminal.js?v=9640108e44"></script>
+  <script src="js/copilot.js?v=9640108e44"></script>
 </body>
 </html>
