@@ -28,8 +28,24 @@ const App = {
     return () => { this._listeners[name] = (this._listeners[name] || []).filter(f => f !== fn); };
   },
 
+  /** Émet un événement ; un écouteur en erreur n'empêche pas les suivants de s'exécuter */
   emit(name, ...args) {
-    for (const fn of (this._listeners[name] || []).slice()) fn.apply(this, args);
+    for (const fn of (this._listeners[name] || []).slice()) {
+      try { fn.apply(this, args); } catch (e) { this.reportError(e); }
+    }
+  },
+
+  /**
+   * Erreur inattendue : notée dans la console et signalée une fois par un bandeau avec un bouton « Recharger »
+   * (cas typique : ancienne page gardée en cache juste après une mise à jour du site).
+   */
+  reportError(e) {
+    console.error(e);
+    if (this._errorShown || typeof document === 'undefined' || !document.querySelector('#toast')) return;
+    this._errorShown = true;
+    const msg = String((e && e.message) || e || '').slice(0, 120);
+    toast('Une partie du site a rencontré une erreur' + (msg ? ` (${msg})` : '') + '. Recharger la page règle souvent le problème.', 'error', 15000,
+      { label: 'Recharger', fn: () => this.hardReload().catch(() => location.reload()) });
   },
 
   view: 'portfolio',
@@ -45,46 +61,36 @@ const App = {
   base() { return Store.state.settings.baseCurrency; },
 
   init() {
+    window.addEventListener('error', e => this.reportError(e.error || e.message));
     Store.load();
     Api.init();
     this.applyTheme(localStorage.getItem('apistock:theme'));
-    this.bindNav();
-    this.bindPortfolio();
-    this.bindMarkets();
-    this.bindSimulation();
-    this.bindSettings();
-    this.bindDialog();
-    this.bindWorld();
-    this.bindInvest();
-    this.bindCompare();
-    this.bindAccounts();
-    this.renderAccountsSettings();
-    this.bindGoal();
-    this.bindPrivacy();
-    this.bindCsv();
-    this.bindMobile();
-    this.bindManual();
-    $('#optRun').addEventListener('click', () => this.runOptimizer());
-    this.bindLab();
-    this.bindQuant();
-    this.bindFisc();
-    this.bindCopilot();
-    $('#tgtShare').addEventListener('click', () => this.shareAllocation());
-    $('#wrappedOpen').addEventListener('click', () => { this.toggleTabMenu(false); this.openWrapped(); });
-    $$('#mapMode button').forEach(b => b.addEventListener('click', () => {
-      this.treemapMode = b.dataset.mode;
-      $$('#mapMode button').forEach(x => x.classList.toggle('active', x === b));
-      this.renderTreemap();
-    }));
+    // chaque module se branche séparément : si l'un échoue, les boutons des autres continuent de fonctionner
     let resizeT = null;
-    window.addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(() => this.renderTreemap(), 200); });
-    $('#detailInd').checked = this.indicatorsOn();
-    $('#detailInd').addEventListener('change', e => {
-      try { localStorage.setItem('apistock:ind', e.target.checked ? '1' : '0'); } catch (err) { /* stockage indisponible */ }
-      this.loadDetailChart();
-    });
-    this.bindAgenda();
-    this.bindInteractionGuard();
+    const steps = [
+      () => this.bindNav(), () => this.bindPortfolio(), () => this.bindMarkets(), () => this.bindSimulation(), () => this.bindSettings(),
+      () => this.bindDialog(), () => this.bindWorld(), () => this.bindInvest(), () => this.bindCompare(), () => this.bindAccounts(),
+      () => this.renderAccountsSettings(), () => this.bindGoal(), () => this.bindPrivacy(), () => this.bindCsv(), () => this.bindMobile(),
+      () => this.bindManual(), () => $('#optRun').addEventListener('click', () => this.runOptimizer()), () => this.bindLab(),
+      () => this.bindQuant(), () => this.bindFisc(), () => this.bindCopilot(),
+      () => $('#tgtShare').addEventListener('click', () => this.shareAllocation()),
+      () => $('#wrappedOpen').addEventListener('click', () => { this.toggleTabMenu(false); this.openWrapped(); }),
+      () => $$('#mapMode button').forEach(b => b.addEventListener('click', () => {
+        this.treemapMode = b.dataset.mode;
+        $$('#mapMode button').forEach(x => x.classList.toggle('active', x === b));
+        this.renderTreemap();
+      })),
+      () => window.addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(() => this.renderTreemap(), 200); }),
+      () => {
+        $('#detailInd').checked = this.indicatorsOn();
+        $('#detailInd').addEventListener('change', e => {
+          try { localStorage.setItem('apistock:ind', e.target.checked ? '1' : '0'); } catch (err) { /* stockage indisponible */ }
+          this.loadDetailChart();
+        });
+      },
+      () => this.bindAgenda(), () => this.bindInteractionGuard(),
+    ];
+    for (const step of steps) { try { step(); } catch (e) { this.reportError(e); } }
     if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
     Api.onUsage((used, limit) => {
       const c = $('#credits');
@@ -100,10 +106,16 @@ const App = {
 
     const sharedHash = location.hash; // lu avant que la navigation ne réécrive l'adresse
     const hash = location.hash.replace('#', '');
-    this.show(['portfolio', 'markets', 'agenda', 'catalog', 'compare', 'world', 'invest', 'simulation', 'quant', 'settings'].includes(hash) ? hash : (Api.ready() ? 'portfolio' : 'settings'));
-    this.renderAll();
-    this.openSharedFromHash(sharedHash); // lien de répartition partagée (#share=…)
-    Api.detectProxy().finally(() => { if (!Api.ready() && $('#advancedSources')) $('#advancedSources').open = true; this.renderAll(); Promise.resolve(this.refresh()).finally(() => this.autoHistory()); this.preloadFx(); });
+    const guard = fn => { try { fn(); } catch (e) { this.reportError(e); } };
+    guard(() => this.show(['portfolio', 'markets', 'agenda', 'catalog', 'compare', 'world', 'invest', 'simulation', 'quant', 'settings'].includes(hash) ? hash : (Api.ready() ? 'portfolio' : 'settings')));
+    guard(() => this.renderAll());
+    guard(() => this.openSharedFromHash(sharedHash)); // lien de répartition partagée (#share=…)
+    Api.detectProxy().finally(() => {
+      if (!Api.ready() && $('#advancedSources')) $('#advancedSources').open = true;
+      guard(() => this.renderAll());
+      Promise.resolve(this.refresh()).finally(() => this.autoHistory());
+      this.preloadFx();
+    });
     // opérations modifiées : le graphique d'évolution déjà affiché est recalculé (sans bruit)
     this.on('data:saved', () => {
       if (!this.historyLoaded) return;
@@ -1474,9 +1486,12 @@ const App = {
   /** Rechargement complet : service worker, caches, fichiers du site et cache des cours (données perso conservées) */
   async hardReload() {
     const btn = $('#hardReload');
-    btn.disabled = true;
-    btn.classList.add('spin');
-    btn.querySelector('span').textContent = 'Rechargement…';
+    if (btn) {
+      btn.disabled = true;
+      btn.classList.add('spin');
+      const label = btn.querySelector('span');
+      if (label) label.textContent = 'Rechargement…';
+    }
     // 1. service worker (application installée) et ses caches
     try {
       if ('serviceWorker' in navigator) {

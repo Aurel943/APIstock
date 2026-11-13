@@ -529,3 +529,29 @@ test('copilote (Ctrl+K), retrait malin et radar fiscal', () => run({ state: samp
   assert.ok(await page.locator('#radarCard').isVisible());
   assert.ok((await page.locator('#radarBody').innerText()).length > 20);
 }));
+
+test('une erreur au démarrage d\'un module ne désactive pas les autres boutons, et elle est signalée', () => run({ state: sampleState() }, async (app) => {
+  const { page } = app;
+  // page incomplète (ex. ancienne page en cache avec des scripts récents) : la carte « Retrait malin » manque
+  await page.route('**/index.html', async route => {
+    const res = await route.fetch();
+    const html = (await res.text()).replace(/<div class="card wd-card" id="wdCard">[\s\S]*?(<div class="card hidden" id="radarCard">)/, '$1');
+    await route.fulfill({ response: res, body: html });
+  });
+  await page.reload();
+  await page.waitForFunction(() => typeof App !== 'undefined' && App._booted && document.readyState === 'complete');
+  assert.equal(await page.locator('#wdCard').count(), 0);
+  await page.waitForSelector('#toast.show');
+  assert.match(await page.locator('#toast').innerText(), /erreur[\s\S]*Recharger/);
+  // les modules branchés après continuent de fonctionner
+  await page.keyboard.press('Control+k');
+  await page.waitForSelector('#copilot[open]');
+  await page.keyboard.press('Escape');
+  await page.click('.tabs .tab[data-view="markets"]');
+  assert.equal(await page.evaluate(() => App.view), 'markets');
+  await page.click('.tabs .tab[data-view="portfolio"]');
+  await page.click('#addTxBtn');
+  await page.waitForSelector('#txDialog[open]');
+  assert.ok(app.errors.some(e => /addEventListener|null/.test(e)), 'erreur notée dans la console');
+  app.errors.length = 0;
+}));
