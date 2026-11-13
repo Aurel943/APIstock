@@ -695,22 +695,40 @@ test('mode terminal (commandes, touches F), scanner de signaux et radiographie',
   await page.click('#scanRun');
   await page.waitForSelector('#scanBody .sc-table');
   assert.equal(await page.locator('#scanBody .sc-table tbody tr').count(), 3);
-  // terminal : menu Plus, commandes, touches F, Échap
+  // terminal : menu Plus, 4 fenêtres, commandes, touches F, Échap
+  await page.evaluate(() => { try { localStorage.setItem('apistock:term', 'null'); } catch (e) { /* stockage indisponible */ } });
   await page.click('#tabMoreBtn');
   await page.click('#termOpen');
-  await page.waitForSelector('#term:not(.hidden) #termPort .term-t');
-  assert.equal(await page.locator('#termPort .term-t tr').count(), 3);
+  await page.waitForSelector('#term:not(.hidden) #termPort tbody tr');
+  assert.equal(await page.locator('#termGrid .tp').count(), 4, 'quatre fenêtres');
+  assert.equal(await page.locator('#termPort tbody tr').count(), 3);
   assert.ok(await page.locator('#termTape .term-tk').count() >= 6, 'bandeau défilant (dupliqué pour boucler)');
-  await page.fill('#termCmd', 'spy');
+  // fenêtre 2 : graphique de la valeur chargée ; « 2 SPY GP 5A » la change
+  await page.fill('#termCmd', '2 spy gp 5a');
   await page.keyboard.press('Enter');
-  await page.waitForFunction(() => /SPY/.test($('#termChartHead').innerText) && Chart.getChart('termChart'));
+  await page.waitForFunction(() => /SPY/.test($$('#termGrid .tp')[1].querySelector('.tp-bar').innerText) && Chart.getChart('termChart1'));
+  assert.match(await page.locator('#termGrid .tp').nth(1).locator('.tp-acts button.on').innerText(), /5A/);
+  assert.match(await page.locator('#termPrompt').innerText(), /2</);
+  // « 3 » : action n° 3 du menu (YTD)
+  await page.fill('#termCmd', '3');
+  await page.keyboard.press('Enter');
+  assert.match(await page.locator('#termGrid .tp').nth(1).locator('.tp-acts button.on').innerText(), /YTD/);
+  // fenêtre 4 : description avec performances
+  await page.waitForFunction(() => /PERFORMANCE/.test($$('#termGrid .tp')[3].innerText) && /1A/.test(($$('#termGrid .tp')[3].querySelector('.des-perf') || {}).innerText || ''));
+  // touche F4 : XRAY dans la fenêtre active
   await page.keyboard.press('F4');
-  assert.match(await page.locator('#termSide .term-h').innerText(), /XRAY/);
+  assert.match(await page.locator('#termGrid .tp').nth(1).locator('.tp-bar').innerText(), /XRAY/);
+  // clic sur une ligne du portefeuille : charge la valeur dans la description
+  await page.locator('#termPort tbody tr', { hasText: 'CW8' }).click();
+  await page.waitForFunction(() => /CW8/.test($$('#termGrid .tp')[3].querySelector('.tp-bar').innerText));
   await page.fill('#termCmd', 'inconnu');
   await page.keyboard.press('Enter');
-  assert.match(await page.locator('#termMsg').innerText(), /commande inconnue/);
+  await page.waitForFunction(() => /commande inconnue/.test($('#termMsg').innerText));
   await page.locator('#termKeys button', { hasText: 'HELP' }).click();
-  assert.match(await page.locator('#termSide').innerText(), /CW8 <GO>/);
+  assert.match(await page.locator('#termGrid').innerText(), /CW8 GP <GO>/);
+  // touches jaunes : secteur ajouté à la ligne de commande
+  await page.locator('#termKeys .k-yel', { hasText: 'INDEX' }).click();
+  assert.match(await page.inputValue('#termCmd'), /INDEX/);
   await page.keyboard.press('Escape');
   assert.ok(await page.locator('#term').evaluate(t => t.classList.contains('hidden')));
 }));
