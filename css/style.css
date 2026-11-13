@@ -1460,6 +1460,43 @@ body.term-open { overflow: hidden; }
 .term-status { display: flex; gap: 16px; padding: 2px 10px; background: #111; border-top: 1px solid var(--tad); color: #aaa; font-size: 11px; white-space: nowrap; overflow: hidden; }
 .term-status b { color: #fff; }
 .term-hint { margin-left: auto; color: #6b5a40; }
+.term-cmd { position: relative; }
+.term-sug { position: absolute; left: 34px; top: 100%; z-index: 5; min-width: 360px; max-width: calc(100% - 44px); margin: 0; padding: 0; list-style: none; background: #0d0d0d; border: 1px solid var(--ta); box-shadow: 0 6px 18px rgba(0,0,0,.7); }
+.term-sug.hidden { display: none; }
+.term-sug li { display: grid; grid-template-columns: 90px 1fr auto; gap: 10px; padding: 3px 8px; cursor: pointer; color: #ddd; }
+.term-sug li b { color: var(--ta); } .term-sug li i { font-style: normal; color: #f5c400; font-size: 10.5px; }
+.term-sug li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.term-sug li.on, .term-sug li:hover { background: var(--ta); color: #000; } .term-sug li.on b, .term-sug li.on i, .term-sug li:hover b, .term-sug li:hover i { color: #000; }
+.term-keys .k-lay { background: #10233f; color: #8fb3ff; border-color: #2a4a7a; }
+.term-grid.zoomed { grid-template-columns: 1fr; grid-template-rows: 1fr; }
+.term-grid.zoomed .tp:not(.zoom) { display: none; }
+.tp-bar { cursor: default; user-select: none; }
+.tc-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; padding: 0 0 3px; }
+.tc-tools button { background: #111; border: 1px solid #2a2a2a; color: #bbb; font: inherit; font-size: 10.5px; padding: 0 5px; cursor: pointer; }
+.tc-tools button.on { background: #3a2400; color: var(--ta); border-color: var(--ta); }
+.tc-tools button:hover { border-color: #666; }
+.tc-tools .sep { width: 8px; }
+.tc-help { margin-left: auto; font-size: 10px; }
+.tc-wrap { flex: 1; min-height: 160px; position: relative; }
+.tc-cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: crosshair; touch-action: none; }
+.tc-msg { font-size: 11px; min-height: 0; }
+.tc-msg:empty { display: none; }
+.tc-table { max-height: 38%; overflow: auto; flex: none; }
+.tc-table:empty { display: none; }
+.term .sw { display: inline-block; width: 9px; height: 9px; margin-right: 6px; vertical-align: middle; }
+.term .spark { display: inline-block; vertical-align: middle; }
+.r52 { display: inline-block; position: relative; width: 60px; height: 4px; background: linear-gradient(90deg, var(--td), #444, var(--tu)); vertical-align: middle; }
+.r52 i { position: absolute; top: -3px; width: 2px; height: 10px; background: #fff; transform: translateX(-1px); }
+.tmap-g { margin-bottom: 6px; }
+.tmap-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 3px; }
+.tmap .term-tile { min-height: 56px; flex: none; }
+.tmap .term-tile b { font-size: 12.5px; }
+.term-t.corr td.n { color: #fff; font-weight: 600; min-width: 52px; }
+.rk-bar { position: relative; display: inline-block; width: 110px; height: 14px; background: #111; vertical-align: middle; }
+.rk-bar i { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(255,159,28,.45); }
+.rk-bar b { position: relative; padding-right: 4px; float: right; color: #fff; font-weight: 400; }
+.dvd-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+.des-spark { display: flex; align-items: center; gap: 8px; padding-top: 4px; }
 @media (max-width: 760px) {
   .term { font-size: 12px; }
   .term-grid { grid-template-columns: 1fr; grid-template-rows: none; grid-auto-rows: minmax(320px, auto); overflow: auto; }
@@ -1468,7 +1505,9 @@ body.term-open { overflow: hidden; }
   .term-msg { display: none; }
   .term-keys { flex-wrap: nowrap; overflow-x: auto; }
   .term-keys button { flex: none; }
-  .des-cols, .mov-cols { grid-template-columns: 1fr; }
+  .des-cols, .mov-cols, .dvd-cols { grid-template-columns: 1fr; }
+  .term-sug { left: 0; min-width: 0; max-width: 100%; right: 0; }
+  .tc-help { display: none; }
   .term-hint { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .term-tape-in { animation-duration: 240s; } }
