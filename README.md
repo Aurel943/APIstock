@@ -202,7 +202,7 @@ js/features.js    temps réel, exposition & frais (coût long terme, équivalent
 js/money.js       versements programmés, liquidités, divisions, ISIN, carte « À faire »
 js/insights.js    risque, rééquilibrage, dividendes à venir, actualités, rapport annuel, alertes push
 js/wealth.js      patrimoine global (autres actifs), phase de retraite
-js/quant.js       labo quant : crash-tests, scénarios à facteurs, risque, régimes (HMM), audit comportemental
+js/labo-quant.js  labo quant (nom choisi pour ne pas être bloqué : « quant.js » figure dans les listes anti-pisteurs) : crash-tests, scénarios à facteurs, risque, régimes (HMM), audit comportemental
 js/fisc.js        fiscalité active : retrait malin (plan de vente au moindre impôt), radar fiscal
 js/copilot.js     copilote Ctrl+K : questions en français, réponses calculées, raccourcis
 js/avis.js        import des avis d'opéré PDF (lecture du texte avec pdf.js)

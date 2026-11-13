@@ -1161,3 +1161,13 @@ body.w-open { overflow: hidden; }
   .wd-form input[type="number"] { width: 100%; } .wd-form label:first-child { flex: 1 1 100%; }
   .wd-orders li { grid-template-columns: minmax(0, 1fr) auto; } .wd-orders li > :nth-child(3) { grid-column: 1 / -1; text-align: left; min-width: 0; }
 }
+
+/* « Tout analyser » : progression étape par étape */
+.q-all-progress { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.q-step { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); font: inherit; font-size: 12.5px; cursor: pointer; }
+.q-step.run { color: var(--text); border-color: var(--accent); }
+.q-step.run span { animation: q-pulse 1s ease-in-out infinite; }
+.q-step.ok { color: var(--up); background: var(--up-bg); border-color: transparent; }
+.q-step.err, .q-step.slow { color: var(--warn-ink); border-color: rgba(245, 158, 11, .5); }
+@keyframes q-pulse { 50% { opacity: .3; } }
+@media (prefers-reduced-motion: reduce) { .q-step.run span { animation: none; } }
