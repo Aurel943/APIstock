@@ -326,11 +326,11 @@ const Api = {
     return data;
   },
 
-  /** Cotation brute d'un symbole Yahoo (indices, devises, matières premières) — mise en cache 30 s */
-  async yahooSymbol(ysym) {
+  /** Cotation brute d'un symbole Yahoo (indices, devises, matières premières) — mise en cache 30 s (ou maxAge ms) */
+  async yahooSymbol(ysym, maxAge = 30000) {
     const ck = 'Y:' + ysym;
     const c = this.quotes[ck];
-    if (c && Date.now() - c.ts < 30000) return c.data;
+    if (c && Date.now() - c.ts < maxAge) return c.data;
     const json = await this.yahoo({ type: 'chart', symbol: ysym, range: '1d', interval: '5m' });
     const r = json.chart && json.chart.result && json.chart.result[0];
     if (!r) throw new ApiError('cours indisponible pour ' + ysym, 404);
