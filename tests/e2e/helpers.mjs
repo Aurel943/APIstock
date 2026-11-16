@@ -51,6 +51,11 @@ export function relayResponse(url, calls) {
     const body = fixture(`${kind}-${slug(q.symbol || '')}`);
     return json(body || { chart: { result: null, error: { code: 'Not Found', description: 'No data found, symbol may be delisted' } } });
   }
+  if (q.type === 'quotes') {
+    // appel groupé du worker : { results: { symbole: réponse chart | null } }
+    const syms = (q.symbols || '').split(',').filter(Boolean);
+    return json('{"results":{' + syms.map(s => JSON.stringify(s) + ':' + (fixture('quote-' + slug(s)) || 'null')).join(',') + '}}');
+  }
   if (q.type === 'search') return json(fixture('search-' + slug(q.q || '')) || { quotes: [] });
   if (q.type === 'news') return json({ news: [], lang: 'fr' });
   if (q.type === 'ogimage') return { status: 404, body: '' };

@@ -57,6 +57,11 @@ function friendlyError(msg) {
   return m;
 }
 
+/** Symboles acceptés par l'appel groupé du relais (même règle que le worker) */
+const SYMBOL_OK = /^[A-Za-z0-9.\-=^&]{1,25}$/;
+/** Symboles par appel groupé (BATCH_MAX du worker) */
+const BATCH = 40;
+
 class ApiError extends Error {
   constructor(message, code) { super(message); this.code = code; }
 }
@@ -148,10 +153,80 @@ const Api = {
     return json;
   },
 
+  /**
+   * Appel groupé au relais (type=quotes) : cours du jour (1d, 5 min) de 40 symboles au plus (BATCH) en une seule requête.
+   * Renvoie { symbole: résultat « chart » ou null }, ou null si le relais ne connaît pas encore cet appel
+   * (worker pas redéployé) : on repasse alors aux appels un par un pour toute la session.
+   */
+  async yahooBatch(syms) {
+    const base = this.proxyUrl();
+    if (this._noBatch || !base || !syms.length) return null;
+    const url = new URL(base, location.href);
+    url.searchParams.set('type', 'quotes');
+    url.searchParams.set('symbols', syms.join(','));
+    this.countRequest('yahoo');
+    let json;
+    try { json = await (await fetch(url.toString())).json(); }
+    catch (e) { throw new ApiError('Relais Yahoo injoignable : ' + friendlyError(e.message), 0); }
+    if (!json || typeof json.results !== 'object' || !json.results) { this._noBatch = true; return null; }
+    const out = {};
+    for (const s of syms) { const j = json.results[s]; out[s] = (j && j.chart && j.chart.result && j.chart.result[0]) || null; }
+    return out;
+  },
+
+  /**
+   * Cotations Yahoo brutes (indices, devises, matières premières…) de plusieurs symboles, par paquets de 40 envoyés en parallèle ;
+   * `onChunk` après chaque paquet. Renvoie la liste des symboles en échec.
+   */
+  async yahooSymbols(syms, onChunk) {
+    const list = Array.from(new Set(syms)), failed = [];
+    const store = (s, r) => { if (r) this.quotes['Y:' + s] = { data: this.parseYahoo(r), ts: Date.now() }; else failed.push(s); };
+    const one = async chunk => {
+      let res = null;
+      if (chunk.every(s => SYMBOL_OK.test(s))) {
+        try { res = await this.yahooBatch(chunk); } catch (e) { chunk.forEach(s => failed.push(s)); return; }
+      }
+      if (res) chunk.forEach(s => store(s, res[s]));
+      else {
+        // relais sans appel groupé : un par un, 8 à la fois
+        for (let i = 0; i < chunk.length; i += 8) {
+          await Promise.all(chunk.slice(i, i + 8).map(s => this.yahooSymbol(s, 0).catch(() => failed.push(s))));
+        }
+      }
+    };
+    // un symbole que le relais refuserait ferait échouer tout le paquet : celui-là part seul
+    const ok = list.filter(s => SYMBOL_OK.test(s)), chunks = list.filter(s => !SYMBOL_OK.test(s)).map(s => [s]);
+    for (let i = 0; i < ok.length; i += BATCH) chunks.push(ok.slice(i, i + BATCH));
+    await Promise.all(chunks.map(c => one(c).then(() => { if (onChunk) onChunk(c); })));
+    return failed;
+  },
+
+  /** Portefeuille : charge d'un coup les cours Yahoo des valeurs suivies, repris ensuite par yahooQuote (sans nouvel appel) */
+  async prefetchYahoo(keys) {
+    if (this._noBatch || !this.hasProxy()) return;
+    const bySym = {};
+    for (const k of keys) { const s = yahooSymbolFor(Store.instrument(k)); if (s && SYMBOL_OK.test(s)) bySym[s] = k; }
+    const syms = Object.keys(bySym);
+    if (syms.length < 2) return; // une seule valeur : l'appel normal suffit
+    this._pre = this._pre || {};
+    for (let i = 0; i < syms.length; i += BATCH) {
+      let res = null;
+      try { res = await this.yahooBatch(syms.slice(i, i + BATCH)); } catch (e) { return; }
+      if (!res) return;
+      for (const [s, r] of Object.entries(res)) if (r) this._pre[s] = { r, ts: Date.now() };
+    }
+  },
+
   async yahooChart(key, params) {
     const inst = Store.instrument(key);
     const ysym = yahooSymbolFor(inst);
     if (!ysym) throw new ApiError('Symbole Yahoo inconnu pour ' + Store.label(key), 404);
+    // cours du jour déjà reçus par l'appel groupé (prefetchYahoo) il y a moins de 5 s
+    const pre = this._pre && this._pre[ysym];
+    if (pre && params.range === '1d' && params.interval === '5m' && Object.keys(params).length === 2) {
+      delete this._pre[ysym];
+      if (Date.now() - pre.ts < 5000) return pre.r;
+    }
     const json = await this.yahoo(Object.assign({ type: 'chart', symbol: ysym }, params));
     const r = json.chart && json.chart.result && json.chart.result[0];
     if (!r) throw new ApiError('cours indisponible pour ' + ysym, 404);

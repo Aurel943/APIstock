@@ -791,3 +791,58 @@ test('mode terminal (commandes, touches F), scanner de signaux et radiographie',
   await page.keyboard.press('Escape');
   assert.ok(await page.locator('#term').evaluate(t => t.classList.contains('hidden')));
 }));
+
+test('terminal : fréquence RFR (barre du haut, liste mobile, commande) et appel groupé au relais', () => run({ state: sampleState({ settings: { baseCurrency: 'EUR', refreshSec: 60 } }) }, async ({ page, calls }) => {
+  await page.click('#tabMoreBtn');
+  await page.click('#termOpen');
+  await page.waitForSelector('#term:not(.hidden) #termPort tbody tr');
+  const lit = () => page.evaluate(() => $$('#termRfr .k-rfr.on').map(b => b.textContent).join(','));
+  assert.equal(await lit(), '1M', 'réglage en cours allumé');
+  await page.click('#termRfr .k-rfr[data-rfr="1"]');
+  assert.equal(await lit(), '1S');
+  assert.equal(await page.evaluate(() => Store.state.settings.refreshSec), 1, 'réglage commun modifié');
+  assert.equal(await page.evaluate(() => $('#setRefresh').value), '1', 'Réglages suit');
+  await page.fill('#termCmd', 'WEI'); await page.keyboard.press('Enter');
+  // à la seconde, les cotations Yahoo du terminal partent par paquets (type=quotes), pas une requête par symbole
+  const n0 = calls.length;
+  await page.waitForTimeout(3500);
+  const recent = calls.slice(n0);
+  const batches = recent.filter(q => q.type === 'quotes');
+  assert.ok(batches.length >= 2, 'appels groupés à chaque tour');
+  assert.ok(batches.every(q => q.symbols.split(',').length <= 40), '40 symboles au plus par appel');
+  assert.ok(batches.some(q => ['CW8.PA', 'ESE.PA'].every(s => q.symbols.split(',').includes(s))), 'valeurs du portefeuille groupées');
+  assert.ok(!batches.some(q => q.symbols.split(',').includes('^GSPC')), 'indice sans cours (pas de réponse simulée) : pas redemandé avant 60 s');
+  assert.equal(recent.filter(q => q.type === 'chart' && !q.period1 && !q.events && ['CW8.PA', 'ESE.PA'].includes(q.symbol)).length, 0, 'portefeuille : pas d\'appel un par un');
+  assert.equal(recent.filter(q => q.type === 'chart' && !q.period1 && !q.events && q.symbol && q.symbol.startsWith('^')).length, 0, 'pas d\'appel un par un pour les indices');
+  assert.match(await page.locator('#termStatus').innerText(), /RFR\s+1S/);
+  // commande RFR, puis OFF : plus aucun appel automatique
+  await page.fill('#termCmd', 'RFR 5M'); await page.keyboard.press('Enter');
+  assert.equal(await lit(), '5M');
+  await page.fill('#termCmd', 'RFR OFF'); await page.keyboard.press('Enter');
+  assert.equal(await lit(), 'OFF');
+  await page.waitForTimeout(1500);
+  const n1 = calls.length;
+  await page.waitForTimeout(3000);
+  assert.equal(calls.length, n1, 'OFF : aucun appel');
+  // mobile : liste déroulante à la place des boutons
+  await page.setViewportSize({ width: 390, height: 800 });
+  assert.ok(await page.locator('#termRfrSel').isVisible());
+  assert.ok(!(await page.locator('#termRfr .k-rfr').first().isVisible()));
+  await page.selectOption('#termRfrSel', '15');
+  assert.equal(await page.evaluate(() => Store.state.settings.refreshSec), 15);
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'pas de débordement horizontal');
+}));
+
+test('terminal : relais sans appel groupé (worker pas redéployé) → cotations une par une', () => run({ state: sampleState({ settings: { baseCurrency: 'EUR', refreshSec: 1 } }) }, async ({ page, context }) => {
+  // le relais simulé répond comme un ancien worker à type=quotes
+  await context.route('https://apistock-yahoo.aurelien-potot.workers.dev/**', route => {
+    if (new URL(route.request().url()).searchParams.get('type') === 'quotes') return route.fulfill({ status: 400, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: '{"error":"requête invalide"}' });
+    return route.fallback();
+  });
+  await page.click('#tabMoreBtn');
+  await page.click('#termOpen');
+  await page.waitForSelector('#term:not(.hidden) #termPort tbody tr');
+  await page.waitForFunction(() => Api._noBatch === true && Api.cachedQuote('SPY@ARCX'));
+  await page.fill('#termCmd', 'SPY US DES'); await page.keyboard.press('Enter');
+  await page.waitForFunction(() => /\d/.test(($('#termGrid .des-head b') || {}).textContent || ''));
+}));

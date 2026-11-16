@@ -79,3 +79,30 @@ test('actualités : lecture des flux RSS Yahoo France et Google Actualités', ()
   assert.equal(g[0].title, 'PEA : les ETF monde restent éligibles');
   assert.equal(g[0].publisher, 'Boursorama');
 });
+
+test('appel groupé type=quotes : une requête, une réponse Yahoo par symbole, symboles refusés', async () => {
+  const seen = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async u => {
+    const url = new URL(String(u));
+    seen.push(url);
+    const sym = decodeURIComponent(url.pathname.split('/').pop());
+    if (sym === 'BAD') return new Response('<html>erreur</html>', { status: 500 });
+    return new Response(JSON.stringify({ chart: { result: [{ meta: { symbol: sym, regularMarketPrice: 1 } }], error: null } }), { status: 200 });
+  };
+  try {
+    const call = qs => W.__worker.fetch(new Request('https://w/?' + qs), {});
+    const r = await call('type=quotes&symbols=' + encodeURIComponent('^GSPC,GC=F,BAD,^GSPC'));
+    assert.equal(r.status, 200);
+    const j = await r.json();
+    assert.deepEqual(Object.keys(j.results), ['^GSPC', 'GC=F', 'BAD'], 'doublons retirés');
+    assert.equal(j.results['^GSPC'].chart.result[0].meta.symbol, '^GSPC');
+    assert.equal(j.results['GC=F'].chart.result[0].meta.regularMarketPrice, 1);
+    assert.equal(j.results.BAD, null, 'réponse non JSON → null');
+    assert.equal(seen.length, 3);
+    assert.ok(seen.every(u => u.searchParams.get('range') === '1d' && u.searchParams.get('interval') === '5m'));
+    // 41 symboles, symbole invalide, liste vide : refusés
+    const many = Array.from({ length: 41 }, (_, i) => 'S' + i).join(',');
+    for (const qs of ['type=quotes&symbols=' + many, 'type=quotes&symbols=' + encodeURIComponent('A,B C'), 'type=quotes']) assert.equal((await call(qs)).status, 400, qs);
+  } finally { globalThis.fetch = realFetch; }
+});

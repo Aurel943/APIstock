@@ -387,6 +387,8 @@ const App = {
           if (e.code === 401) throw e; // clé invalide : inutile d'insister
         }
       };
+      // un seul appel groupé au relais pour toutes les valeurs Yahoo (si le worker le permet), repris ensuite valeur par valeur
+      await Api.prefetchYahoo(yahoo).catch(() => {});
       try { for (let i = 0; i < yahoo.length; i += 4) await Promise.all(yahoo.slice(i, i + 4).map(one)); } catch (e) { /* déjà compté */ }
       try { for (const k of twelve) await one(k); } catch (e) { /* clé invalide */ }
       for (const k of keys) { const i = Store.instrument(k); if (i && i.currency) currencies.add(i.currency); }

@@ -300,11 +300,13 @@ Object.assign(App, {
     input.addEventListener('blur', () => setTimeout(() => this.termSuggest(''), 150));
     $('#termClose').addEventListener('click', () => this.closeTerminal());
     $$('#termKeys button').forEach(b => b.addEventListener('click', () => {
-      if (b.dataset.rfr !== undefined) this.termSetRefresh(+b.dataset.rfr);
-      else if (b.dataset.cmd) this.termCommand(b.dataset.cmd);
+      if (b.dataset.cmd) this.termCommand(b.dataset.cmd);
       else if (b.dataset.ins) { input.value = (input.value.trim() + ' ' + b.dataset.ins).trim() + ' '; input.focus(); }
       else if (b.dataset.go !== undefined) { const v = input.value; input.value = ''; this.termSuggest(''); this.termCommand(v); input.focus(); }
     }));
+    // fréquence de rafraîchissement : boutons (barre du haut) ou liste (mobile)
+    $$('#termRfr .k-rfr').forEach(b => b.addEventListener('click', () => this.termSetRefresh(+b.dataset.rfr)));
+    $('#termRfrSel').addEventListener('change', e => this.termSetRefresh(+e.target.value));
     const fkeys = { F1: 'HELP', F2: 'SCAN', F3: 'WEI', F4: 'XRAY', F5: 'FX', F6: 'CMDTY', F7: 'MOV', F8: 'TOP', F9: 'DES', F10: 'EXIT', F11: 'GP', F12: 'COMP' };
     document.addEventListener('keydown', e => {
       if (!this.termOn) return;
@@ -561,7 +563,9 @@ Object.assign(App, {
   termRfrLabel(sec) { return !sec ? 'OFF' : sec < 60 ? sec + 'S' : sec / 60 + 'M'; },
   renderTermRfr() {
     const cur = parseInt(Store.state.settings.refreshSec, 10) || 0;
-    $$('#termKeys .k-rfr').forEach(b => { const on = +b.dataset.rfr === cur; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
+    $$('#termRfr .k-rfr').forEach(b => { const on = +b.dataset.rfr === cur; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
+    const sel = $('#termRfrSel');
+    if (sel && TERM_RFR.includes(cur)) sel.value = String(cur);
   },
   /** Requêtes au relais envoyées par ce navigateur sur la dernière minute (pour surveiller le quota de 100 000/jour) */
   termSampleReq() {
@@ -583,24 +587,28 @@ Object.assign(App, {
    */
   termNeed(syms) {
     if (!Api.hasProxy()) return;
+    // les fenêtres et le bandeau d'un même rendu sont regroupés : un seul envoi, en paquets de 40
+    const want = this._termWant = this._termWant || new Set();
+    for (const y of syms) want.add(y);
+    if (!this._termFlushT) this._termFlushT = setTimeout(() => { this._termFlushT = 0; this.termFlush(); }, 0);
+  },
+  termFlush() {
+    const want = Array.from(this._termWant || []);
+    this._termWant = new Set();
     this._termLoaded = this._termLoaded || {};
     const fly = this._termFly = this._termFly || new Set();
     const before = this.termStaleBefore();
     const at = y => Math.max(this._termLoaded[y] || 0, (Api.quotes['Y:' + y] || {}).ts || 0);
     // jamais chargés d'abord, puis les plus anciens
-    const todo = Array.from(new Set(syms)).filter(y => !fly.has(y) && at(y) < before).sort((a, b) => at(a) - at(b));
+    const todo = want.filter(y => !fly.has(y) && at(y) < before).sort((a, b) => at(a) - at(b));
     if (!todo.length) return;
     for (const y of todo) fly.add(y);
-    (async () => {
-      for (let i = 0; i < todo.length; i += 8) {
-        await Promise.all(todo.slice(i, i + 8).map(y => Api.yahooSymbol(y, 0)
-          .then(() => { this._termLoaded[y] = Date.now(); })
-          .catch(() => { this._termLoaded[y] = Date.now() + 60000; })
-          .finally(() => fly.delete(y))));
-        if (!this.termOn) { todo.slice(i + 8).forEach(y => fly.delete(y)); return; }
-        this.termSoon();
-      }
-    })();
+    // appel groupé : 40 cotations par requête au relais (un par un si le worker n'est pas à jour)
+    Api.yahooSymbols(todo, chunk => {
+      for (const y of chunk) { fly.delete(y); if (!(this._termLoaded[y] > Date.now())) this._termLoaded[y] = Date.now(); }
+      if (this.termOn) this.termSoon();
+    }).then(failed => { for (const y of failed) this._termLoaded[y] = Date.now() + 60000; })
+      .catch(() => {}).finally(() => todo.forEach(y => fly.delete(y)));
   },
   termNeedKey(key) {
     if (!key) return;
@@ -1473,7 +1481,7 @@ TOI       PORT  portefeuille   MON  suivi (ADD / DEL <valeur>)   HEAT  chaleur
 ÉCRANS    LAY 1 défaut · 2 marchés · 3 valeur · 4 matières premières
           5 risque · 6 veille        ZOOM  agrandir la fenêtre active
           RFR   rafraîchissement : RFR 1 (chaque seconde), 5, 15, 30,
-                1M, 2M, 5M, 15M ou OFF (aussi boutons RFR en haut)
+                1M, 2M, 5M, 15M ou OFF (ou boutons RFR en haut à droite)
 
 TOUCHES   F1 AIDE F2 SCAN F3 WEI F4 XRAY F5 FX F6 CMDTY F7 MOV F8 TOP
           F9 DES F10 QUITTER F11 GP F12 COMP · ÉCHAP quitter

@@ -8,7 +8,7 @@
  *   4. Copie l'URL du worker (https://apistock-yahoo.<ton-compte>.workers.dev)
  *      dans APIstock → Réglages → « Relais Yahoo Finance »
  *
- * Appels Yahoo autorisés, en lecture seule : graphique/cotation (avec dividendes et divisions), recherche, actualités en français (flux RSS Yahoo Finance France et Google Actualités) et image des articles.
+ * Appels Yahoo autorisés, en lecture seule : graphique/cotation (avec dividendes et divisions), cotations groupées (type=quotes, 40 symboles par requête), recherche, actualités en français (flux RSS Yahoo Finance France et Google Actualités) et image des articles.
  * Pour réserver le relais à ton site, liste ses adresses ci-dessous.
  *
  * Compteur global (optionnel) : nombre de requêtes reçues aujourd'hui par le worker,
@@ -65,6 +65,31 @@ function buildUpstream(q) {
     return u;
   }
   return null;
+}
+
+/*
+ * Appel groupé : ?type=quotes&symbols=A,B,C (40 symboles au plus) → { results: { A: <réponse chart Yahoo>, B: null… } }
+ * Le worker interroge Yahoo pour chaque symbole (cours du jour en 5 min, comme type=chart&range=1d&interval=5m)
+ * mais ne compte qu'une requête sur le quota gratuit (100 000/jour) : de quoi tenir le rafraîchissement à la seconde.
+ * Les réponses de Yahoo sont recopiées telles quelles (pas d'analyse JSON : peu de temps de calcul).
+ */
+const BATCH_MAX = 40; // plan gratuit Cloudflare : 50 sous-requêtes au plus par appel
+async function handleQuotes(q, cors) {
+  const syms = Array.from(new Set((q.get('symbols') || '').split(',').map(s => s.trim()).filter(Boolean)));
+  if (!syms.length || syms.length > BATCH_MAX || !syms.every(s => SYMBOL_RE.test(s))) return json({ error: 'requête invalide' }, 400, cors);
+  const parts = await Promise.all(syms.map(async s => {
+    const u = new URL('https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(s));
+    u.searchParams.set('range', '1d');
+    u.searchParams.set('interval', '5m');
+    u.searchParams.set('includePrePost', 'false');
+    try {
+      const r = await fetch(u, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; APIstock/1.0)', Accept: 'application/json' }, cf: { cacheTtl: 1, cacheEverything: true } });
+      const t = (await r.text()).trim();
+      return t.startsWith('{') && t.endsWith('}') ? t : null;
+    } catch (e) { return null; }
+  }));
+  const body = '{"results":{' + syms.map((s, i) => JSON.stringify(s) + ':' + (parts[i] || 'null')).join(',') + '}}';
+  return new Response(body, { status: 200, headers: Object.assign({ 'Content-Type': 'application/json; charset=utf-8' }, cors) });
 }
 
 /* ---- Actualités en français : Yahoo Finance France et Google Actualités (RSS), Yahoo en anglais en secours ---- */
@@ -413,6 +438,7 @@ export default {
     if (request.method !== 'GET') return json({ error: 'method not allowed' }, 405, cors);
 
     if (q.get('type') === 'ping') return json({ ok: true }, 200, cors);
+    if (q.get('type') === 'quotes') return handleQuotes(q, cors);
     if (q.get('type') === 'ogimage') {
       // redirige vers l'image de l'article (mise en cache une journée), 404 s'il n'en a pas
       let target;
