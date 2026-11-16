@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=41188d9ce6">
+  <link rel="stylesheet" href="css/style.css?v=f5a514b929">
 </head>
 <body>
   <header class="topbar">
@@ -1178,6 +1178,17 @@
       <button type="button" class="k-lay" data-cmd="LAY 4">MAT. PREM.</button>
       <button type="button" class="k-lay" data-cmd="LAY 5">RISQUE</button>
       <button type="button" class="k-lay" data-cmd="LAY 6">VEILLE</button>
+      <span class="k-sep"></span>
+      <span class="k-lbl" title="Rafraîchissement automatique des cours (même réglage que dans Réglages)">RFR</span>
+      <button type="button" class="k-rfr" data-rfr="1" title="Toutes les secondes">1S</button>
+      <button type="button" class="k-rfr" data-rfr="5" title="Toutes les 5 secondes">5S</button>
+      <button type="button" class="k-rfr" data-rfr="15" title="Toutes les 15 secondes">15S</button>
+      <button type="button" class="k-rfr" data-rfr="30" title="Toutes les 30 secondes">30S</button>
+      <button type="button" class="k-rfr" data-rfr="60" title="Toutes les minutes">1M</button>
+      <button type="button" class="k-rfr" data-rfr="120" title="Toutes les 2 minutes">2M</button>
+      <button type="button" class="k-rfr" data-rfr="300" title="Toutes les 5 minutes">5M</button>
+      <button type="button" class="k-rfr" data-rfr="900" title="Toutes les 15 minutes">15M</button>
+      <button type="button" class="k-rfr" data-rfr="0" title="Rafraîchissement automatique désactivé">OFF</button>
     </div>
     <div class="term-tape" id="termTape"></div>
     <div class="term-grid" id="termGrid"></div>
@@ -1227,40 +1238,40 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-  <script src="js/utils.js?v=41188d9ce6"></script>
-  <script src="js/store.js?v=41188d9ce6"></script>
-  <script src="js/api.js?v=41188d9ce6"></script>
-  <script src="js/markets.js?v=41188d9ce6"></script>
-  <script src="js/portfolio.js?v=41188d9ce6"></script>
-  <script src="js/charts.js?v=41188d9ce6"></script>
-  <script src="js/app.js?v=41188d9ce6"></script>
-  <script src="js/views.js?v=41188d9ce6"></script>
-  <script src="js/compare.js?v=41188d9ce6"></script>
-  <script src="js/extras.js?v=41188d9ce6"></script>
-  <script src="js/mobile.js?v=41188d9ce6"></script>
-  <script src="js/features.js?v=41188d9ce6"></script>
-  <script src="js/money.js?v=41188d9ce6"></script>
-  <script src="js/newsart.js?v=41188d9ce6"></script>
-  <script src="js/insights.js?v=41188d9ce6"></script>
-  <script src="js/wealth.js?v=41188d9ce6"></script>
-  <script src="js/avis.js?v=41188d9ce6"></script>
-  <script src="js/manual.js?v=41188d9ce6"></script>
-  <script src="js/health.js?v=41188d9ce6"></script>
-  <script src="js/agenda.js?v=41188d9ce6"></script>
-  <script src="js/catalog.js?v=41188d9ce6"></script>
-  <script src="js/goals.js?v=41188d9ce6"></script>
-  <script src="js/optimizer.js?v=41188d9ce6"></script>
-  <script src="js/treemap.js?v=41188d9ce6"></script>
-  <script src="js/wrapped.js?v=41188d9ce6"></script>
-  <script src="js/lab.js?v=41188d9ce6"></script>
-  <script src="js/share.js?v=41188d9ce6"></script>
-  <script src="js/labo-quant.js?v=41188d9ce6"></script>
-  <script src="js/fisc.js?v=41188d9ce6"></script>
-  <script src="js/desk.js?v=41188d9ce6"></script>
-  <script src="js/arena.js?v=41188d9ce6"></script>
-  <script src="js/institut.js?v=41188d9ce6"></script>
-  <script src="js/termchart.js?v=41188d9ce6"></script>
-  <script src="js/terminal.js?v=41188d9ce6"></script>
-  <script src="js/copilot.js?v=41188d9ce6"></script>
+  <script src="js/utils.js?v=f5a514b929"></script>
+  <script src="js/store.js?v=f5a514b929"></script>
+  <script src="js/api.js?v=f5a514b929"></script>
+  <script src="js/markets.js?v=f5a514b929"></script>
+  <script src="js/portfolio.js?v=f5a514b929"></script>
+  <script src="js/charts.js?v=f5a514b929"></script>
+  <script src="js/app.js?v=f5a514b929"></script>
+  <script src="js/views.js?v=f5a514b929"></script>
+  <script src="js/compare.js?v=f5a514b929"></script>
+  <script src="js/extras.js?v=f5a514b929"></script>
+  <script src="js/mobile.js?v=f5a514b929"></script>
+  <script src="js/features.js?v=f5a514b929"></script>
+  <script src="js/money.js?v=f5a514b929"></script>
+  <script src="js/newsart.js?v=f5a514b929"></script>
+  <script src="js/insights.js?v=f5a514b929"></script>
+  <script src="js/wealth.js?v=f5a514b929"></script>
+  <script src="js/avis.js?v=f5a514b929"></script>
+  <script src="js/manual.js?v=f5a514b929"></script>
+  <script src="js/health.js?v=f5a514b929"></script>
+  <script src="js/agenda.js?v=f5a514b929"></script>
+  <script src="js/catalog.js?v=f5a514b929"></script>
+  <script src="js/goals.js?v=f5a514b929"></script>
+  <script src="js/optimizer.js?v=f5a514b929"></script>
+  <script src="js/treemap.js?v=f5a514b929"></script>
+  <script src="js/wrapped.js?v=f5a514b929"></script>
+  <script src="js/lab.js?v=f5a514b929"></script>
+  <script src="js/share.js?v=f5a514b929"></script>
+  <script src="js/labo-quant.js?v=f5a514b929"></script>
+  <script src="js/fisc.js?v=f5a514b929"></script>
+  <script src="js/desk.js?v=f5a514b929"></script>
+  <script src="js/arena.js?v=f5a514b929"></script>
+  <script src="js/institut.js?v=f5a514b929"></script>
+  <script src="js/termchart.js?v=f5a514b929"></script>
+  <script src="js/terminal.js?v=f5a514b929"></script>
+  <script src="js/copilot.js?v=f5a514b929"></script>
 </body>
 </html>

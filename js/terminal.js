@@ -29,8 +29,8 @@ const XRAY_HOLDINGS = {
   gold: [['Or physique', 100]],
   crypto: [['Crypto-actifs', 100]],
 };
-/* Rafraîchissement des tableaux du terminal : 2 requêtes/s en régime établi (≈ 7 200/h), 8 d'un coup au plus */
-const TERM_RATE = 2, TERM_BURST = 8;
+/* Périodes de rafraîchissement proposées (secondes, 0 : désactivé), les mêmes que dans Réglages */
+const TERM_RFR = [1, 5, 15, 30, 60, 120, 300, 900, 0];
 
 const XRAY_MAG7 =['NVIDIA', 'Microsoft', 'Apple', 'Amazon', 'Alphabet', 'Meta', 'Tesla'];
 
@@ -263,6 +263,7 @@ Object.assign(App, {
     clearInterval(this._termClock);
     this._termClock = setInterval(() => this.renderTermClock(), 1000);
     this.termSchedule();
+    this.renderTermRfr();
     this.renderTerminal();
     $('#termCmd').focus();
     if (!this.scanResult || Date.now() - this.scanResult.at > 10 * 60000) this.runScan();
@@ -299,7 +300,8 @@ Object.assign(App, {
     input.addEventListener('blur', () => setTimeout(() => this.termSuggest(''), 150));
     $('#termClose').addEventListener('click', () => this.closeTerminal());
     $$('#termKeys button').forEach(b => b.addEventListener('click', () => {
-      if (b.dataset.cmd) this.termCommand(b.dataset.cmd);
+      if (b.dataset.rfr !== undefined) this.termSetRefresh(+b.dataset.rfr);
+      else if (b.dataset.cmd) this.termCommand(b.dataset.cmd);
       else if (b.dataset.ins) { input.value = (input.value.trim() + ' ' + b.dataset.ins).trim() + ' '; input.focus(); }
       else if (b.dataset.go !== undefined) { const v = input.value; input.value = ''; this.termSuggest(''); this.termCommand(v); input.focus(); }
     }));
@@ -404,6 +406,11 @@ Object.assign(App, {
     const pane = this.termPanes[paneIdx];
     const head = toks[0];
     // commandes à arguments
+    if (head === 'RFR') {
+      const v = { OFF: 0, '1M': 60, '2M': 120, '5M': 300, '15M': 900 }[toks[1]] ?? parseInt(toks[1], 10);
+      if (!TERM_RFR.includes(v)) { this.termMsg('> RFR 1, 5, 15, 30 (secondes), 1M, 2M, 5M, 15M ou OFF', true); return; }
+      this.termSetRefresh(v); return;
+    }
     if (head === 'LAY' || head === 'LAYOUT') {
       const L = TERM_LAYOUTS[toks[1]];
       if (!L) { this.termMsg('> LAY 1 à ' + Object.keys(TERM_LAYOUTS).length + ' : ' + Object.entries(TERM_LAYOUTS).map(([k, l]) => k + ' ' + l.name).join(' · '), true); return; }
@@ -524,59 +531,80 @@ Object.assign(App, {
 
   /** Période de rafraîchissement du terminal en ms (0 : désactivé) */
   termRefreshMs() { const s = parseInt(Store.state.settings.refreshSec, 10); return s > 0 ? s * 1000 : 0; },
-  /** Âge au-delà duquel une cotation affichée est rechargée (un peu de marge pour ne pas sauter un tour) */
-  termMaxAge() { const ms = this.termRefreshMs(); return ms ? ms - Math.min(ms / 2, 2000) : 60000; },
+  /** Une cotation chargée avant cet instant est à recharger : une fois par tour de rafraîchissement (60 s si désactivé) */
+  termStaleBefore() { const ms = this.termRefreshMs(); return Math.max(ms ? this._termTickAt || 0 : 0, Date.now() - Math.max(ms, 60000)); },
   /** Tour de rafraîchissement ; relit le réglage à chaque tour (au plus 5 s pour prendre en compte un changement) */
   termSchedule() {
     clearTimeout(this._termRefresh);
     const ms = this.termRefreshMs();
     this._termRefresh = setTimeout(() => {
       if (!this.termOn) return;
+      this.termSampleReq();
       if (ms && !document.hidden && Date.now() - (this._termTickAt || 0) >= ms - 50) { this._termTickAt = Date.now(); this.renderTerminal(); }
+      else this.renderTermStatus();
       this.termSchedule();
     }, ms ? Math.min(ms, 5000) : 5000);
   },
-  /**
-   * Jetons de rafraîchissement : au plus TERM_RATE requêtes par seconde pour remettre à jour les tableaux,
-   * pour ne pas épuiser le quota du relais (100 000 requêtes/jour) quand le terminal tourne à la seconde.
-   */
-  termTake(n) {
-    const now = Date.now(), b = this._termBucket || (this._termBucket = { t: now, tokens: TERM_BURST });
-    b.tokens = Math.min(TERM_BURST, b.tokens + (now - b.t) / 1000 * TERM_RATE);
-    b.t = now;
-    const k = Math.max(0, Math.min(n, Math.floor(b.tokens)));
-    b.tokens -= k;
-    return k;
+  /** Boutons RFR / commande RFR : change le réglage commun (Réglages, rafraîchissement du portefeuille compris) */
+  termSetRefresh(sec) {
+    Store.state.settings.refreshSec = sec;
+    Store.save();
+    this.schedule();
+    const sel = $('#setRefresh');
+    if (sel) sel.value = String(sec);
+    if (typeof Api.emitUsage === 'function') Api.emitUsage();
+    this._termTickAt = 0;
+    this.termSchedule();
+    this.termMsg(`> RFR ${this.termRfrLabel(sec)} ✓`);
+    this.renderTerminal();
+  },
+  termRfrLabel(sec) { return !sec ? 'OFF' : sec < 60 ? sec + 'S' : sec / 60 + 'M'; },
+  renderTermRfr() {
+    const cur = parseInt(Store.state.settings.refreshSec, 10) || 0;
+    $$('#termKeys .k-rfr').forEach(b => { const on = +b.dataset.rfr === cur; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
+  },
+  /** Requêtes au relais envoyées par ce navigateur sur la dernière minute (pour surveiller le quota de 100 000/jour) */
+  termSampleReq() {
+    const now = Date.now(), n = (Api.dailyCount().yahoo || 0), S = this._termReq = this._termReq || [];
+    if (S.length && n < S[S.length - 1][1]) S.length = 0; // compteur remis à zéro à minuit
+    S.push([now, n]);
+    while (S.length > 2 && S[0][0] < now - 60000) S.shift();
+  },
+  termReqPerMin() {
+    const S = this._termReq || [];
+    if (S.length < 2) return null;
+    const [t0, n0] = S[0], [t1, n1] = S[S.length - 1];
+    return t1 - t0 >= 5000 ? Math.round((n1 - n0) / ((t1 - t0) / 60000)) : null;
   },
 
   /**
-   * Charge en arrière-plan les cours Yahoo manquants ou trop anciens, puis réaffiche.
-   * Les cours jamais chargés partent tout de suite ; les mises à jour passent par les jetons (les plus anciennes d'abord),
-   * sauf `live` (la valeur sélectionnée), remise à jour à chaque tour.
+   * Charge en arrière-plan les cours Yahoo manquants ou plus anciens que la période de rafraîchissement, puis réaffiche.
+   * Une requête déjà en cours n'est pas relancée ; un symbole en échec attend 60 s avant un nouvel essai.
    */
-  termNeed(syms, live = false) {
+  termNeed(syms) {
     if (!Api.hasProxy()) return;
     this._termLoaded = this._termLoaded || {};
-    const now = Date.now(), maxAge = this.termMaxAge();
+    const fly = this._termFly = this._termFly || new Set();
+    const before = this.termStaleBefore();
     const at = y => Math.max(this._termLoaded[y] || 0, (Api.quotes['Y:' + y] || {}).ts || 0);
-    const stale = Array.from(new Set(syms)).filter(y => !(at(y) > now - maxAge));
-    if (!stale.length) return;
-    const missing = stale.filter(y => !at(y));
-    const old = stale.filter(y => at(y)).sort((a, b) => at(a) - at(b));
-    const todo = live ? stale : missing.concat(old.slice(0, this.termTake(old.length)));
+    // jamais chargés d'abord, puis les plus anciens
+    const todo = Array.from(new Set(syms)).filter(y => !fly.has(y) && at(y) < before).sort((a, b) => at(a) - at(b));
     if (!todo.length) return;
-    for (const y of todo) this._termLoaded[y] = now;
+    for (const y of todo) fly.add(y);
     (async () => {
-      for (let i = 0; i < todo.length; i += 4) {
-        await Promise.all(todo.slice(i, i + 4).map(y => Api.yahooSymbol(y, maxAge).catch(() => null)));
-        if (!this.termOn) return;
+      for (let i = 0; i < todo.length; i += 8) {
+        await Promise.all(todo.slice(i, i + 8).map(y => Api.yahooSymbol(y, 0)
+          .then(() => { this._termLoaded[y] = Date.now(); })
+          .catch(() => { this._termLoaded[y] = Date.now() + 60000; })
+          .finally(() => fly.delete(y))));
+        if (!this.termOn) { todo.slice(i + 8).forEach(y => fly.delete(y)); return; }
         this.termSoon();
       }
     })();
   },
   termNeedKey(key) {
     if (!key) return;
-    if (key.startsWith('Y:')) this.termNeed([key.slice(2)], true);
+    if (key.startsWith('Y:')) this.termNeed([key.slice(2)]);
     else if (!Api.cachedQuote(key) && Api.ready() && !(this._termQ || {})[key]) {
       (this._termQ = this._termQ || {})[key] = 1;
       Api.quote(key).then(() => this.termSoon()).catch(() => {});
@@ -670,7 +698,11 @@ Object.assign(App, {
     if (pr) pr.textContent = `${this.termActive + 1}<`;
     const relay = Api.hasProxy() ? el('span', { class: 'tu' }, '● RELAIS EN LIGNE') : el('span', { class: 'td' }, '● RELAIS HORS LIGNE');
     const nq = Object.keys(Api.quotes || {}).length;
+    const rpm = this.termReqPerMin(), today = Api.dailyCount().yahoo || 0;
     s.replaceChildren(el('span', {}, `FENÊTRE ${this.termActive + 1}${this.termZoom >= 0 ? ' (ZOOM)' : ''}`), el('span', {}, `${p.fn}`), el('span', {}, 'VALEUR ', el('b', {}, this.termSym(this.termKey))), relay,
+      el('span', {}, 'RFR ', el('b', {}, this.termRfrLabel(parseInt(Store.state.settings.refreshSec, 10) || 0))),
+      el('span', { class: today > 80000 ? 'td' : '', title: 'Requêtes au relais envoyées par ce navigateur (quota gratuit du relais : 100 000 par jour, tous appareils confondus)' },
+        `${rpm === null ? '…' : fmtNum(rpm, 0)} REQ/MIN · ${fmtNum(today, 0)} AUJ.`),
       el('span', {}, `${nq} COTATIONS`), el('span', { class: 'term-hint' }, 'TAB COMPLÉTER · ↑↓ HISTORIQUE · ALT+1…4 FENÊTRE · ALT+Z ZOOM · LAY 1-6 · F1 AIDE'));
   },
 
@@ -683,9 +715,18 @@ Object.assign(App, {
     const items = [];
     for (const k of Store.trackedKeys()) { const q = Api.cachedQuote(k); if (q && q.price > 0) items.push([Store.instrument(k).symbol, q.price, q.percentChange]); }
     const ys = [...MACRO.map(m => m.y), ...EXCHANGES.map(e => e.index.y), 'GC=F', 'SI=F', 'CL=F', 'NG=F', 'HG=F', 'ZW=F', 'KC=F', 'CC=F', 'BTC-USD', 'ETH-USD', '^TNX', 'DX-Y.NYB'];
+    this.termNeed(ys); // le bandeau suit aussi le rafraîchissement
     for (const y of new Set(ys)) { const q = this.idxQuote(y); if (q && q.price > 0) items.push([TERM_SHORT[y] || termName(y), q.price, q.percentChange]); }
-    const tape = items.map(([n, p, ch]) => el('span', { class: 'term-tk' }, el('b', {}, n), ' ', fmtNum(p, p < 10 ? 4 : 2), ' ', el('span', { class: pc(ch) }, (ch >= 0 ? '▲' : '▼') + fmtNum(Math.abs(ch || 0), 2) + '%')));
-    $('#termTape').replaceChildren(el('div', { class: 'term-tape-in' }, ...tape, ...tape.map(n => n.cloneNode(true))));
+    const tk = ([n, p, ch]) => [el('b', {}, n), ' ', fmtNum(p, p < 10 ? 4 : 2), ' ', el('span', { class: pc(ch) }, (ch >= 0 ? '▲' : '▼') + fmtNum(Math.abs(ch || 0), 2) + '%')];
+    const tsig = items.map(x => x[0]).join('|'), tin = $('#termTape .term-tape-in');
+    if (tin && tin.dataset.sig === tsig) {
+      // mêmes valeurs : mise à jour sur place, sans relancer le défilement
+      const nodes = tin.children;
+      items.forEach((it, j) => { nodes[j].replaceChildren(...tk(it)); nodes[j + items.length].replaceChildren(...tk(it)); });
+    } else {
+      const tape = items.map(it => el('span', { class: 'term-tk' }, ...tk(it)));
+      $('#termTape').replaceChildren(el('div', { class: 'term-tape-in', dataset: { sig: tsig } }, ...tape, ...tape.map(n => n.cloneNode(true))));
+    }
     // fenêtres
     const grid = $('#termGrid');
     if (grid.children.length !== 4) {
@@ -697,6 +738,7 @@ Object.assign(App, {
     grid.classList.toggle('zoomed', this.termZoom >= 0);
     this.renderTermClock();
     this.renderTermStatus();
+    this.renderTermRfr();
   },
 
   /** Actions numérotées (menu rouge) de la fenêtre i */
@@ -817,7 +859,19 @@ Object.assign(App, {
     if (ch.look === look && ch.data) {
       // même graphique : seul le dernier cours bouge, la vue (zoom) est gardée
       const q = this.termQuote(key), last = ch.data.bars[ch.data.bars.length - 1];
-      if (q && q.price > 0 && last && !intraday && last.c !== q.price && last.d === todayISO()) { Object.assign(last, { c: q.price, h: Math.max(last.h, q.price), l: Math.min(last.l, q.price) }); ch.prep(); ch.redraw(); }
+      const live = q && q.price > 0 && last && last.c !== q.price && (intraday ? q.time >= last.t : last.d === todayISO());
+      if (live) { Object.assign(last, { c: q.price, h: Math.max(last.h, q.price), l: Math.min(last.l, q.price) }); ch.prep(); ch.redraw(); }
+      // intraday : nouvelles bougies (rechargées au plus toutes les 60 s), sans perdre le zoom
+      const cached = intraday && (this._termOhlc || {})[key + '|' + range];
+      if (intraday && this.termRefreshMs() && !ch._reloading && (!cached || Date.now() - cached.ts >= 60000)) {
+        ch._reloading = true;
+        this.termOhlc(key, range).then(bars => {
+          if (!this.termOn || ch.look !== look || this._termCharts[i] !== ch || !bars.length || !ch.data) return;
+          const v = Object.assign({}, ch.view), atEnd = v.to >= ch.n - 1, zoomed = v.from > 0 || !atEnd;
+          ch.set(Object.assign({}, ch.data, { bars, from: 0 }));
+          if (zoomed) { const add = atEnd ? ch.n - 1 - v.to : 0; ch.view = { from: Math.min(v.from + add, ch.n - 2), to: Math.min(v.to + add, ch.n - 1) }; ch.redraw(); }
+        }).catch(() => {}).finally(() => { ch._reloading = false; });
+      }
       return;
     }
     if (ch.want !== want) msg.textContent = 'Chargement des cours…';
@@ -1418,6 +1472,8 @@ TOI       PORT  portefeuille   MON  suivi (ADD / DEL <valeur>)   HEAT  chaleur
           CAL   agenda    ALRT  alertes
 ÉCRANS    LAY 1 défaut · 2 marchés · 3 valeur · 4 matières premières
           5 risque · 6 veille        ZOOM  agrandir la fenêtre active
+          RFR   rafraîchissement : RFR 1 (chaque seconde), 5, 15, 30,
+                1M, 2M, 5M, 15M ou OFF (aussi boutons RFR en haut)
 
 TOUCHES   F1 AIDE F2 SCAN F3 WEI F4 XRAY F5 FX F6 CMDTY F7 MOV F8 TOP
           F9 DES F10 QUITTER F11 GP F12 COMP · ÉCHAP quitter

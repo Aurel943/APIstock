@@ -1468,6 +1468,8 @@ body.term-open { overflow: hidden; }
 .term-sug li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .term-sug li.on, .term-sug li:hover { background: var(--ta); color: #000; } .term-sug li.on b, .term-sug li.on i, .term-sug li:hover b, .term-sug li:hover i { color: #000; }
 .term-keys .k-lay { background: #10233f; color: #8fb3ff; border-color: #2a4a7a; }
+.term-keys .k-lbl { align-self: center; color: #8a7a60; font-size: 11px; padding: 0 2px; flex: none; }
+.term-keys .k-rfr.on { background: var(--ta); color: #000; border-color: var(--ta); font-weight: 700; }
 .term-grid.zoomed { grid-template-columns: 1fr; grid-template-rows: 1fr; }
 .term-grid.zoomed .tp:not(.zoom) { display: none; }
 .tp-bar { cursor: default; user-select: none; }
