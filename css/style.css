@@ -1468,6 +1468,12 @@ body.term-open { overflow: hidden; }
 .term-sug li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .term-sug li.on, .term-sug li:hover { background: var(--ta); color: #000; } .term-sug li.on b, .term-sug li.on i, .term-sug li:hover b, .term-sug li:hover i { color: #000; }
 .term-keys .k-lay { background: #10233f; color: #8fb3ff; border-color: #2a4a7a; }
+.term-rfr { display: flex; align-items: center; gap: 2px; flex: none; }
+.term-rfr .k-lbl { color: #8a7a60; font-size: 11px; padding: 0 3px; }
+.term-rfr button { background: #1a1a1a; border: 1px solid #333; color: var(--ta); font: inherit; font-size: 11.5px; padding: 0 5px; cursor: pointer; }
+.term-rfr button:hover, .term-rfr button:focus-visible { border-color: var(--ta); outline: none; }
+.term-rfr button.on { background: var(--ta); color: #000; border-color: var(--ta); font-weight: 700; }
+.term-rfr select { display: none; background: #1a1a1a; border: 1px solid var(--tad); color: var(--ta); font: inherit; font-size: 11.5px; padding: 1px 2px; }
 .term-grid.zoomed { grid-template-columns: 1fr; grid-template-rows: 1fr; }
 .term-grid.zoomed .tp:not(.zoom) { display: none; }
 .tp-bar { cursor: default; user-select: none; }
@@ -1497,12 +1503,14 @@ body.term-open { overflow: hidden; }
 .rk-bar b { position: relative; padding-right: 4px; float: right; color: #fff; font-weight: 400; }
 .dvd-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
 .des-spark { display: flex; align-items: center; gap: 8px; padding-top: 4px; }
+@media (max-width: 1200px) { .term-clock .term-mkt:nth-child(n+6) { display: none; } }
 @media (max-width: 760px) {
   .term { font-size: 12px; }
   .term-grid { grid-template-columns: 1fr; grid-template-rows: none; grid-auto-rows: minmax(320px, auto); overflow: auto; }
   .term-clock .term-mkt:nth-child(n+5), .term-date { display: none; }
   .term-top { gap: 8px; padding: 4px 8px; font-size: 11.5px; } .term-brand b { display: none; } .term-clock { gap: 8px; flex-wrap: nowrap; overflow: hidden; } .term-close { padding: 1px 6px; }
   .term-msg { display: none; }
+  .term-rfr button, .term-rfr .k-lbl { display: none; } .term-rfr select { display: block; }
   .term-keys { flex-wrap: nowrap; overflow-x: auto; }
   .term-keys button { flex: none; }
   .des-cols, .mov-cols, .dvd-cols { grid-template-columns: 1fr; }

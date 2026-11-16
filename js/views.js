@@ -67,10 +67,8 @@ Object.assign(App, {
     if (!force && Date.now() - this.worldLoadedAt < 30000) return;
     this.worldLoadedAt = Date.now();
     const syms = [...MACRO.map(m => m.y), ...EXCHANGES.flatMap(e => [e.index.y, ...(e.extra || []).map(x => x.y)])];
-    for (let i = 0; i < syms.length; i += 4) {
-      await Promise.all(syms.slice(i, i + 4).map(s => Api.yahooSymbol(s).catch(() => null)));
-      if (this.view === 'world') this.renderWorld();
-    }
+    const fresh = syms.filter(s => { const c = Api.quotes['Y:' + s]; return !(c && Date.now() - c.ts < 30000); });
+    await Api.yahooSymbols(fresh, () => { if (this.view === 'world') this.renderWorld(); });
   },
 
   idxQuote(y) { const c = Api.quotes['Y:' + y]; return c ? c.data : null; },

@@ -101,7 +101,7 @@ Site personnel (100 % statique, sans serveur ni compte) pour suivre ses ETF et l
 - **Radar fiscal** : moins-values à constater avant le 31 décembre pour effacer l'impôt de l'année (vente puis rachat d'un ETF équivalent), moins-values à mettre en réserve pour 10 ans, reports qui expirent en fin d'année et gains à réaliser sans impôt pour relever le prix de revient, purge des gains d'assurance-vie dans l'abattement annuel, anniversaires PEA (5 ans) et assurance-vie (8 ans) à attendre, impôt annuel sur les dividendes du compte-titres — chaque piste avec l'impôt économisé estimé
 
 **Temps réel**
-- Rafraîchissement automatique réglable de **1 seconde** à 15 min, mis en pause quand l'onglet est caché
+- Rafraîchissement automatique réglable de **1 seconde** à 15 min (Réglages, ou boutons **RFR** en haut du terminal), mis en pause quand l'onglet est caché ; cotations groupées par 40 en une requête au relais
 - Prix qui s'allument brièvement en vert ou en rouge quand ils changent
 - Mini-graphique de la séance dans le portefeuille, la liste de suivi et les cartes mobiles
 - Carte **Variations du jour** : plus fortes hausses et baisses de tes positions, en % et en €
@@ -182,8 +182,10 @@ Dans **Réglages**, le site affiche le nombre de requêtes envoyées aujourd'hui
    - `CF_API_TOKEN` (type *Secret*) : le jeton créé à l'étape 1.
 3. **Deploy**. Le jeton reste dans le worker : le site ne reçoit que les totaux, rafraîchis au plus une fois par minute.
 
-#### Mettre à jour le worker (actualités, dividendes, divisions, alertes push)
-Les actualités, le calendrier des dividendes et la détection des divisions passent par de nouvelles requêtes du relais. Si tu utilises ton propre worker (ou le relais par défaut), **remplace son code** par la dernière version de [`proxy/cloudflare-worker.js`](proxy/cloudflare-worker.js) → **Deploy**. Sans cette mise à jour, le reste du site fonctionne normalement ; ces cartes restent simplement vides (ou affichent « redéploie le worker »).
+#### Mettre à jour le worker (appel groupé, actualités, dividendes, divisions, alertes push)
+Les actualités, le calendrier des dividendes, la détection des divisions et l'**appel groupé des cotations** passent par de nouvelles requêtes du relais. Si tu utilises ton propre worker (ou le relais par défaut), **remplace son code** par la dernière version de [`proxy/cloudflare-worker.js`](proxy/cloudflare-worker.js) → **Deploy**. Sans cette mise à jour, le reste du site fonctionne normalement ; ces cartes restent simplement vides (ou affichent « redéploie le worker »).
+
+L'appel groupé (`?type=quotes&symbols=A,B,C`, 40 symboles au plus) ramène les cours de plusieurs valeurs en **une seule requête** au relais : le terminal et le portefeuille l'utilisent automatiquement. À la seconde, l'écran par défaut du terminal consomme ainsi ~2 requêtes/s (environ 15 h avant d'atteindre les 100 000 requêtes/jour) au lieu de ~35. Avec un ancien worker, le site repasse tout seul aux appels un par un.
 
 #### Alertes de prix même site fermé (optionnel)
 Le worker vérifie tes alertes toutes les 5 minutes et t'envoie une notification push (Web Push chiffré, sans service tiers). Prérequis : l'espace KV `SYNC` de la synchronisation (voir ci-dessus).
