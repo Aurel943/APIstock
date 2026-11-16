@@ -709,6 +709,7 @@ Object.assign(App, {
     const rpm = this.termReqPerMin(), today = Api.dailyCount().yahoo || 0;
     s.replaceChildren(el('span', {}, `FENÊTRE ${this.termActive + 1}${this.termZoom >= 0 ? ' (ZOOM)' : ''}`), el('span', {}, `${p.fn}`), el('span', {}, 'VALEUR ', el('b', {}, this.termSym(this.termKey))), relay,
       el('span', {}, 'RFR ', el('b', {}, this.termRfrLabel(parseInt(Store.state.settings.refreshSec, 10) || 0))),
+      this.termRefreshMs() && Api.hasProxy() && !document.hidden ? el('span', { class: 'term-live tick', title: 'Cours rafraîchis automatiquement' }, '● EN DIRECT') : null,
       el('span', { class: today > 80000 ? 'td' : '', title: 'Requêtes au relais envoyées par ce navigateur (quota gratuit du relais : 100 000 par jour, tous appareils confondus)' },
         `${rpm === null ? '…' : fmtNum(rpm, 0)} REQ/MIN · ${fmtNum(today, 0)} AUJ.`),
       el('span', {}, `${nq} COTATIONS`), el('span', { class: 'term-hint' }, 'TAB COMPLÉTER · ↑↓ HISTORIQUE · ALT+1…4 FENÊTRE · ALT+Z ZOOM · LAY 1-6 · F1 AIDE'));
@@ -721,11 +722,11 @@ Object.assign(App, {
     const pc = v => (v >= 0 ? 'tu' : 'td');
     // bandeau défilant : tes valeurs, indices, matières premières, devises, crypto, taux
     const items = [];
-    for (const k of Store.trackedKeys()) { const q = Api.cachedQuote(k); if (q && q.price > 0) items.push([Store.instrument(k).symbol, q.price, q.percentChange]); }
+    for (const k of Store.trackedKeys()) { const q = Api.cachedQuote(k); if (q && q.price > 0) items.push([Store.instrument(k).symbol, q.price, q.percentChange, k]); }
     const ys = [...MACRO.map(m => m.y), ...EXCHANGES.map(e => e.index.y), 'GC=F', 'SI=F', 'CL=F', 'NG=F', 'HG=F', 'ZW=F', 'KC=F', 'CC=F', 'BTC-USD', 'ETH-USD', '^TNX', 'DX-Y.NYB'];
     this.termNeed(ys); // le bandeau suit aussi le rafraîchissement
-    for (const y of new Set(ys)) { const q = this.idxQuote(y); if (q && q.price > 0) items.push([TERM_SHORT[y] || termName(y), q.price, q.percentChange]); }
-    const tk = ([n, p, ch]) => [el('b', {}, n), ' ', fmtNum(p, p < 10 ? 4 : 2), ' ', el('span', { class: pc(ch) }, (ch >= 0 ? '▲' : '▼') + fmtNum(Math.abs(ch || 0), 2) + '%')];
+    for (const y of new Set(ys)) { const q = this.idxQuote(y); if (q && q.price > 0) items.push([TERM_SHORT[y] || termName(y), q.price, q.percentChange, 'Y:' + y]); }
+    const tk = ([n, p, ch, k]) => [el('b', {}, n), ' ', el('span', this.termFl(k, p), fmtNum(p, p < 10 ? 4 : 2)), ' ', el('span', { class: pc(ch) }, (ch >= 0 ? '▲' : '▼') + fmtNum(Math.abs(ch || 0), 2) + '%')];
     const tsig = items.map(x => x[0]).join('|'), tin = $('#termTape .term-tape-in');
     if (tin && tin.dataset.sig === tsig) {
       // mêmes valeurs : mise à jour sur place, sans relancer le défilement
@@ -806,7 +807,10 @@ Object.assign(App, {
         };
         return el('tr', { class: r.key === this.termKey ? 'sel' : '', onclick: () => this.termLoad(r.key, r.open) },
           el('td', {}, r.dot ? el('span', { class: 'term-dot ' + r.dot }) : null, el('b', {}, r.label)),
-          ...cols.map(c => el('td', { class: (c === 'UNITÉ' ? 'dim' : 'n') + (c.startsWith('VAR') && q ? ' ' + pc(q.change) : '') }, vals[c] ?? '')));
+          ...cols.map(c => {
+            const fl = c === 'DERNIER' && q ? this.termFl(r.key, q.price) : {};
+            return el('td', { class: this.termFlCls((c === 'UNITÉ' ? 'dim' : 'n') + (c.startsWith('VAR') && q ? ' ' + pc(q.change) : ''), fl), style: fl.style }, vals[c] ?? '');
+          }));
       })));
   },
 
@@ -944,10 +948,29 @@ Object.assign(App, {
 
   /* ---------- fiches et tableaux asynchrones ---------- */
 
+  /**
+   * Clignotement d'un cours qui vient de changer (vert : hausse, rouge : baisse). L'écran étant reconstruit plusieurs fois
+   * par seconde, l'animation reprend là où elle en était (délai négatif) au lieu de repartir ou de s'arrêter.
+   */
+  termFl(id, v) {
+    if (!id || !isFinite(v)) return {};
+    const T = this._termTick = this._termTick || {}, F = this._termFl = this._termFl || {}, now = Date.now();
+    const prev = T[id];
+    T[id] = v;
+    if (prev !== undefined && prev !== v) F[id] = { c: v > prev ? 'fl-up' : 'fl-dn', at: now };
+    const f = F[id];
+    if (!f) return {};
+    const age = now - f.at;
+    if (age >= 1100) { delete F[id]; return {}; }
+    return { class: f.c, style: `animation-delay:-${age}ms` };
+  },
+  termFlCls(base, fl) { return fl.class ? base + ' ' + fl.class : base; },
+
   /** Ligne du cours en direct de DES (remise à jour seule entre deux reconstructions de la fenêtre) */
   termDesHead(key) {
     const q = this.termQuote(key), d = q && q.price < 10 ? 4 : 2;
-    return el('div', { class: 'des-head' }, el('b', { class: 'big' }, q ? fmtNum(q.price, d) : '…'), ' ', q ? el('span', { class: q.change >= 0 ? 'tu' : 'td' }, `${q.change >= 0 ? '+' : ''}${fmtNum(q.change, d)}  ${fmtPct(q.percentChange, 2)}`) : '',
+    const fl = q ? this.termFl(key, q.price) : {};
+    return el('div', { class: 'des-head' }, el('b', { class: this.termFlCls('big', fl), style: fl.style }, q ? fmtNum(q.price, d) : '…'), ' ', q ? el('span', { class: q.change >= 0 ? 'tu' : 'td' }, `${q.change >= 0 ? '+' : ''}${fmtNum(q.change, d)}  ${fmtPct(q.percentChange, 2)}`) : '',
       el('span', { class: 'dim' }, `  ${this.termCcy(key)}  ${q && q.datetime ? q.datetime : ''}`));
   },
 
@@ -1295,7 +1318,7 @@ const TERM_FN = {
         '   +/- LAT. ', el('b', { class: pc(totals.pnl) }, `${fmtSignedMoney(totals.pnl, cur)} (${fmtPct(totals.pnlPct, 1)})`)),
       el('table', { class: 'term-t', id: 'termPort' }, el('thead', {}, el('tr', {}, ...['TICKER', 'QTÉ', 'PRU', 'DERNIER', 'VAR %', 'SÉANCE', 'P&L JOUR', 'VALEUR', 'POIDS', '+/- VAL.', '+/- %'].map((h, j) => el('th', { class: j ? 'n' : '' }, h)))),
         el('tbody', {}, ...rows.sort((a, b) => (b.valueBase || 0) - (a.valueBase || 0)).map(r => el('tr', { class: r.key === this.termKey ? 'sel' : '', onclick: () => this.termLoad(r.key) },
-          el('td', {}, el('b', {}, Store.instrument(r.key).symbol)), el('td', { class: 'n' }, fmtQty(r.qty)), el('td', { class: 'n' }, fmtNum(r.pru, 2)), el('td', { class: 'n' }, fmtNum(r.price, 2)),
+          el('td', {}, el('b', {}, Store.instrument(r.key).symbol)), el('td', { class: 'n' }, fmtQty(r.qty)), el('td', { class: 'n' }, fmtNum(r.pru, 2)), ((fl) => el('td', { class: this.termFlCls('n', fl), style: fl.style }, fmtNum(r.price, 2)))(this.termFl(r.key, r.price)),
           el('td', { class: 'n ' + pc(r.quote ? r.quote.percentChange : 0) }, r.quote ? fmtPct(r.quote.percentChange, 2) : '—'),
           el('td', { class: 'n' }, r.quote && r.quote.spark && r.quote.spark.length > 2 ? termSpark(r.quote.spark, r.quote.previousClose, 60, 14) : ''),
           el('td', { class: 'n ' + pc(r.dayBase) }, isFinite(r.dayBase) ? fmtSignedMoney(r.dayBase, cur) : '—'),

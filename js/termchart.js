@@ -119,9 +119,9 @@ const TA = {
 /** « 2026-10-05 » → « 05/10/2026 » (les heures intraday restent telles quelles) */
 function tcDate(d) { return /^\d{4}-\d{2}-\d{2}$/.test(d || '') ? d.slice(8, 10) + '/' + d.slice(5, 7) + '/' + d.slice(0, 4) : d || ''; }
 
-const TC_COL = { up: '#2fe37f', down: '#ff4d4d', amber: '#ff9f1c', grid: 'rgba(255,159,28,.10)', axis: '#ff9f1c', text: '#e8e8e8', dim: '#8a7a60',
+const TC_COL = { up: '#2fe37f', down: '#ff433d', amber: '#fb8b1e', grid: 'rgba(255,255,255,.07)', axis: '#fb8b1e', text: '#e8e8e8', dim: '#8a7a60',
   ma20: '#4fc3f7', ma50: '#ffd23f', ma200: '#e040fb', bb: '#8fa8ff', rsi: '#ffb74d', macd: '#4fc3f7', signal: '#ff9f1c', cross: 'rgba(255,255,255,.45)' };
-const TC_SERIES = ['#ff9f1c', '#4fc3f7', '#2fe37f', '#e040fb', '#ffd23f', '#ff4d4d', '#8fa8ff', '#ffffff'];
+const TC_SERIES = ['#fb8b1e', '#4fc3f7', '#2fe37f', '#e040fb', '#ffd23f', '#ff4d4d', '#8fa8ff', '#ffffff'];
 
 class TermChart {
   constructor(canvas) {
@@ -302,7 +302,7 @@ class TermChart {
           const vh = L.mainH * 0.2;
           for (let i = from; i <= to; i++) {
             const b = this.bars[i], h = (b.v || 0) / vmax * vh;
-            ctx.fillStyle = b.c >= b.o ? 'rgba(47,227,127,.28)' : 'rgba(255,77,77,.28)';
+            ctx.fillStyle = b.c >= b.o ? 'rgba(47,227,127,.28)' : 'rgba(255,67,61,.28)';
             ctx.fillRect(X(i) - Math.max(0.5, slot * 0.35), L.top + L.mainH - h, Math.max(1, slot * 0.7), h);
           }
         }
@@ -323,7 +323,7 @@ class TermChart {
         const up = bars[to].c >= bars[from].c, col = up ? TC_COL.up : TC_COL.down;
         if (D.style === 'area') {
           const g = ctx.createLinearGradient(0, L.top, 0, L.top + L.mainH);
-          g.addColorStop(0, up ? 'rgba(47,227,127,.30)' : 'rgba(255,77,77,.30)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+          g.addColorStop(0, up ? 'rgba(47,227,127,.30)' : 'rgba(255,67,61,.30)'); g.addColorStop(1, 'rgba(0,0,0,0)');
           ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(X(from), L.top + L.mainH);
           for (let i = from; i <= to; i++) ctx.lineTo(X(i), Y(bars[i].c));
           ctx.lineTo(X(to), L.top + L.mainH); ctx.closePath(); ctx.fill();
@@ -392,7 +392,7 @@ class TermChart {
         m = m || 1;
         const YM = v => P.y + P.h / 2 - v / m * (P.h / 2 - 3);
         for (let i = from; i <= to; i++) if (M.hist[i] !== null) {
-          ctx.fillStyle = M.hist[i] >= 0 ? 'rgba(47,227,127,.55)' : 'rgba(255,77,77,.55)';
+          ctx.fillStyle = M.hist[i] >= 0 ? 'rgba(47,227,127,.55)' : 'rgba(255,67,61,.55)';
           const y0 = YM(0), y1 = YM(M.hist[i]);
           ctx.fillRect(X(i) - Math.max(0.5, slot * 0.3), Math.min(y0, y1), Math.max(1, slot * 0.6), Math.abs(y1 - y0));
         }
