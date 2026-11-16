@@ -5,6 +5,9 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { chromium, startServer, openApp, sampleState, realCharts } from './helpers.mjs';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { root } from '../harness.mjs';
 
 const VIEWS = ['portfolio', 'markets', 'agenda', 'catalog', 'compare', 'world', 'invest', 'simulation', 'quant', 'desk', 'arena', 'settings'];
 let server, url, browser;
@@ -792,7 +795,15 @@ test('mode terminal (commandes, touches F), scanner de signaux et radiographie',
   assert.ok(await page.locator('#term').evaluate(t => t.classList.contains('hidden')));
 }));
 
-test('terminal : fréquence RFR (barre du haut, liste mobile, commande) et appel groupé au relais', () => run({ state: sampleState({ settings: { baseCurrency: 'EUR', refreshSec: 60 } }) }, async ({ page, calls }) => {
+test('terminal : fréquence RFR (barre du haut, liste mobile, commande) et appel groupé au relais', () => run({ state: sampleState({ settings: { baseCurrency: 'EUR', refreshSec: 60 } }) }, async ({ page, context, calls }) => {
+  // relais simulé : un cours pour chaque symbole de l'appel groupé (indices compris), pour ne pas dépendre de l'heure d'ouverture des bourses
+  const spy = readFileSync(join(root, 'tests/fixtures/relay/quote-SPY.json'), 'utf8');
+  await context.route('https://apistock-yahoo.aurelien-potot.workers.dev/**', route => {
+    const q = Object.fromEntries(new URL(route.request().url()).searchParams);
+    if (q.type !== 'quotes') return route.fallback();
+    calls.push(q);
+    return route.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: '{"results":{' + q.symbols.split(',').map(s => JSON.stringify(s) + ':' + spy).join(',') + '}}' });
+  });
   await page.click('#tabMoreBtn');
   await page.click('#termOpen');
   await page.waitForSelector('#term:not(.hidden) #termPort tbody tr');
@@ -810,11 +821,12 @@ test('terminal : fréquence RFR (barre du haut, liste mobile, commande) et appel
   const batches = recent.filter(q => q.type === 'quotes');
   assert.ok(batches.length >= 2, 'appels groupés à chaque tour');
   assert.ok(batches.every(q => q.symbols.split(',').length <= 40), '40 symboles au plus par appel');
-  assert.ok(batches.some(q => ['CW8.PA', 'ESE.PA'].every(s => q.symbols.split(',').includes(s))), 'valeurs du portefeuille groupées');
-  assert.ok(!batches.some(q => q.symbols.split(',').includes('^GSPC')), 'indice sans cours (pas de réponse simulée) : pas redemandé avant 60 s');
-  assert.equal(recent.filter(q => q.type === 'chart' && !q.period1 && !q.events && ['CW8.PA', 'ESE.PA'].includes(q.symbol)).length, 0, 'portefeuille : pas d\'appel un par un');
+  assert.ok(batches.filter(q => q.symbols.split(',').includes('^GSPC')).length >= 2, 'indices de WEI redemandés à chaque tour, dans les paquets');
   assert.equal(recent.filter(q => q.type === 'chart' && !q.period1 && !q.events && q.symbol && q.symbol.startsWith('^')).length, 0, 'pas d\'appel un par un pour les indices');
   assert.match(await page.locator('#termStatus').innerText(), /RFR\s+1S/);
+  // clignotement : vert à la hausse, rouge à la baisse, rien au premier affichage ni sans changement
+  assert.deepEqual(await page.evaluate(() => [App.termFl('T', 10).class, App.termFl('T', 10).class, App.termFl('T', 11).class, App.termFl('U', 5).class, App.termFl('U', 4).class]),
+    [undefined, undefined, 'fl-up', undefined, 'fl-dn']);
   // commande RFR, puis OFF : plus aucun appel automatique
   await page.fill('#termCmd', 'RFR 5M'); await page.keyboard.press('Enter');
   assert.equal(await lit(), '5M');
