@@ -168,16 +168,33 @@ const Charts = {
     });
   },
 
-  /** Nuage de points risque (x, % / an) / rendement (y, % / an) */
-  scatter(id, datasets) {
+  /**
+   * Nuage de points risque (x, % / an) / rendement (y, % / an).
+   * opts.extra(point) : lignes ajoutées à l'info-bulle ; opts.onPick(point) : clic sur le graphique (point le plus proche).
+   */
+  scatter(id, datasets, opts = {}, quiet = false) {
     this.destroy(id);
     const ctx = document.getElementById(id);
     if (!ctx || typeof Chart === 'undefined') return;
     const o = this.baseOptions();
-    o.interaction = { mode: 'nearest', intersect: true };
-    o.animation = { duration: 600 };
-    o.plugins.legend.labels.filter = l => l.text !== 'Répartitions simulées';
-    o.plugins.tooltip.callbacks = { label: c => ` ${c.dataset.label} : rendement ${fmtPct(c.raw.y, 1)}, volatilité ${fmtNum(c.raw.x, 1)} %` };
+    // survol au point le plus proche : les points du nuage sont trop petits pour être visés exactement
+    o.interaction = { mode: 'nearest', intersect: false, axis: 'xy' };
+    o.animation = quiet ? false : { duration: 600 };
+    o.plugins.legend.labels.filter = l => l.text !== 'Répartitions simulées' && l.text !== 'Point choisi';
+    // un seul point dans l'info-bulle : un repère plutôt qu'un point du nuage (premier jeu de données) qu'il recouvre
+    o.plugins.tooltip.filter = (item, i, all) => item === (all.filter(x => x.datasetIndex !== 0).pop() || all[0]);
+    o.plugins.tooltip.callbacks = {
+      title: () => '',
+      label: c => [` ${c.dataset.label} : rendement ${fmtPct(c.raw.y, 1)}, volatilité ${fmtNum(c.raw.x, 1)} %`, ...(opts.extra ? opts.extra(c.raw) : [])],
+    };
+    if (opts.onPick) {
+      o.onClick = (evt, items, chart) => {
+        const hit = chart.getElementsAtEventForMode(evt, 'nearest', { intersect: false, axis: 'xy' }, true)[0];
+        // après la fin du traitement du clic par Chart.js : onPick peut redessiner (et donc détruire) ce graphique
+        if (hit) { const raw = chart.data.datasets[hit.datasetIndex].data[hit.index]; setTimeout(() => opts.onPick(raw), 0); }
+      };
+      o.onHover = (evt, items) => { if (evt.native && evt.native.target) evt.native.target.style.cursor = items.length ? 'pointer' : 'default'; };
+    }
     o.scales.x = Object.assign(o.scales.x, { type: 'linear', title: { display: true, text: 'Risque : volatilité annuelle (%)', color: this.css('--muted') }, grid: { color: this.css('--chart-grid') } });
     o.scales.y = Object.assign(o.scales.y, { title: { display: true, text: 'Rendement annuel (%)', color: this.css('--muted') } });
     this.instances[id] = new Chart(ctx, { type: 'scatter', data: { datasets }, options: o });

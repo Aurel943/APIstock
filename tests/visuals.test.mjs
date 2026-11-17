@@ -22,6 +22,10 @@ test('optimiseur : alignement des dates, statistiques annualisées, répartition
   near(fr.minVol.w.reduce((a, b) => a + b, 0), 1, 1e-9);
   assert.ok(fr.maxSharpe.sharpe >= fr.current.sharpe);
   assert.equal(fr.points.length, 502);                // 500 tirages + 2 répartitions à 100 %
+  // rendement maximal : 100 % sur la ligne qui a le plus rapporté (le rendement d'un mélange est une moyenne pondérée)
+  const best = st.mean[0] > st.mean[1] ? 0 : 1;
+  near(fr.maxRet.w[best], 1, 1e-12);
+  assert.ok(fr.points.every(p => p.ret <= fr.maxRet.ret + 1e-12), 'aucun point plus haut');
   // reproductible
   assert.equal(O.frontier(st, { n: 50, seed: 7 }).maxSharpe.ret, O.frontier(st, { n: 50, seed: 7 }).maxSharpe.ret);
 });

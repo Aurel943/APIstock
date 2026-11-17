@@ -492,8 +492,26 @@ test('carte du portefeuille, optimiseur de répartition et « Ton année en bour
   // optimiseur (Analyse › Optimiser) : nuage, trois répartitions, application comme cible
   await page.click('#anSubnav [data-tab="optimiser"]');
   await page.click('#optRun');
-  await page.waitForFunction(() => Chart.getChart('optChart') && Chart.getChart('optChart').data.datasets.length === 4, null, { timeout: 20000 });
-  assert.equal(await page.locator('.opt-col').count(), 3);
+  await page.waitForFunction(() => Chart.getChart('optChart') && Chart.getChart('optChart').data.datasets.length === 5, null, { timeout: 20000 });
+  assert.equal(await page.locator('.opt-col').count(), 4, 'ta répartition, la moins risquée, meilleur rendement / risque, rendement maximal');
+  // rendement maximal : 100 % sur une seule ligne
+  assert.match(await page.locator('.opt-col.maxret').innerText(), /100 %/);
+  // survol d'un point du nuage : l'info-bulle donne sa répartition
+  const box = await page.locator('#optChart').boundingBox();
+  const target = await page.evaluate(() => {
+    const ch = Chart.getChart('optChart'), el = ch.getDatasetMeta(0).data[40];
+    return { x: el.x, y: el.y };
+  });
+  await page.mouse.move(box.x + target.x, box.y + target.y);
+  await page.waitForFunction(() => { const t = Chart.getChart('optChart').tooltip; return t.opacity > 0 && t.body.some(b => b.lines.some(l => / : \d+ %$/.test(l))); });
+  // clic : le point rejoint la comparaison, puis « retirer »
+  await page.mouse.click(box.x + target.x, box.y + target.y);
+  await page.waitForSelector('.opt-col.pick');
+  assert.equal(await page.locator('.opt-col').count(), 5);
+  assert.equal(await page.evaluate(() => Chart.getChart('optChart').data.datasets.length), 6, 'point choisi entouré sur le graphique');
+  assert.match(await page.locator('.opt-col.pick').innerText(), /Point choisi[\s\S]*Utiliser comme cible/);
+  await page.click('.opt-col.pick .opt-unpick');
+  assert.equal(await page.locator('.opt-col.pick').count(), 0);
   await page.locator('.opt-col.minvol button').click();
   await page.waitForFunction(() => App.page === 'plan/investir');
   const sum = await page.evaluate(() => Object.values(Store.state.targets).reduce((a, b) => a + b, 0));
@@ -789,7 +807,9 @@ test('mode terminal (commandes, touches F), scanner de signaux et radiographie',
   assert.ok(await page.locator('#termTape .term-tk').count() >= 6, 'bandeau défilant (dupliqué pour boucler)');
   // graphique en chandeliers dans la fenêtre 2 : « 2 SPY GP 5A »
   await run('2 spy gp 5a');
-  await page.waitForFunction(() => /SPY/.test($$('#termGrid .tp')[1].querySelector('.tp-bar').innerText) && App._termCharts[1] && App._termCharts[1].data && App._termCharts[1].data.bars.length > 100);
+  // attendre le graphique 5 ans lui-même (le précédent, sur 1 an, compte déjà plus de 100 bougies)
+  await page.waitForFunction(() => /SPY/.test($$('#termGrid .tp')[1].querySelector('.tp-bar').innerText) && App._termCharts[1] && App._termCharts[1].data
+    && App._termCharts[1].data.bars.length > 100 && App._termCharts[1].data.unit === 'S');
   assert.match(await pane(1).locator('.tp-acts button.on').innerText(), /5A/);
   assert.match(await page.locator('#termPrompt').innerText(), /2</);
   assert.equal(await page.evaluate(() => App._termCharts[1].data.style), 'candle');

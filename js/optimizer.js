@@ -50,7 +50,8 @@ const Optimizer = {
 
   /**
    * Nuage de `n` répartitions aléatoires (positions positives, somme 100 %, lignes à 0 % comprises),
-   * plus les répartitions extrêmes ; renvoie aussi la moins risquée et celle au meilleur ratio de Sharpe.
+   * plus les répartitions extrêmes ; renvoie aussi la moins risquée, celle au meilleur ratio de Sharpe et celle au
+   * rendement maximal (le rendement d'un mélange étant la moyenne pondérée des lignes, c'est 100 % sur la meilleure ligne).
    */
   frontier(st, { n = 4000, rf = 0, seed = 42, current } = {}) {
     const k = st.mean.length, rand = this.rng(seed);
@@ -66,7 +67,8 @@ const Optimizer = {
     }
     const minVol = points.reduce((a, b) => (b.vol < a.vol ? b : a));
     const maxSharpe = points.reduce((a, b) => (b.sharpe > a.sharpe ? b : a));
-    return { points, minVol, maxSharpe, current: current ? Object.assign(this.measure(current, st, rf), { w: current }) : null };
+    const maxRet = points.reduce((a, b) => (b.ret > a.ret ? b : a));
+    return { points, minVol, maxSharpe, maxRet, current: current ? Object.assign(this.measure(current, st, rf), { w: current }) : null };
   },
 };
 
@@ -102,12 +104,15 @@ Object.assign(App, {
     }
   },
 
-  renderOptimizer() {
+  renderOptimizer(quiet = false) {
     const res = this.optResult;
     const box = $('#optBody');
     if (!res || !box) return;
     const { al, fr, span } = res;
+    const pick = res.pick || null; // point choisi d'un clic sur le graphique
     const pct = v => fmtPct(v * 100, 1, false);
+    /** Répartition d'un point, du poids le plus fort au plus faible (lignes à moins de 0,5 % omises) */
+    const weights = w => al.keys.map((k, i) => [Store.label(k), w[i]]).filter(([, x]) => x >= 0.005).sort((a, b) => b[1] - a[1]);
     const apply = (p, name) => () => {
       if (!confirm(`Remplacer ton allocation cible par la répartition « ${name} » ?`)) return;
       for (const k of Object.keys(Store.state.targets)) Store.state.targets[k] = 0;
@@ -116,7 +121,7 @@ Object.assign(App, {
       toast(`Cible « ${name} » appliquée : le plan d'achat te dit quoi acheter pour t'en rapprocher.`, 'success', 6000);
     };
     const col = (p, name, cls, action) => el('div', { class: 'opt-col ' + cls },
-      el('b', {}, name),
+      el('b', {}, name, cls === 'pick' ? el('button', { type: 'button', class: 'link small opt-unpick', onclick: () => { res.pick = null; this.renderOptimizer(true); } }, 'retirer') : null),
       el('div', { class: 'opt-num' }, el('span', {}, 'Rendement'), el('b', { class: trendClass(p.ret) }, fmtPct(p.ret * 100, 1))),
       el('div', { class: 'opt-num' }, el('span', {}, 'Volatilité'), el('b', {}, pct(p.vol))),
       el('div', { class: 'opt-num' }, el('span', {}, 'Sharpe'), el('b', {}, fmtNum(p.sharpe, 2))),
@@ -127,13 +132,26 @@ Object.assign(App, {
       el('div', { class: 'opt-cols' },
         fr.current ? col(fr.current, 'Ta répartition', 'current') : null,
         col(fr.minVol, 'La moins risquée', 'minvol', apply(fr.minVol, 'La moins risquée')),
-        col(fr.maxSharpe, 'Meilleur rendement / risque', 'maxsharpe', apply(fr.maxSharpe, 'Meilleur rendement / risque'))),
+        col(fr.maxSharpe, 'Meilleur rendement / risque', 'maxsharpe', apply(fr.maxSharpe, 'Meilleur rendement / risque')),
+        col(fr.maxRet, 'Rendement maximal', 'maxret', apply(fr.maxRet, 'Rendement maximal')),
+        pick ? col(pick, 'Point choisi', 'pick', apply(pick, 'Point choisi')) : null),
+      el('p', { class: 'small muted opt-hint' }, pick
+        ? 'Clique sur un autre point du nuage pour comparer une autre répartition.'
+        : 'Survole un point pour voir sa répartition, clique dessus pour l\'ajouter à la comparaison ci-dessus.'),
       noteTip(`Calculé sur les cours de clôture du ${fmtDate(span[0])} au ${fmtDate(span[1])} (${fr.points.length} répartitions simulées, positions positives uniquement, taux sans risque des Réglages). Une période passée favorable à un indice ne se reproduit pas forcément : à lire comme un éclairage sur le couple risque / rendement, pas comme une prévision.`, 'Méthode et limites'));
+    const pt = p => ({ x: p.vol * 100, y: p.ret * 100, w: p.w, p });
     Charts.scatter('optChart', [
-      { label: 'Répartitions simulées', data: fr.points.map(p => ({ x: p.vol * 100, y: p.ret * 100 })), backgroundColor: Charts.css('--muted') + '30', pointRadius: 2, pointHoverRadius: 2 },
-      ...(fr.current ? [{ label: 'Ta répartition', data: [{ x: fr.current.vol * 100, y: fr.current.ret * 100 }], backgroundColor: Charts.css('--accent'), pointRadius: 8, pointStyle: 'circle' }] : []),
-      { label: 'La moins risquée', data: [{ x: fr.minVol.vol * 100, y: fr.minVol.ret * 100 }], backgroundColor: '#6366f1', pointRadius: 8, pointStyle: 'rectRot' },
-      { label: 'Meilleur rendement / risque', data: [{ x: fr.maxSharpe.vol * 100, y: fr.maxSharpe.ret * 100 }], backgroundColor: '#f59e0b', borderColor: '#b45309', borderWidth: 1.5, pointRadius: 9, pointStyle: 'triangle' },
-    ]);
+      { label: 'Répartitions simulées', data: fr.points.map(pt), backgroundColor: Charts.css('--muted') + '30', pointRadius: 2, pointHoverRadius: 5, pointHoverBackgroundColor: Charts.css('--text') },
+      ...(fr.current ? [{ label: 'Ta répartition', data: [pt(fr.current)], backgroundColor: Charts.css('--accent'), pointRadius: 8, pointStyle: 'circle' }] : []),
+      { label: 'La moins risquée', data: [pt(fr.minVol)], backgroundColor: '#6366f1', pointRadius: 8, pointStyle: 'rectRot' },
+      { label: 'Meilleur rendement / risque', data: [pt(fr.maxSharpe)], backgroundColor: '#f59e0b', borderColor: '#b45309', borderWidth: 1.5, pointRadius: 9, pointStyle: 'triangle' },
+      { label: 'Rendement maximal', data: [pt(fr.maxRet)], backgroundColor: '#db2777', borderColor: '#9d174d', borderWidth: 1.5, pointRadius: 10, pointStyle: 'star' },
+      ...(pick ? [{ label: 'Point choisi', data: [pt(pick)], backgroundColor: 'transparent', borderColor: Charts.css('--text'), borderWidth: 2.5, pointRadius: 9, pointStyle: 'circle' }] : []),
+    ], {
+      // info-bulle : répartition du point survolé
+      extra: raw => (raw.w ? weights(raw.w).map(([n, x]) => `   ${n} : ${fmtNum(x * 100, 0)} %`) : []),
+      // clic : le point le plus proche rejoint la comparaison sous le graphique
+      onPick: raw => { if (raw && raw.p) { res.pick = raw.p; this.renderOptimizer(true); } },
+    }, quiet);
   },
 });
