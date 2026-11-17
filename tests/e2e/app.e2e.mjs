@@ -514,6 +514,13 @@ test('carte du portefeuille, optimiseur de répartition et « Ton année en bour
   assert.equal(await page.locator('.opt-col').count(), 4, 'ta répartition, la moins risquée, meilleur rendement / risque, rendement maximal');
   // rendement maximal : 100 % sur une seule ligne
   assert.match(await page.locator('.opt-col.maxret').innerText(), /100 %/);
+  // coût de passage sous chaque répartition proposée
+  assert.match(await page.locator('.opt-col.minvol').innerText(), /Pour y passer : vendre [\d\s ]+€, acheter[\s\S]*frais ≈[\s\S]*impôt ≈/);
+  // poids maximum de 50 % par ligne : recalcul, le rendement maximal n'est plus à 100 %
+  await page.selectOption('#optOpts select', '0.5');
+  await page.waitForFunction(() => !/100 %/.test(document.querySelector('.opt-col.maxret')?.innerText || '100 %') && /50 %/.test(document.querySelector('.opt-col.maxret').innerText), null, { timeout: 20000 });
+  await page.selectOption('#optOpts select', '1');
+  await page.waitForFunction(() => /100 %/.test(document.querySelector('.opt-col.maxret')?.innerText || ''), null, { timeout: 20000 });
   // survol d'un point du nuage : l'info-bulle donne sa répartition
   const box = await page.locator('#optChart').boundingBox();
   const target = await page.evaluate(() => {

@@ -998,6 +998,9 @@ details.advanced[open] > .stack { margin-top: 12px; }
 .opt-col > b { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
 .opt-unpick { font-weight: 400; }
 .opt-hint { margin: 6px 0 0; }
+.opt-opts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-bottom: 12px; }
+.opt-opts label { display: inline-flex; align-items: center; gap: 6px; }
+.opt-move { margin: 2px 0 0; padding-top: 6px; border-top: 1px dashed var(--border); line-height: 1.5; }
 .opt-chart canvas { cursor: crosshair; }
 .opt-col > .btn { align-self: flex-start; margin-top: 4px; }
 .opt-num { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); }
