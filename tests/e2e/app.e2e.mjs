@@ -394,6 +394,14 @@ watchlist: ['CW8@XPAR', 'NVDA@XNAS'] }) }, async ({ page, calls }) => {
   assert.match(fund, /Objectif de cours/i);
   assert.match(fund, /PER attendu/i);
   assert.equal(await page.locator('#detailFund .fund-split .seg').count(), 4, 'achat fort, achat, conserver, vente (pas de vente forte)');
+  // révisions des prévisions, avis des banques et ventes des dirigeants (appel séparé, modules « trends »)
+  await page.waitForSelector('#detailFund .fund-table tbody tr');
+  assert.equal(await page.locator('#detailFund .fund-table tbody tr').count(), 4);
+  const trends = await page.locator('#detailFund').innerText();
+  assert.match(trends, /Prévisions revues à la hausse/);
+  assert.match(trends, /Melius Research abaisse à Conserver \(était Achat\)/);
+  assert.match(trends, /Vente · Timothy S Teter, Directeur juridique/);
+  assert.ok(calls.some(c => c.type === 'summary' && /insiderTransactions/.test(c.modules || '')));
   // fiche de CW8 (ETF) : frais, secteurs et principales lignes de l'indice suivi (via URTH)
   await page.evaluate(() => App.selectDetail('CW8@XPAR'));
   await page.waitForSelector('#detailFund .fund-bars li');

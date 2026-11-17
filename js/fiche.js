@@ -11,7 +11,21 @@ const FUND_STORE = 'apistock:fundamentals';
 const FUND_MODULES = {
   stock: 'financialData,defaultKeyStatistics,summaryDetail,recommendationTrend,assetProfile',
   etf: 'fundProfile,topHoldings,defaultKeyStatistics,summaryDetail',
+  // révisions des prévisions, changements d'avis des banques, transactions des dirigeants
+  trends: 'earningsTrend,upgradeDowngradeHistory,insiderTransactions,netSharePurchaseActivity',
+  trendsOld: 'earningsTrend,upgradeDowngradeHistory', // relais d'avant novembre 2026 : sans les dirigeants
 };
+const TREND_PERIODS = { '0q': 'Trimestre en cours', '+1q': 'Trimestre suivant', '0y': 'Exercice en cours', '+1y': 'Exercice suivant' };
+/* Recommandations des banques (libellés anglais de Yahoo) */
+const GRADES_FR = {
+  'strong buy': 'Achat fort', buy: 'Achat', 'speculative buy': 'Achat spéculatif', 'long-term buy': 'Achat long terme', outperform: 'Surperformance',
+  'market outperform': 'Surperformance', 'sector outperform': 'Surperformance', overweight: 'Surpondérer', positive: 'Positif', accumulate: 'Accumuler',
+  add: 'Renforcer', hold: 'Conserver', neutral: 'Neutre', 'equal-weight': 'Pondération neutre', 'equal weight': 'Pondération neutre',
+  'market perform': 'Performance du marché', 'sector perform': 'Performance du secteur', 'sector weight': 'Pondération du secteur', 'in-line': 'En ligne',
+  'peer perform': 'Performance des pairs', perform: 'Performance', mixed: 'Mitigé', underweight: 'Sous-pondérer', underperform: 'Sous-performance',
+  'market underperform': 'Sous-performance', 'sector underperform': 'Sous-performance', reduce: 'Alléger', negative: 'Négatif', sell: 'Vente', 'strong sell': 'Vente forte',
+};
+const RATING_ACTIONS = { up: 'relève', down: 'abaisse', init: 'commence le suivi', main: 'maintient', reit: 'réitère' };
 
 /* Secteurs (profil des sociétés et répartition des ETF chez Yahoo) */
 const SECTORS_FR = {
@@ -77,6 +91,30 @@ const Fundamentals = {
     return c[sym].data;
   },
 
+  /** Révisions, avis des banques et dirigeants (relais ancien : sans les dirigeants, `noInsiders`) */
+  async getTrends(sym, force = false) {
+    const c = this.load(), k = sym + '|trends';
+    if (!force && c[k] && Date.now() - c[k].ts < this.TTL) return c[k].data;
+    const ask = async mods => {
+      const json = await Api.yahoo({ type: 'summary', symbols: sym, modules: FUND_MODULES[mods] });
+      if (!json || typeof json.results !== 'object' || !json.results) throw new ApiError('requête invalide', 0);
+      return json.results[sym] || null;
+    };
+    let data, noInsiders = false;
+    try { data = await ask('trends'); }
+    catch (e) {
+      if (!/requête invalide/i.test(e.message || '')) throw e;
+      data = await ask('trendsOld'); noInsiders = true;
+    }
+    if (data && data.upgradeDowngradeHistory && Array.isArray(data.upgradeDowngradeHistory.history)) { // relais ancien : liste complète
+      data.upgradeDowngradeHistory.history = data.upgradeDowngradeHistory.history.slice().sort((a, b) => b.epochGradeDate - a.epochGradeDate).slice(0, 60);
+    }
+    if (data && noInsiders) data.noInsiders = true;
+    c[k] = { ts: Date.now(), kind: 'trends', data };
+    this.save();
+    return data;
+  },
+
   raw: x => (x && typeof x === 'object' ? (isFinite(x.raw) ? x.raw : null) : (isFinite(x) && x !== null && x !== '' ? +x : null)),
 
   /** Libellé du consensus d'après la note moyenne Yahoo (1 = achat fort … 5 = vente forte) */
@@ -130,6 +168,80 @@ const Fundamentals = {
     };
   },
 
+  /** Prévisions des analystes trimestre / exercice et leur évolution sur 30 et 90 jours, avec un verdict */
+  revisionsView(d) {
+    const r = this.raw;
+    const trend = (d && d.earningsTrend && d.earningsTrend.trend) || [];
+    const ch = (a, b) => (a !== null && b !== null && b !== 0 ? ((a - b) / Math.abs(b)) * 100 : null);
+    const rows = trend.filter(t => TREND_PERIODS[t.period]).map(t => {
+      const e = t.epsTrend || {}, v = t.epsRevisions || {}, est = t.earningsEstimate || {};
+      const cur = r(e.current), d30 = r(e['30daysAgo']), d90 = r(e['90daysAgo']);
+      return { period: t.period, label: TREND_PERIODS[t.period], end: t.endDate || '', eps: cur, d30, d90, ch30: ch(cur, d30), ch90: ch(cur, d90),
+        up30: r(v.upLast30days) || 0, down30: r(v.downLast30days) || 0, n: r(est.numberOfAnalysts), growth: r(t.growth) !== null ? r(t.growth) * 100 : null,
+        ccy: est.earningsCurrency || e.epsTrendCurrency || '' };
+    }).filter(x => x.eps !== null);
+    if (!rows.length) return null;
+    // verdict sur les exercices (plus suivis que les trimestres) : sens des révisions du dernier mois
+    const years = rows.filter(x => /y$/.test(x.period));
+    const base = years.length ? years : rows;
+    const up = base.reduce((s, x) => s + x.up30, 0), down = base.reduce((s, x) => s + x.down30, 0);
+    const moves = base.map(x => x.ch30).filter(x => x !== null);
+    const avg = moves.length ? moves.reduce((a, b) => a + b, 0) / moves.length : 0;
+    const tone = up - down >= 2 || avg >= 1 ? 'up' : down - up >= 2 || avg <= -1 ? 'down' : '';
+    return { rows, up, down, avg, verdict: { tone, label: tone === 'up' ? 'Prévisions revues à la hausse' : tone === 'down' ? 'Prévisions revues à la baisse' : 'Prévisions stables' } };
+  },
+
+  gradeFr(g) { return GRADES_FR[String(g || '').toLowerCase().trim()] || g || ''; },
+
+  /** Changements d'avis des banques des `days` derniers jours, le plus récent d'abord, et leur bilan */
+  ratingsView(d, now = Date.now(), days = 90) {
+    const list = ((d && d.upgradeDowngradeHistory && d.upgradeDowngradeHistory.history) || [])
+      .filter(h => h && h.epochGradeDate && h.epochGradeDate * 1000 >= now - days * 86400000)
+      .sort((a, b) => b.epochGradeDate - a.epochGradeDate)
+      .map(h => ({ date: new Date(h.epochGradeDate * 1000).toISOString().slice(0, 10), firm: h.firm || '', action: h.action || '',
+        from: this.gradeFr(h.fromGrade), to: this.gradeFr(h.toGrade), pt: +h.currentPriceTarget || 0, prior: +h.priorPriceTarget || 0, ptAction: h.priceTargetAction || '' }));
+    if (!list.length) return null;
+    const count = f => list.filter(f).length;
+    return { list, days, up: count(x => x.action === 'up'), down: count(x => x.action === 'down'), init: count(x => x.action === 'init'),
+      raised: count(x => x.pt > 0 && x.prior > 0 && x.pt > x.prior), lowered: count(x => x.pt > 0 && x.prior > 0 && x.pt < x.prior) };
+  },
+
+  /** « TETER TIMOTHY S » → « Timothy S Teter » (Yahoo écrit le nom de famille en premier) */
+  personName(n) {
+    const w = String(n || '').trim().split(/\s+/).filter(Boolean).map(x => x.charAt(0) + x.slice(1).toLowerCase());
+    return w.length > 1 ? w.slice(1).concat(w[0]).join(' ') : w.join(' ');
+  },
+  roleFr(r) {
+    const s = String(r || '');
+    const map = [[/chief executive|\bceo\b/i, 'PDG'], [/chief financial|\bcfo\b/i, 'Directeur financier'], [/chief operating|\bcoo\b/i, 'Directeur des opérations'],
+      [/chief technology|\bcto\b/i, 'Directeur technique'], [/general counsel/i, 'Directeur juridique'], [/chairman/i, 'Président du conseil'],
+      [/president/i, 'Président'], [/beneficial owner/i, 'Actionnaire de plus de 10 %'], [/^director$/i, 'Administrateur'], [/officer/i, 'Dirigeant']];
+    for (const [re, fr] of map) if (re.test(s)) return fr;
+    return s;
+  },
+  /** Nature d'une transaction : vente ou achat en bourse (les seules qui comptent), attribution, exercice d'options, donation… */
+  txKind(text) {
+    const t = String(text || '');
+    return /^sale\b/i.test(t) ? 'sell' : /^purchase\b/i.test(t) ? 'buy' : /award|grant/i.test(t) ? 'award'
+      : /exercise|conversion/i.test(t) ? 'exercise' : /gift/i.test(t) ? 'gift' : 'other';
+  },
+
+  /** Achats et ventes en bourse des dirigeants sur `days` jours (déclarations américaines à la SEC) */
+  insidersView(d, now = Date.now(), days = 182) {
+    const r = this.raw;
+    const all = ((d && d.insiderTransactions && d.insiderTransactions.transactions) || []).map(t => {
+      const date = r(t.startDate);
+      const m = /at price ([\d.,]+)(?:\s*-\s*([\d.,]+))? per share/i.exec(t.transactionText || '');
+      return { date: date ? new Date(date * 1000).toISOString().slice(0, 10) : '', ts: date || 0, name: this.personName(t.filerName), role: this.roleFr(t.filerRelation),
+        kind: this.txKind(t.transactionText), shares: r(t.shares) || 0, value: r(t.value) || 0,
+        price: m ? [parseFloat(m[1].replace(/,/g, '')), m[2] ? parseFloat(m[2].replace(/,/g, '')) : null] : null, indirect: t.ownership === 'I' };
+    }).filter(t => t.ts * 1000 >= now - days * 86400000).sort((a, b) => b.ts - a.ts);
+    if (!all.length) return { count: 0, days };
+    const sum = k => { const l = all.filter(t => t.kind === k); return { count: l.length, value: l.reduce((s, t) => s + t.value, 0), shares: l.reduce((s, t) => s + t.shares, 0), people: new Set(l.map(t => t.name)).size }; };
+    return { count: all.length, days, sells: sum('sell'), buys: sum('buy'), others: all.filter(t => t.kind !== 'sell' && t.kind !== 'buy').length,
+      market: all.filter(t => t.kind === 'sell' || t.kind === 'buy') };
+  },
+
   /**
    * Données d'un ETF : frais, performances, secteurs et principales lignes. Sans lignes publiées pour l'ETF lui-même,
    * `proxy` ({ sym, list }) fournit celles de l'indice suivi (ETF américain de référence, voir Holdings dans agenda.js).
@@ -169,7 +281,18 @@ Object.assign(App, {
     if (!k) { box.replaceChildren(); return; }
     const c = Fundamentals.load();
     const cached = c[k.sym] && c[k.sym].kind === k.kind ? c[k.sym].data : null;
+    const tk = k.sym + '|trends';
+    this._fundTrends = k.kind === 'stock' && c[tk] ? c[tk].data : null;
     if (cached) this.renderDetailFund(key, k, cached); else box.replaceChildren();
+    if (k.kind === 'stock') {
+      // révisions, avis des banques et dirigeants : en parallèle, affichés dès qu'ils arrivent
+      Fundamentals.getTrends(k.sym).then(t => {
+        if (this.detailKey !== key) return;
+        this._fundTrends = t;
+        const d = (Fundamentals.load()[k.sym] || {}).data;
+        if (d) this.renderDetailFund(key, k, d);
+      }).catch(() => {});
+    }
     try {
       if (k.kind === 'etf' && ETF_PROXY[k.profile] && typeof Holdings !== 'undefined') {
         const h = Holdings.load()[ETF_PROXY[k.profile]];
@@ -265,11 +388,13 @@ Object.assign(App, {
     ].filter(Boolean);
 
     const P = v.profile;
-    if (!parts.length && !tiles.length && !P.sector) return null;
+    const extra = this.fundTrendBlocks(key, this._fundTrends, ccy);
+    if (!parts.length && !tiles.length && !P.sector && !extra.length) return null;
     return el('section', { class: 'fund-panel' },
       el('h3', {}, 'Analyse fondamentale'),
       parts.length ? el('div', { class: 'fund-grid' }, ...parts) : null,
       tiles.length ? el('div', { class: 'stats fund-stats' }, ...tiles) : null,
+      ...extra,
       P.sector || P.summary ? el('details', { class: 'fund-profile' },
         el('summary', {}, 'Profil de la société', P.sector ? el('span', { class: 'muted small' }, ` · ${P.sector}${P.country ? ', ' + P.country : ''}`) : null),
         el('p', { class: 'small' }, [P.industry ? `Activité : ${P.industry}` : '', P.employees ? `${new Intl.NumberFormat('fr-FR').format(P.employees)} salariés` : '', P.country ? `siège : ${P.country}` : ''].filter(Boolean).join(' · '),
@@ -277,6 +402,88 @@ Object.assign(App, {
         P.summary ? el('p', { class: 'small muted', lang: 'en' }, P.summary) : null,
         P.summary ? el('p', { class: 'small muted' }, 'Description fournie en anglais par Yahoo Finance.') : null) : null,
       noteTip('Données Yahoo Finance (analystes, comptes publiés), mises à jour une fois par jour. Les avis et objectifs des analystes ne sont pas des conseils d\'investissement.', 'Sources'));
+  },
+
+  /** Révisions des prévisions, changements d'avis des banques, transactions des dirigeants */
+  fundTrendBlocks(key, t, ccy) {
+    if (!t) return [];
+    const out = [];
+    const money = (x, dg = 2) => fmtMoney(x, ccy, dg, true);
+    const sym = (Fundamentals.kindOf(key) || {}).sym || '';
+    const us = sym && !sym.includes('.');
+
+    // 1. révisions des prévisions de bénéfice
+    const R = Fundamentals.revisionsView(t);
+    if (R) {
+      const chg = x => (x === null ? el('span', { class: 'muted' }, '—') : el('span', { class: Math.abs(x) < 0.05 ? '' : x > 0 ? 'up' : 'down' }, fmtPct(x, 1)));
+      out.push(el('div', { class: 'fund-box fund-wide' },
+        el('h4', {}, 'Révisions des prévisions de bénéfice', infoTip('Bénéfice par action attendu par les analystes pour chaque période, et son évolution depuis 30 et 90 jours. Quand les analystes relèvent leurs prévisions, c\'est souvent un bon signe pour l\'action, et inversement.')),
+        el('div', { class: 'fund-cons' }, el('b', { class: 'fund-cons-label ' + R.verdict.tone }, R.verdict.label),
+          el('span', { class: 'muted small' }, `ce mois-ci, ${R.up} révision${R.up > 1 ? 's' : ''} à la hausse et ${R.down} à la baisse sur les exercices`)),
+        el('div', { class: 'table-wrap' }, el('table', { class: 'data fund-table' },
+          el('thead', {}, el('tr', {}, el('th', {}, 'Période'), el('th', { class: 'num' }, 'Attendu', infoTip('Bénéfice par action attendu, et sa progression par rapport à la même période un an plus tôt.')),
+            el('th', { class: 'num' }, '30 j'), el('th', { class: 'num c90' }, '90 j'), el('th', { class: 'num' }, 'Révisions', infoTip('Nombre d\'analystes ayant relevé (▲) ou abaissé (▼) leur prévision ces 30 derniers jours, sur le nombre d\'analystes qui suivent la période.')))),
+          el('tbody', {}, ...R.rows.map(x => el('tr', {},
+            el('td', {}, x.label, x.end ? el('span', { class: 'muted small fund-sub' }, `fin ${fmtDate(x.end)}`) : null),
+            el('td', { class: 'num' }, fmtMoney(x.eps, x.ccy || ccy, 2, true), x.growth !== null ? el('span', { class: 'muted small fund-sub fund-opt' }, `${fmtPct(x.growth, 0)} sur un an`) : null),
+            el('td', { class: 'num' }, chg(x.ch30)), el('td', { class: 'num c90' }, chg(x.ch90)),
+            el('td', { class: 'num' }, el('span', { class: x.up30 ? 'up' : 'muted' }, `▲ ${x.up30}`), ' ', el('span', { class: x.down30 ? 'down' : 'muted' }, `▼ ${x.down30}`),
+              x.n !== null ? el('span', { class: 'muted small fund-sub fund-opt' }, `${x.n} analystes`) : null))))))));
+    }
+
+    const boxes = [];
+    // 2. changements d'avis des banques
+    const G = Fundamentals.ratingsView(t);
+    if (G) {
+      const line = x => {
+        const what = x.action === 'up' || x.action === 'down' ? `${RATING_ACTIONS[x.action]} à ${x.to}${x.from && x.from !== x.to ? ` (était ${x.from})` : ''}`
+          : x.action === 'init' ? `commence le suivi : ${x.to}` : `${RATING_ACTIONS[x.action] || 'maintient'} ${x.to}`;
+        const pt = x.pt > 0 ? (x.prior > 0 && x.prior !== x.pt
+          ? el('span', { class: x.pt > x.prior ? 'up' : 'down' }, ` · objectif ${money(x.prior, 0)} → ${money(x.pt, 0)} ${x.pt > x.prior ? '▲' : '▼'}`)
+          : el('span', { class: 'muted' }, ` · objectif ${money(x.pt, 0)}`)) : null;
+        return el('li', { class: x.action === 'up' ? 'ev-up' : x.action === 'down' ? 'ev-down' : '' },
+          el('span', { class: 'muted small fund-date' }, fmtDate(x.date).replace(/ \d{4}$/, '')),
+          el('span', {}, el('b', {}, x.firm), ' ', what, pt));
+      };
+      const first = G.list.slice(0, 6), rest = G.list.slice(6);
+      boxes.push(el('div', { class: 'fund-box' },
+        el('h4', {}, `Avis des banques · ${G.days} jours`, infoTip('Changements de recommandation et d\'objectif de cours publiés par les banques et bureaux d\'analyse. Une série d\'abaissements traduit un pessimisme qui monte, et inversement.')),
+        el('p', { class: 'small fund-tally' },
+          el('span', { class: G.up ? 'up' : 'muted' }, `▲ ${G.up} relèvement${G.up > 1 ? 's' : ''}`), ' · ',
+          el('span', { class: G.down ? 'down' : 'muted' }, `▼ ${G.down} abaissement${G.down > 1 ? 's' : ''}`),
+          G.raised || G.lowered ? el('span', { class: 'muted' }, ` · objectifs : ${G.raised} relevé${G.raised > 1 ? 's' : ''}, ${G.lowered} abaissé${G.lowered > 1 ? 's' : ''}`) : null),
+        el('ul', { class: 'fund-events' }, ...first.map(line)),
+        rest.length ? el('details', {}, el('summary', { class: 'small' }, `${rest.length} de plus`), el('ul', { class: 'fund-events' }, ...rest.map(line))) : null));
+    }
+
+    // 3. transactions des dirigeants
+    if (t.noInsiders) {
+      boxes.push(el('div', { class: 'fund-box' }, el('h4', {}, 'Dirigeants'),
+        el('p', { class: 'small muted' }, 'Pour voir les achats et ventes d\'actions des dirigeants, mets à jour ton relais Yahoo (copie à nouveau proxy/cloudflare-worker.js dans ton worker Cloudflare, puis Deploy).')));
+    } else {
+      const I = Fundamentals.insidersView(t);
+      if (I.count) {
+        const S = I.sells, B = I.buys;
+        const tx = x => el('li', { class: x.kind === 'buy' ? 'ev-up' : 'ev-down' },
+          el('span', { class: 'muted small fund-date' }, fmtDate(x.date).replace(/ \d{4}$/, '')),
+          el('span', {}, el('b', {}, x.kind === 'buy' ? 'Achat' : 'Vente'), ` · ${x.name}`, x.role ? el('span', { class: 'muted' }, `, ${x.role}`) : null,
+            el('br'), el('span', { class: 'small' }, `${new Intl.NumberFormat('fr-FR').format(x.shares)} actions`,
+              x.value ? ` · ${fmtBigMoney(x.value, ccy)}` : '', x.price ? ` · à ${money(x.price[0])}${x.price[1] ? ' – ' + money(x.price[1]) : ''}` : '')));
+        boxes.push(el('div', { class: 'fund-box' },
+          el('h4', {}, 'Dirigeants · 6 mois', infoTip('Achats et ventes d\'actions en bourse par les dirigeants, administrateurs et grands actionnaires, déclarés à l\'autorité américaine (SEC). Les ventes sont fréquentes (impôts, diversification) et peu parlantes ; des achats avec leur propre argent sont un signal plus fort. Les attributions gratuites et exercices d\'options sont mis de côté.')),
+          el('p', { class: 'small fund-tally' },
+            el('span', { class: B.count ? 'up' : 'muted' }, `Achats : ${B.count}${B.count ? ` (${fmtBigMoney(B.value, ccy)})` : ''}`), ' · ',
+            el('span', { class: S.count ? 'down' : 'muted' }, `Ventes : ${S.count}${S.count ? ` (${fmtBigMoney(S.value, ccy)}, ${S.people} personne${S.people > 1 ? 's' : ''})` : ''}`),
+            I.others ? el('span', { class: 'muted' }, ` · ${I.others} attribution${I.others > 1 ? 's' : ''} gratuite${I.others > 1 ? 's' : ''}, exercice${I.others > 1 ? 's' : ''} d'options ou donation${I.others > 1 ? 's' : ''} non comptés`) : null),
+          I.market.length ? el('ul', { class: 'fund-events' }, ...I.market.slice(0, 6).map(tx)) : el('p', { class: 'small muted' }, 'Aucun achat ni vente en bourse sur la période.'),
+          I.market.length > 6 ? el('details', {}, el('summary', { class: 'small' }, `${I.market.length - 6} de plus`), el('ul', { class: 'fund-events' }, ...I.market.slice(6).map(tx))) : null));
+      } else if (!us) {
+        boxes.push(el('div', { class: 'fund-box' }, el('h4', {}, 'Dirigeants'),
+          el('p', { class: 'small muted' }, 'Yahoo ne publie les achats et ventes d\'actions des dirigeants que pour les sociétés américaines (déclarations à la SEC). Pour une société française, ils sont publiés sur le site de l\'AMF.')));
+      }
+    }
+    if (boxes.length) out.push(el('div', { class: 'fund-grid' }, ...boxes));
+    return out;
   },
 
   fundEtfPanel(key, k, d) {

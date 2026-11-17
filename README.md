@@ -48,6 +48,9 @@ Site personnel (100 % statique, sans serveur ni compte) pour suivre ses ETF et l
 
 **Fiche d'une valeur (onglet Marchés)**
 - **Analyse fondamentale d'une action** : avis des analystes (répartition achat / conserver / vente et évolution sur un mois), objectif de cours moyen à 12 mois avec sa fourchette et le potentiel par rapport au cours, valorisation (PER, PER attendu, PEG, capitalisation, dividende, bêta), santé financière (marges, croissance, rentabilité, dette) et profil de la société, chaque indicateur expliqué en une phrase
+- **Révisions des prévisions** : bénéfice par action attendu (trimestre en cours et suivant, exercice en cours et suivant), son évolution sur 30 et 90 jours, nombre d'analystes l'ayant relevé ou abaissé, et un verdict (prévisions revues à la hausse / à la baisse / stables)
+- **Avis des banques** sur 90 jours : relèvements, abaissements et objectifs de cours, banque par banque (« Melius Research abaisse à Conserver (était Achat) · objectif 315 → 185 $ »)
+- **Dirigeants** sur 6 mois : achats et ventes d'actions en bourse déclarés à la SEC (sociétés américaines), montants et fonctions ; attributions gratuites, exercices d'options et donations mis de côté
 - **Composition & frais d'un ETF** : frais courants, performances annualisées sur 3 et 5 ans, encours, distribution ou capitalisation, société de gestion, répartition par secteur et principales lignes (celles de l'indice suivi quand l'ETF ne publie pas les siennes)
 - **Résultats trimestriels** d'une action : 4 derniers trimestres (publié / attendu) et prochaine publication
 - Données Yahoo Finance lues par le relais (`type=summary`), gardées 24 h ; la radiographie du portefeuille utilise aussi les poids réels des principales lignes des indices (mis à jour chaque semaine)

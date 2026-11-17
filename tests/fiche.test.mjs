@@ -85,3 +85,80 @@ test('radiographie : poids réels des indices quand la composition est connue, n
   assert.ok(Math.abs(r.companies.find(c => c.name === 'Apple').value - 560) < 1e-6);
   assert.ok(r.mag7 > 0);
 });
+
+/* Révisions, avis des banques et dirigeants de NVIDIA (relais, type=summary, 17/11/2026) */
+const NOW = Date.UTC(2026, 10, 17, 12);
+
+test('révisions des prévisions : évolution sur 30 et 90 jours, verdict sur les exercices', () => {
+  const a = loadApp(state());
+  const R = plain(a.get('Fundamentals').revisionsView(fixture('trends-NVDA')));
+  assert.deepEqual(R.rows.map(x => x.period), ['0q', '+1q', '0y', '+1y']);
+  const y1 = R.rows.find(x => x.period === '+1y');
+  assert.equal(y1.label, 'Exercice suivant');
+  assert.ok(Math.abs(y1.ch90 - (15.84302 / 12.85483 - 1) * 100) < 1e-9, '+23 % en 90 jours');
+  assert.equal(y1.up30, 7);
+  assert.equal(R.up, 9, 'exercices : 2 + 7 révisions à la hausse');
+  assert.equal(R.down, 0);
+  assert.equal(R.verdict.tone, 'up');
+  assert.equal(R.verdict.label, 'Prévisions revues à la hausse');
+  // baisse : plus de révisions à la baisse
+  const down = plain(a.get('Fundamentals').revisionsView({ earningsTrend: { trend: [{ period: '0y', epsTrend: { current: { raw: 9.4 }, '30daysAgo': { raw: 9.6 } }, epsRevisions: { upLast30days: { raw: 7 }, downLast30days: { raw: 23 } } }] } }));
+  assert.equal(down.verdict.tone, 'down');
+  assert.equal(a.get('Fundamentals').revisionsView({}), null);
+});
+
+test('avis des banques : 90 derniers jours, relèvements / abaissements, objectifs, libellés français', () => {
+  const a = loadApp(state());
+  const F = a.get('Fundamentals');
+  const G = plain(F.ratingsView(fixture('trends-NVDA'), NOW));
+  assert.equal(G.list[0].firm, 'Melius Research');
+  assert.equal(G.list[0].action, 'down');
+  assert.equal(G.list[0].from, 'Achat');
+  assert.equal(G.list[0].to, 'Conserver');
+  assert.equal(G.list[0].prior, 315);
+  assert.equal(G.list[0].pt, 185);
+  assert.equal(G.down, 9);
+  assert.equal(G.up, 0);
+  assert.ok(G.lowered >= 10 && G.raised === 0);
+  assert.ok(G.list.every((x, i) => i === 0 || G.list[i - 1].date >= x.date), 'du plus récent au plus ancien');
+  assert.equal(F.gradeFr('Overweight'), 'Surpondérer');
+  assert.equal(F.gradeFr('Equal-Weight'), 'Pondération neutre');
+  assert.equal(F.ratingsView(fixture('trends-NVDA'), NOW + 400 * 86400000), null, 'rien de récent');
+});
+
+test('dirigeants : seules les ventes et achats en bourse comptent, noms et fonctions en français', () => {
+  const a = loadApp(state());
+  const F = a.get('Fundamentals');
+  const I = plain(F.insidersView(fixture('trends-NVDA'), NOW));
+  assert.ok(I.sells.count > 0 && I.buys.count === 0, 'ventes seulement');
+  assert.ok(I.others > 0, 'attributions et donations mises de côté');
+  assert.ok(I.market.every(t => t.kind === 'sell'));
+  const t = I.market[0];
+  assert.equal(t.name, 'Timothy S Teter');
+  assert.equal(t.role, 'Directeur juridique');
+  assert.deepEqual(t.price, [222.19, 223.75]);
+  assert.equal(t.indirect, true);
+  assert.equal(F.personName('HUANG JEN HSUN'), 'Jen Hsun Huang');
+  assert.deepEqual(['sell', 'buy', 'award', 'exercise', 'gift', 'other'],
+    ['Sale at price 10 per share.', 'Purchase at price 5 per share.', 'Stock Award(Grant) at price 0.00 per share.', 'Conversion of Exercise of derivative security', 'Stock Gift at price 0.00 per share.', ''].map(x => F.txKind(x)));
+  assert.equal(F.roleFr('Chief Executive Officer'), 'PDG');
+  assert.equal(F.roleFr('Director'), 'Administrateur');
+});
+
+test('relais d\'avant novembre 2026 : révisions et avis des banques sans les dirigeants', async () => {
+  const a = loadApp(state());
+  const F = a.get('Fundamentals'), Api = a.get('Api');
+  const asked = [];
+  Api.hasProxy = () => true;
+  Api.yahoo = async p => {
+    asked.push(p.modules);
+    if (/insider/.test(p.modules)) { const ApiError = a.get('ApiError'); throw new ApiError('requête invalide', 0); }
+    const d = fixture('trends-NVDA');
+    return { results: { NVDA: { earningsTrend: d.earningsTrend, upgradeDowngradeHistory: d.upgradeDowngradeHistory } } };
+  };
+  const d = await F.getTrends('NVDA');
+  assert.equal(asked.length, 2);
+  assert.equal(d.noInsiders, true);
+  assert.ok(F.revisionsView(d));
+  assert.ok(F.load()['NVDA|trends'], 'gardé en cache');
+});
