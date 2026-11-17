@@ -75,10 +75,10 @@ const Health = {
     if (info && info.drift && isFinite(info.drift.max)) {
       const st = this.grade(info.drift.max, 5, 10);
       checks.push({ id: 'target', label: 'Respect de ta cible', status: st, weight: 1.5, value: `écart max ${fmtNum(info.drift.max, 1)} pt`, action: 'invest',
-        advice: st === 'ok' ? 'Ton portefeuille suit ton allocation cible.' : 'Une ligne s\'écarte de ta cible : le plan « Ce mois-ci, j\'investis… » (onglet Investir) te dit quoi acheter pour revenir vers elle.' });
+        advice: st === 'ok' ? 'Ton portefeuille suit ton allocation cible.' : 'Une ligne s\'écarte de ta cible : le plan « Ce mois-ci, j\'investis… » (Planifier › Investir) te dit quoi acheter pour revenir vers elle.' });
     } else {
       checks.push({ id: 'target', label: 'Allocation cible', status: 'info', weight: 0, value: 'non définie', action: 'invest',
-        advice: 'Fixer une répartition cible (onglet Investir) aide à garder le cap et à savoir quoi acheter chaque mois.' });
+        advice: 'Fixer une répartition cible (Planifier › Investir) aide à garder le cap et à savoir quoi acheter chaque mois.' });
     }
 
     // 7. frais de courtage payés / montant acheté
@@ -126,7 +126,7 @@ Object.assign(App, {
     const level = h.score >= 80 ? 'ok' : h.score >= 55 ? 'warn' : 'bad';
     const word = { ok: 'Bonne santé', warn: 'Quelques points à surveiller', bad: 'À revoir' }[level];
     const go = {
-      exposure: () => { this.portfolioTab('analyse'); const d = $('#expoDetail'); if (d) { d.open = true; d.scrollIntoView({ behavior: 'smooth', block: 'start' }); } },
+      exposure: () => { this.show('analysis', 'composition'); const d = $('#expoDetail'); if (d) { d.open = true; d.scrollIntoView({ behavior: 'smooth', block: 'start' }); } },
       invest: () => this.show('invest'),
       backup: () => { this.show('settings'); setTimeout(() => $('#syncCard').scrollIntoView({ behavior: 'smooth', block: 'center' }), 50); },
     };

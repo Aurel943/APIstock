@@ -62,7 +62,7 @@ const EXCHANGES = [
     mics: ['XASX'], index: { y: '^AXJO', name: 'S&P/ASX 200' }, region: 'Asie-Pacifique' },
 ];
 
-/* Indicateurs globaux affichés en tête de l'onglet Monde */
+/* Indicateurs globaux affichés en tête de Marchés › Monde */
 const MACRO = [
   { y: '^STOXX50E', name: 'Euro Stoxx 50', kind: 'index' },
   { y: 'EURUSD=X', name: 'EUR / USD', kind: 'fx', digits: 4 },

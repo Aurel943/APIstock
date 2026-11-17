@@ -1,35 +1,14 @@
-/* Interface mobile : barre de navigation basse, panneau « Plus », bouton flottant, cartes de positions */
+/* Interface mobile : barre de navigation basse (les 5 espaces), bouton flottant, cartes de positions */
 'use strict';
 
-const MORE_VIEWS = ['catalog', 'world', 'compare', 'simulation', 'arena', 'desk', 'quant', 'settings'];
 const isMobile = () => matchMedia('(max-width: 760px)').matches;
 
 Object.assign(App, {
   bindMobile() {
-    const sheet = $('#moreSheet'), backdrop = $('#moreBackdrop');
-    const openSheet = open => {
-      sheet.classList.toggle('open', open);
-      backdrop.classList.toggle('open', open);
-    };
     $$('#bottomNav button').forEach(b => b.addEventListener('click', () => {
-      if (b.dataset.view === 'more') { openSheet(!sheet.classList.contains('open')); return; }
-      openSheet(false);
       this.show(b.dataset.view);
       window.scrollTo({ top: 0 });
     }));
-    $$('#moreSheet button').forEach(b => b.addEventListener('click', () => {
-      openSheet(false);
-      if (b.dataset.action === 'theme') { $('#themeBtn').click(); return; }
-      if (b.dataset.action === 'wrapped') { this.openWrapped(); return; }
-      if (b.dataset.action === 'terminal') { this.openTerminal(); return; }
-      this.show(b.dataset.view);
-      window.scrollTo({ top: 0 });
-    }));
-    backdrop.addEventListener('click', () => openSheet(false));
-    // glisser vers le bas pour fermer le panneau
-    let y0 = null;
-    sheet.addEventListener('touchstart', e => { y0 = e.touches[0].clientY; }, { passive: true });
-    sheet.addEventListener('touchmove', e => { if (y0 !== null && e.touches[0].clientY - y0 > 60) { openSheet(false); y0 = null; } }, { passive: true });
     $('#fabAdd').addEventListener('click', () => this.openTx());
 
     // sur mobile, toucher une ligne de la liste de suivi fait défiler jusqu'au graphique
@@ -41,9 +20,9 @@ Object.assign(App, {
 
   syncMobileNav() {
     const v = this.view;
-    $$('#bottomNav button').forEach(b => b.classList.toggle('active', b.dataset.view === v || (b.dataset.view === 'more' && MORE_VIEWS.includes(v))));
-    $$('#moreSheet button[data-view]').forEach(b => b.classList.toggle('active', b.dataset.view === v));
+    $$('#bottomNav button').forEach(b => b.classList.toggle('active', b.dataset.view === v));
     document.body.dataset.view = v;
+    document.body.dataset.page = this.page || v;
   },
 
   /** Positions sous forme de cartes (affichées à la place du tableau sur petit écran) */

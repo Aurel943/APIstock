@@ -480,7 +480,7 @@ const Quant = {
   },
 };
 
-/* ==================== Affichage : onglet « Labo quant » ==================== */
+/* ==================== Affichage : Analyse › Risque, Performance (audit), Marchés › Monde (météo) ==================== */
 
 Object.assign(App, {
   /** Lignes cotées détenues (hors valeurs saisies à la main), avec leur valeur en devise de base */
@@ -506,7 +506,7 @@ Object.assign(App, {
   quantEmpty(box, msg) { box.replaceChildren(el('p', { class: 'muted' }, msg)); },
 
   bindQuant() {
-    if (!$('#view-quant')) return;
+    if (!$('#qCrashCard')) return;
     $('#qCrashRun').addEventListener('click', () => this.runCrash());
     $('#qScenRun').addEventListener('click', () => this.runScenario());
     $('#qRiskRun').addEventListener('click', () => this.runRiskAnatomy());
@@ -919,7 +919,7 @@ Object.assign(App, {
 });
 
 App.on('view:shown', function (view) {
-  if (view !== 'quant' || this._quantAuto) return;
+  if (view !== 'markets/monde' || this._quantAuto) return;
   this._quantAuto = true;
   if (Api.hasProxy && Api.hasProxy()) this.runRegime(); // la météo se charge seule (une requête, indépendante du portefeuille)
 });

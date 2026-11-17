@@ -9,7 +9,12 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { root } from '../harness.mjs';
 
-const VIEWS = ['portfolio', 'markets', 'agenda', 'catalog', 'compare', 'world', 'invest', 'simulation', 'quant', 'desk', 'arena', 'settings'];
+/* Toutes les pages : 5 espaces en sous-onglets, et les réglages */
+const PAGES = [['portfolio', 'synthese'], ['portfolio', 'patrimoine'], ['portfolio', 'revenus'], ['portfolio', 'operations'],
+  ['analysis', 'composition'], ['analysis', 'performance'], ['analysis', 'risque'], ['analysis', 'optimiser'],
+  ['markets', 'suivi'], ['markets', 'monde'], ['markets', 'comparer'], ['markets', 'etf'], ['markets', 'signaux'],
+  ['agenda', 'agenda'], ['agenda', 'actus'], ['agenda', 'alertes'],
+  ['plan', 'investir'], ['plan', 'objectifs'], ['plan', 'simuler'], ['plan', 'arene'], ['settings', '']];
 let server, url, browser;
 
 before(async () => { ({ server, url } = await startServer()); browser = await chromium.launch(); });
@@ -106,7 +111,7 @@ test('mouvement d\'espèces : le solde du compte apparaît', () => run({ state: 
   await page.fill('#cashDate', '2024-01-02');
   await page.fill('#cashAmount', '5000');
   await page.click('#cashForm button[type=submit]');
-  await page.click('#pfSubnav [data-tab=synthese]');
+  await page.click('#pfSubnav [data-tab=patrimoine]');
   await page.waitForSelector('#cashCard:not(.hidden)');
   const s = await state(page);
   assert.equal(s.cashMoves.length, 1);
@@ -149,10 +154,11 @@ for (const [label, device] of [['bureau', null], ['iPhone', 'iPhone 13']]) {
   test(`aucune erreur JavaScript sur chaque onglet (${label}, thèmes clair et sombre)`, async () => {
     for (const theme of ['light', 'dark']) {
       await run({ state: sampleState(), device, theme }, async ({ page }) => {
-        for (const v of VIEWS) {
-          await page.evaluate(v => App.show(v), v);
+        for (const [v, sub] of PAGES) {
+          await page.evaluate(([v, sub]) => App.show(v, sub), [v, sub]);
           await page.waitForTimeout(150);
-          assert.ok(await page.locator('#view-' + v).isVisible(), 'onglet ' + v + ' affiché');
+          assert.ok(await page.locator('#view-' + v).isVisible(), 'espace ' + v + ' affiché');
+          if (sub) assert.ok(await page.locator(`#view-${v} > [data-sub~="${sub}"]:not(.sub-off)`).count() > 0, `cartes de ${v}/${sub}`);
         }
       });
     }
@@ -161,8 +167,8 @@ for (const [label, device] of [['bureau', null], ['iPhone', 'iPhone 13']]) {
 
 test('affichage mobile : aucun défilement horizontal, quel que soit l\'onglet', () => run({ state: sampleState({ assets: [{ id: 'a', type: 'immo', name: 'Appartement', value: 250000, debt: 100000, date: '2025-01-01' }] }), device: 'iPhone 13' }, async ({ page }) => {
   await page.waitForTimeout(800);
-  for (const v of VIEWS) {
-    await page.evaluate(v => { App.show(v); window.scrollTo(0, 0); }, v);
+  for (const [v, sub] of PAGES) {
+    await page.evaluate(([v, sub]) => { App.show(v, sub); window.scrollTo(0, 0); }, [v, sub]);
     await page.waitForTimeout(200);
     // ni défilement de la page, ni contenu coupé par overflow-x: hidden (les tableaux défilent dans leur cadre .table-wrap)
     const over = await page.evaluate(() => {
@@ -210,7 +216,7 @@ test('portefeuille en sous-onglets et bulles d\'information', () => run({ state:
   await page.click('#pfSubnav [data-tab=operations]');
   assert.ok(await page.locator('#txTable').isVisible(), 'opérations visibles dans leur sous-onglet');
   assert.ok(!(await page.locator('#positionsTable').isVisible()));
-  assert.equal(await page.evaluate(() => localStorage.getItem('apistock:pfTab')), 'operations', 'sous-onglet mémorisé');
+  assert.equal(await page.evaluate(() => localStorage.getItem('apistock:sub:portfolio')), 'operations', 'sous-onglet mémorisé');
   // bulle « i » : s'ouvre au clic, se ferme au clic ailleurs
   await page.click('#pfSubnav [data-tab=synthese]');
   await page.locator('#view-portfolio .info:visible').first().click();
@@ -298,8 +304,9 @@ test('opérations filtrées, contribution des lignes et vente simulée', () => r
   assert.match(await page.locator('#txCount').innerText(), /sur/);
   await page.click('#txFilters .link');
   assert.equal(await page.locator('#txTable tbody tr').count(), total);
-  // contribution : une ligne par ETF dans « Analyse »
-  await page.click('#pfSubnav [data-tab=analyse]');
+  // contribution : une ligne par ETF dans Analyse › Performance
+  await page.click('.tabs .tab[data-view="analysis"]');
+  await page.click('#anSubnav [data-tab="performance"]');
   await page.waitForSelector('#contribCard:not(.hidden)');
   assert.ok(await page.locator('#contribList li').count() >= 2);
   // vente simulée depuis la fiche
@@ -311,16 +318,28 @@ test('opérations filtrées, contribution des lignes et vente simulée', () => r
   assert.equal(await page.inputValue('#detailSale .sale-qty'), '1');
 }));
 
-test('menu « Plus » au clavier et indicateur hors ligne', () => run({ state: sampleState() }, async ({ page, context }) => {
+test('menu « ⋯ » au clavier, sous-onglets mémorisés et indicateur hors ligne', () => run({ state: sampleState() }, async ({ page, context }) => {
   await page.focus('#tabMoreBtn');
   await page.keyboard.press('ArrowDown');
-  assert.equal(await page.evaluate(() => document.activeElement.dataset.view), 'catalog');
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'termOpen');
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
-  assert.equal(await page.evaluate(() => App.view), 'simulation');
+  assert.equal(await page.evaluate(() => App.view), 'settings');
   assert.equal(await page.locator('#tabMore.open').count(), 0);
+  // espaces : chaque espace rouvre son dernier sous-onglet, l'adresse suit (#espace/sous-onglet)
+  await page.click('.tabs .tab[data-view="analysis"]');
+  await page.click('#anSubnav [data-tab="risque"]');
+  assert.ok(await page.locator('#qCrashCard').isVisible());
+  assert.ok(await page.locator('#healthCard').isHidden());
+  await page.click('.tabs .tab[data-view="markets"]');
+  assert.equal(await page.evaluate(() => location.hash), '#markets/suivi');
+  await page.click('.tabs .tab[data-view="analysis"]');
+  assert.equal(await page.evaluate(() => App.page), 'analysis/risque');
+  // anciens noms de pages (liens, boutons « voir… ») toujours compris
+  await page.evaluate(() => App.show('world'));
+  assert.equal(await page.evaluate(() => App.page), 'markets/monde');
   // hors ligne : pastille visible, pas de tentative de mise à jour
   await context.setOffline(true);
   await page.waitForSelector('#offlinePill:not(.hidden)');
@@ -343,7 +362,7 @@ test('fiche : achats sur le graphique, « M\'alerter » ; répartition par compt
   assert.ok(labels.includes('Ton prix de revient'), JSON.stringify(labels));
   // « M'alerter » : formulaire d'alerte pré-rempli
   await page.click('.alert-shortcut');
-  assert.equal(await page.evaluate(() => App.view), 'invest');
+  assert.equal(await page.evaluate(() => App.page), 'plan/investir');
   assert.equal(await page.inputValue('#alertKey'), 'CW8@XPAR');
   assert.ok(parseFloat(await page.inputValue('#alertValue')) > 0);
 }));
@@ -353,8 +372,9 @@ test('agenda (filtres, résultats, macro, export .ics) et bilan de santé', () =
 instruments: Object.assign({}, sampleState().instruments, {
   'NVDA@XNAS': { symbol: 'NVDA', mic: 'XNAS', exchange: 'Nasdaq', name: 'NVIDIA Corporation', currency: 'USD', type: 'Action', provider: 'yahoo', ysymbol: 'NVDA' } }),
 watchlist: ['CW8@XPAR', 'NVDA@XNAS'] }) }, async ({ page, calls }) => {
-  // bilan de santé en tête de l'onglet Analyse
-  await page.click('#pfSubnav [data-tab=analyse]');
+  // bilan de santé en tête d'Analyse › Composition
+  await page.click('.tabs .tab[data-view="analysis"]');
+  await page.click('#anSubnav [data-tab="composition"]');
   await page.waitForSelector('#healthCard:not(.hidden) .health-ring');
   const score = +(await page.locator('.health-ring b').innerText());
   assert.ok(score >= 0 && score <= 100, String(score));
@@ -412,8 +432,7 @@ watchlist: ['CW8@XPAR', 'NVDA@XNAS'] }) }, async ({ page, calls }) => {
   assert.match(etf, /URTH/);
   assert.equal(await page.locator('#detailEarnings .earn-col').count(), 0, 'pas de résultats trimestriels pour un ETF');
   // radiographie : poids réels (SPY, URTH)
-  await page.evaluate(() => { App.show('portfolio'); });
-  await page.click('#pfSubnav [data-tab=analyse]');
+  await page.evaluate(() => App.show('analysis', 'composition'));
   await page.waitForSelector('#xrayCard:not(.hidden) .xr-list li');
   assert.match(await page.locator('#xrayCard').innerText(), /Apple|NVIDIA/);
 }));
@@ -425,7 +444,7 @@ test('catalogue : portefeuille type appliqué comme cible ; moyennes mobiles sur
   assert.ok(await page.locator('#catalogBody input[type=checkbox]').isChecked(), 'PEA coché par défaut (un PEA existe)');
   assert.ok(await page.locator('#catalogBody tbody tr').count() >= 2);
   await page.locator('.model-card', { hasText: 'Monde, un seul ETF' }).locator('button').click();
-  await page.waitForFunction(() => App.view === 'invest');
+  await page.waitForFunction(() => App.page === 'plan/investir');
   const targets = await page.evaluate(() => Object.fromEntries(Object.entries(Store.state.targets).filter(([, v]) => v > 0)));
   assert.deepEqual(targets, { 'DCAM@XPAR': 100 });
   // fiche : moyennes mobiles et indicateurs
@@ -437,7 +456,7 @@ test('catalogue : portefeuille type appliqué comme cible ; moyennes mobiles sur
 }));
 
 test('objectifs multiples et alerte « sous mon prix de revient »', () => run({ state: sampleState() }, async ({ page }) => {
-  await page.evaluate(() => App.show('invest'));
+  await page.evaluate(() => App.show('plan', 'objectifs'));
   await page.waitForSelector('#goalList .goal-item');
   assert.equal(await page.locator('#goalList .goal-item').count(), 1, 'objectif principal');
   await page.click('#goalAdd');
@@ -450,7 +469,8 @@ test('objectifs multiples et alerte « sous mon prix de revient »', () => run({
   assert.equal(g.name, 'Apport immobilier');
   assert.deepEqual(g.accounts, ['cto']);
   assert.match(await page.locator('#goalList .goal-item').nth(1).innerText(), /Apport immobilier/);
-  // alerte sans valeur à saisir
+  // alerte sans valeur à saisir (Agenda › Alertes)
+  await page.evaluate(() => App.show('agenda', 'alertes'));
   await page.selectOption('#alertKey', 'CW8@XPAR');
   await page.selectOption('#alertKind', 'belowPru');
   assert.ok(!(await page.locator('#alertValue').isVisible()), 'pas de valeur à saisir');
@@ -462,21 +482,23 @@ test('objectifs multiples et alerte « sous mon prix de revient »', () => run({
 }));
 
 test('carte du portefeuille, optimiseur de répartition et « Ton année en bourse »', { skip: !realCharts && 'Chart.js non installé' }, () => run({ state: sampleState() }, async ({ page }) => {
-  await page.click('#pfSubnav [data-tab=analyse]');
+  await page.evaluate(() => App.show('analysis', 'composition'));
   // carte : une tuile par ligne, qui ouvre la fiche
   await page.waitForSelector('#mapCard:not(.hidden) .map-tile');
-  assert.equal(await page.locator('.map-tile').count(), 3);
+  // la ligne en dollars arrive avec le taux de change : la carte se complète sans changer de page
+  await page.waitForFunction(() => document.querySelectorAll('.map-tile').length === 3, null, { timeout: 20000 });
   await page.click('#mapMode [data-mode=gain]');
   assert.match(await page.locator('.map-tile').first().getAttribute('title'), /plus-value/);
-  // optimiseur : nuage, trois répartitions, application comme cible
+  // optimiseur (Analyse › Optimiser) : nuage, trois répartitions, application comme cible
+  await page.click('#anSubnav [data-tab="optimiser"]');
   await page.click('#optRun');
   await page.waitForFunction(() => Chart.getChart('optChart') && Chart.getChart('optChart').data.datasets.length === 4, null, { timeout: 20000 });
   assert.equal(await page.locator('.opt-col').count(), 3);
   await page.locator('.opt-col.minvol button').click();
-  await page.waitForFunction(() => App.view === 'invest');
+  await page.waitForFunction(() => App.page === 'plan/investir');
   const sum = await page.evaluate(() => Object.values(Store.state.targets).reduce((a, b) => a + b, 0));
   assert.ok(Math.abs(sum - 100) < 0.5, 'cible à 100 % : ' + sum);
-  // récap de l'année depuis le menu « Plus »
+  // récap de l'année depuis le menu « ⋯ »
   await page.click('#tabMoreBtn');
   await page.click('#wrappedOpen');
   await page.waitForSelector('.wrapped .w-big', { timeout: 20000 });
@@ -503,19 +525,20 @@ test('laboratoire de stratégies et répartition partagée par lien', { skip: !r
     assert.match(await page.locator('dialog.share-dialog').innerText(), /Monde \+ émergents/);
     assert.ok(!/share=/.test(await page.evaluate(() => location.hash)), 'le lien est retiré de l\'adresse');
     await page.locator('dialog.share-dialog button', { hasText: 'Utiliser comme cible' }).click();
-    await page.waitForFunction(() => App.view === 'invest');
+    await page.waitForFunction(() => App.page === 'plan/investir');
     const t = await page.evaluate(() => Object.fromEntries(Object.entries(Store.state.targets).filter(([, v]) => v > 0)));
     assert.deepEqual(t, { 'CW8@XPAR': 88, 'ESE@XPAR': 12 });
   });
 });
 
 test('labo quant : météo des marchés, anatomie du risque, scénarios, crash-test et audit', { skip: !realCharts && 'Chart.js non installé' }, () => run({ state: sampleState() }, async ({ page }) => {
-  await page.evaluate(() => App.show('quant'));
-  // la météo se lance seule à l'ouverture (MSCI World enregistré)
+  await page.evaluate(() => App.show('markets', 'monde'));
+  // la météo se lance seule à l'ouverture de Marchés › Monde (MSCI World enregistré)
   await page.waitForSelector('#qRegimeBody .q-weather', { timeout: 20000 });
   assert.ok(await page.evaluate(() => !!Chart.getChart('qRegimeChart')));
   assert.match(await page.locator('#qRegimeBody .q-weather').innerText(), /Marché (calme|agité)/);
 
+  await page.evaluate(() => App.show('analysis', 'risque'));
   await page.click('#qRiskRun');
   await page.waitForSelector('#qRiskBody .q-kpis', { timeout: 20000 });
   assert.match(await page.locator('#qRiskBody .q-lead').innerText(), /risque/);
@@ -536,9 +559,11 @@ test('labo quant : météo des marchés, anatomie du risque, scénarios, crash-t
   await page.waitForFunction(() => !document.querySelector('#qCrashRun').disabled, null, { timeout: 30000 });
   assert.ok(await page.locator('#qCrashBody').innerText());
 
+  await page.evaluate(() => App.show('analysis', 'performance'));
   await page.click('#qBehavRun');
   await page.waitForSelector('#qBehavBody .q-kpis', { timeout: 20000 });
   assert.match(await page.locator('#qBehavBody').innerText(), /Ton timing/);
+  await page.evaluate(() => App.show('analysis', 'risque'));
 
   // « Tout analyser » : progression visible, les cinq étapes terminées, confirmation
   await page.click('#qAllRun');
@@ -573,7 +598,7 @@ test('copilote (Ctrl+K), retrait malin et radar fiscal', () => run({ state: samp
   await page.waitForFunction(() => /Pour obtenir/.test(document.querySelector('#cpOut .cp-answer')?.innerText || ''));
   await page.keyboard.press('Enter');
   await page.waitForSelector('#wdBody .wd-hero');
-  assert.equal(await page.evaluate(() => App.view), 'invest');
+  assert.equal(await page.evaluate(() => App.page), 'portfolio/revenus');
   assert.equal(await page.inputValue('#wdAmount'), '1000');
   const plan = await page.locator('#wdBody').innerText();
   assert.match(plan, /Vendre/);
@@ -585,8 +610,8 @@ test('copilote (Ctrl+K), retrait malin et radar fiscal', () => run({ state: samp
   assert.ok(await page.evaluate(() => Store.state.transactions.filter(t => t.note === 'Retrait malin').length) >= 1);
   assert.ok(await page.evaluate(() => Store.state.transactions.length) > before);
 
-  // radar fiscal visible dans Investir (pas d'erreur, contenu présent)
-  await page.evaluate(() => App.show('invest'));
+  // radar fiscal visible dans Portefeuille › Revenus & impôts (pas d'erreur, contenu présent)
+  await page.evaluate(() => App.show('portfolio', 'revenus'));
   assert.ok(await page.locator('#radarCard').isVisible());
   assert.ok((await page.locator('#radarBody').innerText()).length > 20);
 }));
@@ -596,7 +621,7 @@ test('une erreur au démarrage d\'un module ne désactive pas les autres boutons
   // page incomplète (ex. ancienne page en cache avec des scripts récents) : la carte « Retrait malin » manque
   await page.route('**/index.html', async route => {
     const res = await route.fetch();
-    const html = (await res.text()).replace(/<div class="card wd-card" id="wdCard">[\s\S]*?(<div class="card hidden" id="radarCard">)/, '$1');
+    const html = (await res.text()).replace(/<div data-sub="revenus" class="card wd-card" id="wdCard">[\s\S]*?(<div data-sub="operations")/, '$1');
     await route.fulfill({ response: res, body: html });
   });
   await page.reload();
@@ -619,8 +644,8 @@ test('une erreur au démarrage d\'un module ne désactive pas les autres boutons
 
 test('salle des marchés : P&L explain, signaux et stratégies, journal de trades avec alertes', { skip: !realCharts && 'Chart.js non installé' }, () => run({ state: sampleState() }, async ({ page }) => {
   await page.waitForFunction(() => Api.cachedQuote('CW8@XPAR') && Api.cachedQuote('ESE@XPAR'), null, { timeout: 20000 });
-  await page.evaluate(() => App.show('desk'));
-  // P&L explain lancé à l'ouverture, période modifiable ; le pont de valeur boucle
+  await page.evaluate(() => App.show('analysis', 'performance'));
+  // P&L explain lancé à l'ouverture d'Analyse › Performance, période modifiable ; le pont de valeur boucle
   await page.waitForSelector('#dkPnlBody .dk-hero', { timeout: 30000 });
   await page.click('#dkPeriods button[data-p="ytd"]');
   await page.waitForFunction(() => App.explainResult && App.explainResult.period === 'ytd' && !App._explaining, null, { timeout: 30000 });
@@ -639,14 +664,16 @@ test('salle des marchés : P&L explain, signaux et stratégies, journal de trade
   assert.match(await page.locator('#dkPnlBody .dk-heat-detail').innerText(), /2024 : [+−-]/);
   assert.doesNotMatch(await page.locator('#dkPnlCard').innerText(), /\bnull\b|-0,00/);
 
-  // signaux et stratégies : 4 règles comparées, courbes dessinées
+  // signaux et stratégies (Marchés › Signaux) : 4 règles comparées, courbes dessinées
+  await page.evaluate(() => App.show('markets', 'signaux'));
   await page.click('#dkSigRun');
   await page.waitForSelector('#dkSigBody .dk-sig', { timeout: 60000 });
   assert.equal(await page.locator('#dkSigBody .dk-sig').count(), 3);
   assert.equal(await page.evaluate(() => Chart.getChart('dkSigChart').data.datasets.length), 4);
   assert.match(await page.locator('#dkSigBody').innerText(), /Tendance 10 mois[\s\S]*Momentum 12-1/);
 
-  // journal : taille de position, ajout, alertes sur l'objectif et le stop
+  // journal (Portefeuille › Opérations) : taille de position, ajout, alertes sur l'objectif et le stop
+  await page.evaluate(() => App.show('portfolio', 'operations'));
   await page.selectOption('#dkJKey', 'ESE@XPAR');
   const px = await page.evaluate(() => Api.cachedQuote('ESE@XPAR').price);
   await page.fill('#dkJStop', String(Math.floor(px * 0.9)));
@@ -712,7 +739,8 @@ test('outils institutionnels : stress test inversé, Black-Litterman appliqué c
   const f1 = await page.locator('#iStressBody .q-kpi b').first().innerText();
   await page.click('#iStressBody .seg button:has-text("1 an")');
   assert.notEqual(await page.locator('#iStressBody .q-kpi b').first().innerText(), f1);
-  // Black-Litterman : une conviction forte change la répartition, appliquée comme cible
+  // Black-Litterman (Analyse › Optimiser) : une conviction forte change la répartition, appliquée comme cible
+  await page.evaluate(() => App.show('analysis', 'optimiser'));
   await page.click('#iBlRun');
   await page.waitForSelector('#iBlBody .i-views', { timeout: 30000 });
   assert.match(await page.locator('#iBlBody .q-lead').innerText(), /Sans conviction/);
@@ -724,9 +752,9 @@ test('outils institutionnels : stress test inversé, Black-Litterman appliqué c
   const sum = Object.values(targets).reduce((a, b) => a + b, 0);
   assert.ok(Math.abs(sum - 100) < 0.5, 'cible à 100 % : ' + sum);
   assert.ok(Object.values(targets).every(v => v <= 60.05), 'poids maximum respecté');
-  assert.equal(await page.evaluate(() => App.view), 'invest');
-  // planificateur : objectif choisi, probabilité et versements nécessaires croissants
-  await page.evaluate(() => App.show('simulation'));
+  assert.equal(await page.evaluate(() => App.page), 'plan/investir');
+  // planificateur (Planifier › Objectifs) : objectif choisi, probabilité et versements nécessaires croissants
+  await page.evaluate(() => App.show('plan', 'objectifs'));
   await page.selectOption('#iPlanGoal', 'g1');
   assert.equal(await page.inputValue('#iPlanTarget'), '60000');
   await page.click('#iPlanRun');
@@ -740,7 +768,7 @@ test('outils institutionnels : stress test inversé, Black-Litterman appliqué c
 test('mode terminal (commandes, touches F), scanner de signaux et radiographie', { skip: !realCharts && 'Chart.js non installé' }, () => run({ state: sampleState() }, async ({ page }) => {
   await page.waitForFunction(() => Api.cachedQuote('CW8@XPAR') && Api.cachedQuote('ESE@XPAR') && Api.cachedQuote('SPY@ARCX'), null, { timeout: 20000 });
   // radiographie : les 7 Magnifiques vus à travers les ETF
-  await page.evaluate(() => { App.show('portfolio'); App.portfolioTab('analyse'); });
+  await page.evaluate(() => App.show('analysis', 'composition'));
   await page.waitForSelector('#xrayCard:not(.hidden) .xr-list');
   assert.match(await page.locator('#xrayBody .q-lead').innerText(), /7 Magnifiques[\s\S]*représentent [\d,]+ %/);
   assert.match(await page.locator('#xrayBody .xr-list li').first().innerText(), /NVIDIA|Apple|Microsoft/);

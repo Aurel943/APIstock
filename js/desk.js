@@ -339,13 +339,13 @@ const Desk = {
   },
 };
 
-/* ==================== Affichage : onglet « Salle des marchés » ==================== */
+/* ==================== Affichage : P&L explain (Analyse › Performance), signaux (Marchés › Signaux), journal (Portefeuille › Opérations) ==================== */
 
 Object.assign(App, {
   deskPeriod: 'mtd',
 
   bindDesk() {
-    if (!$('#view-desk')) return;
+    if (!$('#dkPnlCard')) return;
     $('#dkPeriods').replaceChildren(...DESK_PERIODS.map(([id, name]) => el('button', { type: 'button', dataset: { p: id }, class: id === this.deskPeriod ? 'active' : '', onclick: () => {
       this.deskPeriod = id;
       $$('#dkPeriods button').forEach(b => b.classList.toggle('active', b.dataset.p === id));
@@ -354,8 +354,11 @@ Object.assign(App, {
     $('#dkSigRun').addEventListener('click', () => this.runSignals());
     $('#dkVol').addEventListener('change', () => { if (this.sigResult) this.runSignals(); });
     this.bindJournal();
-    this.on('view:shown', v => { if (v === 'desk') { this.renderJournal(); if (!this.explainResult && !this._explaining) this.runExplain(); } });
-    this.on('rendered:portfolio', () => { if (this.view === 'desk') this.renderJournal(); });
+    this.on('view:shown', v => {
+      if (v === 'portfolio/operations') this.renderJournal();
+      if (v === 'analysis/performance' && !this.explainResult && !this._explaining) this.runExplain();
+    });
+    this.on('rendered:portfolio', () => { if (this.page === 'portfolio/operations') this.renderJournal(); });
   },
 
   deskBusy(id, busy, label) { const b = $(id); if (b) { b.disabled = busy; if (label) b.textContent = busy ? 'Calcul…' : label; } },
@@ -579,7 +582,7 @@ Object.assign(App, {
       if (was && keys().includes(was)) sel.value = was;
       this.renderSizing();
     };
-    this.on('view:shown', v => { if (v === 'desk') fill(); });
+    this.on('view:shown', v => { if (v === 'portfolio/operations') fill(); });
     ['#dkJKey', '#dkJStop', '#dkJTarget', '#dkJRisk'].forEach(s => $(s).addEventListener('input', () => this.renderSizing()));
     form.addEventListener('submit', e => {
       e.preventDefault();
@@ -631,7 +634,7 @@ Object.assign(App, {
         if (isFinite(parseNum(t.target))) Store.state.alerts.push({ id: uid(), key: t.key, kind: parseNum(t.target) >= parseNum(t.stop || -Infinity) ? 'above' : 'below', value: parseNum(t.target), active: true, createdAt: Date.now(), thesis: t.id });
         if (isFinite(parseNum(t.stop))) Store.state.alerts.push({ id: uid(), key: t.key, kind: parseNum(t.stop) <= parseNum(t.target || Infinity) ? 'below' : 'above', value: parseNum(t.stop), active: true, createdAt: Date.now(), thesis: t.id });
         Store.save(); this.renderJournal();
-        toast('Alertes créées sur l\'objectif et le stop (onglet Investir)', 'success', 3000);
+        toast('Alertes créées sur l\'objectif et le stop (Agenda › Alertes)', 'success', 3000);
       };
       const late = t.review && t.review < today;
       return el('div', { class: 'dk-trade ' + (s ? s.status : '') },

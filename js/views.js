@@ -35,14 +35,14 @@ Object.assign(App, {
     }));
     $('#localTz').textContent = '(' + Intl.DateTimeFormat().resolvedOptions().timeZone + ')';
     setInterval(() => {
-      if (this.view === 'world') $('#localClock').textContent = new Date().toLocaleTimeString('fr-FR');
+      if (this.page === 'markets/monde') $('#localClock').textContent = new Date().toLocaleTimeString('fr-FR');
     }, 1000);
     setInterval(() => {
       if (document.hidden) return;
       this.renderMarketState();
-      if (this.view === 'world') this.renderWorld();
+      if (this.page === 'markets/monde') this.renderWorld();
     }, 15000);
-    setInterval(() => { if (this.view === 'world' && !document.hidden) this.loadWorldQuotes(); }, 60000);
+    setInterval(() => { if (this.page === 'markets/monde' && !document.hidden) this.loadWorldQuotes(); }, 60000);
   },
 
   myExchanges() {
@@ -68,7 +68,7 @@ Object.assign(App, {
     this.worldLoadedAt = Date.now();
     const syms = [...MACRO.map(m => m.y), ...EXCHANGES.flatMap(e => [e.index.y, ...(e.extra || []).map(x => x.y)])];
     const fresh = syms.filter(s => { const c = Api.quotes['Y:' + s]; return !(c && Date.now() - c.ts < 30000); });
-    await Api.yahooSymbols(fresh, () => { if (this.view === 'world') this.renderWorld(); });
+    await Api.yahooSymbols(fresh, () => { if (this.page === 'markets/monde') this.renderWorld(); });
   },
 
   idxQuote(y) { const c = Api.quotes['Y:' + y]; return c ? c.data : null; },

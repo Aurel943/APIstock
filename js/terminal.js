@@ -156,7 +156,7 @@ Object.assign(App, {
   bindTerminal() {
     if ($('#termOpen')) $('#termOpen').addEventListener('click', () => { this.toggleTabMenu(false); this.openTerminal(); });
     if ($('#scanRun')) $('#scanRun').addEventListener('click', () => this.runScan());
-    this.on('rendered:portfolio', () => { if (this.termOn) this.renderTerminal(); if (this.view === 'portfolio') this.renderXray(); });
+    this.on('rendered:portfolio', () => { if (this.termOn) this.renderTerminal(); if (this.page === 'analysis/composition') this.renderXray(); });
     this.on('rendered:all', () => this.renderXray());
   },
 
@@ -172,7 +172,7 @@ Object.assign(App, {
     if (!card || !box) return;
     // composition réelle des indices : rechargée en arrière-plan une fois par semaine
     if (typeof Holdings !== 'undefined' && !this._xrayHold) {
-      this._xrayHold = Holdings.refresh().then(ch => { if (ch && this.view === 'portfolio') this.renderXray(); }).catch(() => {}).finally(() => { this._xrayHold = null; });
+      this._xrayHold = Holdings.refresh().then(ch => { if (ch && this.page === 'analysis/composition') this.renderXray(); }).catch(() => {}).finally(() => { this._xrayHold = null; });
     }
     const H = Xray.liveHoldings();
     const X = Xray.lookthrough(this.xrayList(), H.holdings);
@@ -1483,7 +1483,7 @@ const TERM_FN = {
       el('tbody', {}, ...A.map(a => { const q = Api.cachedQuote(a.key);
         return el('tr', { onclick: () => this.termLoad(a.key, 'GP') }, el('td', {}, el('b', {}, (Store.instrument(a.key) || {}).symbol || a.key)), el('td', {}, this.alertText(a)),
           el('td', { class: 'n' }, q ? fmtNum(q.price, 2) : '—'), el('td', { class: a.triggeredAt ? 'warn' : a.active ? 'tu' : 'dim' }, a.triggeredAt ? 'DÉCLENCHÉE' : a.active ? 'ACTIVE' : 'EN PAUSE'));
-      }))) : el('p', { class: 'dim' }, 'Aucune alerte. Crée-en depuis l\'onglet Investir → Alertes.'));
+      }))) : el('p', { class: 'dim' }, 'Aucune alerte. Crée-en depuis Agenda › Alertes.'));
   } },
   SECF: { sticky: 600, title: 'RECHERCHE DE VALEURS', render(body, p) { if (!p.q) { body.replaceChildren(el('p', { class: 'dim' }, 'Tape SECF <nom, symbole ou ISIN>, par exemple SECF LVMH.')); return; } this.renderTermSecf(body, p); } },
   TOP: { sticky: 300, title: 'À LA UNE : ACTUALITÉ DES MARCHÉS', render(body) { this.renderTermNews(body, null, true); } },

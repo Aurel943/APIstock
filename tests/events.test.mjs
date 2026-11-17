@@ -17,7 +17,7 @@ test('les modules sont abonnés aux événements documentés en haut de js/app.j
   const { App } = loadApp({});
   const n = name => (App._listeners[name] || []).length;
   assert.equal(n('rendered:all'), 4);         // fiscalité/exposition, espèces/versements/à faire, risque/dividendes/rééquilibrage, patrimoine
-  assert.equal(n('rendered:portfolio'), 3);   // variations du jour, à faire, patrimoine
+  assert.equal(n('rendered:portfolio'), 4);   // variations du jour, à faire, patrimoine, carte du portefeuille
   assert.equal(n('refreshed'), 3);            // cartes lentes, dividendes et divisions, actualités
   assert.equal(n('view:shown'), 4);           // barre mobile, actualités, retraite, météo du labo quant
   assert.equal(n('detail:selected'), 3);      // actualités, résultats trimestriels, analyse fondamentale / composition de la fiche

@@ -741,7 +741,7 @@ Object.assign(App, {
     const box = $('#agendaList');
     if (!box) return;
     const pending = Earnings.refresh(); // dates de résultats périmées : rechargées en arrière-plan
-    pending.then(changed => { if (changed && this.view === 'agenda') this.renderAgenda(); });
+    pending.then(changed => { if (changed && this.page === 'agenda/agenda') this.renderAgenda(); });
     const note = $('#agendaNote');
     if (note) {
       const relay = 'ton relais Yahoo doit être mis à jour (copie à nouveau proxy/cloudflare-worker.js dans ton worker Cloudflare, puis Deploy)';
@@ -765,7 +765,7 @@ Object.assign(App, {
     const recent = !this.agendaFilter || this.agendaFilter === 'earn' ? this.agendaRecent() : null;
     if (!evs.length && recent) { box.replaceChildren(recent); return; }
     if (!evs.length) {
-      box.replaceChildren(el('p', { class: 'empty' }, all.length ? 'Rien dans cette catégorie.' : 'Aucune échéance pour l\'instant. Programme un versement (onglet Investir) ou ajoute des lignes : leurs dividendes et les jours fériés de leur bourse apparaîtront ici.'));
+      box.replaceChildren(el('p', { class: 'empty' }, all.length ? 'Rien dans cette catégorie.' : 'Aucune échéance pour l\'instant. Programme un versement (Planifier › Investir) ou ajoute des lignes : leurs dividendes et les jours fériés de leur bourse apparaîtront ici.'));
       return;
     }
     const today = todayISO();

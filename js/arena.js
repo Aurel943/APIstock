@@ -210,18 +210,18 @@ const Arena = {
 
 Object.assign(App, {
   bindArena() {
-    if (!$('#view-arena')) return;
+    if (!$('#arMvCard')) return;
     $('#arMvRun').addEventListener('click', () => this.runMultiverse());
     $('#arGameNew').addEventListener('click', () => this.newArenaGame());
     $('#arBrief').addEventListener('click', () => this.speakBriefing());
     $('#arPlay').addEventListener('click', () => this.playPortfolio());
     document.addEventListener('keydown', e => {
-      if (this.view !== 'arena' || !this.game || e.metaKey || e.ctrlKey || (e.target instanceof Element && e.target.closest('input, textarea, select, button, [contenteditable="true"]'))) return;
+      if (this.page !== 'plan/arene' || !this.game || e.metaKey || e.ctrlKey || (e.target instanceof Element && e.target.closest('input, textarea, select, button, [contenteditable="true"]'))) return;
       if (e.key === ' ' || e.key === 'ArrowRight') { e.preventDefault(); this.gameStep(this.game.g.invested, 1); }
       else if (e.key === 'b' || e.key === 'B') this.gameStep(true, 1);
       else if (e.key === 'v' || e.key === 'V') this.gameStep(false, 1);
     });
-    this.on('view:shown', v => { if (v === 'arena' && !this.mv && !this._mvBusy) this.runMultiverse(); });
+    this.on('view:shown', v => { if (v === 'plan/arene' && !this.mv && !this._mvBusy) this.runMultiverse(); });
   },
 
   /* ---------- univers parallèles ---------- */
