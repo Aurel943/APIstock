@@ -1565,3 +1565,48 @@ body.term-open { overflow: hidden; }
 .term ::-webkit-scrollbar { width: 8px; height: 8px; background: #000; }
 .term ::-webkit-scrollbar-thumb { background: #333; border: 1px solid #000; } .term ::-webkit-scrollbar-thumb:hover { background: var(--tad); }
 @media (prefers-reduced-motion: reduce) { .term-tape-in { animation-duration: 240s; } .term .fl-up, .term .fl-dn, .term-live.tick { animation: none; } }
+
+/* ---- Fiche enrichie : analyse fondamentale (actions) et composition (ETF) ---- */
+.fund-panel { margin-top: 18px; }
+.fund-panel h3 { margin: 0 0 10px; font-size: 15px; }
+.fund-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-bottom: 12px; }
+.fund-box { background: var(--surface-2); border-radius: 10px; padding: 12px 14px; min-width: 0; }
+.fund-box h4 { margin: 0 0 8px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; display: flex; align-items: center; gap: 4px; }
+.fund-box p { margin: 8px 0 0; }
+.fund-cons { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.fund-cons > b { font-size: 20px; font-weight: 600; }
+.fund-cons-label.up { color: var(--up); } .fund-cons-label.down { color: var(--down); }
+/* répartition des avis : achat fort → vente forte, séparés par un trait de la couleur du fond */
+.fund-split { display: flex; height: 12px; gap: 2px; border-radius: 4px; overflow: hidden; }
+.fund-split .seg, .fund-split-legend .dot { background: var(--muted); }
+.fund-split .strongBuy, .fund-split-legend .strongBuy { background: var(--up); }
+.fund-split .buy, .fund-split-legend .buy { background: color-mix(in srgb, var(--up) 55%, var(--surface-2)); }
+.fund-split .hold, .fund-split-legend .hold { background: color-mix(in srgb, var(--muted) 55%, var(--surface-2)); }
+.fund-split .sell, .fund-split-legend .sell { background: color-mix(in srgb, var(--down) 55%, var(--surface-2)); }
+.fund-split .strongSell, .fund-split-legend .strongSell { background: var(--down); }
+.fund-split-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 8px; }
+.fund-split-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.fund-split-legend .dot { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+/* objectif de cours : fourchette des analystes, moyenne (rond) et cours actuel (trait) */
+.fund-range { position: relative; height: 22px; margin: 6px 8px 4px; }
+.fund-range-line { position: absolute; top: 10px; height: 2px; border-radius: 2px; background: color-mix(in srgb, var(--muted) 45%, transparent); }
+.fund-range-mean { position: absolute; top: 5px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--surface-2); }
+.fund-range-now { position: absolute; top: 1px; width: 2px; height: 20px; margin-left: -1px; background: var(--text); border-radius: 1px; box-shadow: 0 0 0 2px var(--surface-2); }
+.fund-range-ends { display: flex; justify-content: space-between; gap: 8px; }
+.fund-range-legend { display: flex; align-items: center; gap: 4px; margin-top: 6px; }
+.fund-range-legend .mk-mean { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); display: inline-block; }
+.fund-range-legend .mk-now { width: 2px; height: 11px; background: var(--text); display: inline-block; margin-left: 8px; }
+.fund-stats { margin-bottom: 10px; }
+.fund-stats > div > span { display: flex; align-items: center; gap: 2px; margin-bottom: 2px; }
+.fund-stats > div > b { display: block; }
+.fund-profile { margin: 4px 0 8px; }
+.fund-profile summary { cursor: pointer; font-weight: 500; }
+.fund-profile p { margin: 6px 0; }
+.fund-note { margin-top: 14px; }
+/* barres horizontales : secteurs et principales lignes d'un ETF */
+.fund-bars { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }
+.fund-bars li { display: grid; grid-template-columns: minmax(0, 8.5em) minmax(0, 1fr) 4.2em; align-items: center; gap: 8px; font-size: 12.5px; }
+.fund-bars .fb-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fund-bars .fb-bar { height: 8px; background: color-mix(in srgb, var(--muted) 15%, transparent); border-radius: 4px; overflow: hidden; }
+.fund-bars .fb-bar span { display: block; height: 100%; background: var(--accent); border-radius: 0 4px 4px 0; }
+.fund-bars .fb-val { text-align: right; font-size: 12px; }

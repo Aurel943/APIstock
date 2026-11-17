@@ -20,7 +20,7 @@ test('les modules sont abonnés aux événements documentés en haut de js/app.j
   assert.equal(n('rendered:portfolio'), 3);   // variations du jour, à faire, patrimoine
   assert.equal(n('refreshed'), 3);            // cartes lentes, dividendes et divisions, actualités
   assert.equal(n('view:shown'), 4);           // barre mobile, actualités, retraite, météo du labo quant
-  assert.equal(n('detail:selected'), 2);      // actualités, résultats trimestriels de la fiche
+  assert.equal(n('detail:selected'), 3);      // actualités, résultats trimestriels, analyse fondamentale / composition de la fiche
   for (const e of ['rendered:invest', 'rendered:alerts', 'rendered:accountFilter']) assert.equal(n(e), 1, e);
 });
 

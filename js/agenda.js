@@ -101,6 +101,9 @@ const Macro = {
  */
 const ETF_PROXY = { sp500: 'SPY', ndx: 'QQQ', world: 'URTH', allworld: 'ACWI', em: 'EEM', europe: 'VGK', es50: 'FEZ', cac: 'CAC.PA', japan: 'EWJ' };
 const HOLD_STORE = 'apistock:holdings';
+/* Noms usuels (les mêmes que la radiographie du portefeuille) */
+const HOLD_ALIASES = { 'Taiwan Semiconductor Manufacturing': 'TSMC', 'JPMorgan Chase': 'JPMorgan', 'Samsung Electronics': 'Samsung Electronics',
+  'Novo Nordisk A/S Class B': 'Novo Nordisk', 'Nestle': 'Nestlé', 'Roche Holding': 'Roche', 'Mitsubishi UFJ Financial': 'Mitsubishi UFJ' };
 const Holdings = {
   TTL: 7 * 86400000,
   TOP: 10,           // lignes retenues par ETF
@@ -118,8 +121,8 @@ const Holdings = {
   cleanName(n) {
     const s = String(n || '').replace(/\.com\b/gi, '')
       .replace(/\b(Inc|Corp|Corporation|Co|Ltd|Limited|PLC|SA|SE|AG|NV|Holdings?|Group|Ordinary|Registered|Shares|new|Platforms|Class [A-C]|Cl [A-C])\b\.?/gi, ' ')
-      .replace(/[\s,.]+$/g, '').replace(/\s{2,}/g, ' ').trim();
-    return s || String(n || '');
+      .replace(/[\s,.]+$/g, '').replace(/\s+(&|and)$/i, '').replace(/\s{2,}/g, ' ').trim();
+    return HOLD_ALIASES[s] || s || String(n || '');
   },
 
   /** ETF suivis (portefeuille et watchlist) dont on sait lire les principales lignes : [{ key, proxy }] */
@@ -146,12 +149,16 @@ const Holdings = {
     return Array.from(by.values()).sort((a, b) => b.pct - a.pct).slice(0, this.TOP);
   },
 
+  failedAt: 0,
   async refresh(force = false) {
     const c = this.load(), now = Date.now();
     const todo = Array.from(new Set(this.etfs().map(e => e.proxy))).filter(p => force || !c[p] || now - c[p].ts > this.TTL);
-    if (!todo.length) return false;
-    const json = await Api.yahoo({ type: 'summary', symbols: todo.join(','), modules: 'topHoldings' });
-    if (!json || typeof json.results !== 'object' || !json.results) throw new ApiError('requête invalide', 0);
+    if (!todo.length || !Api.hasProxy()) return false;
+    if (!force && now - this.failedAt < 10 * 60000) throw new ApiError(this.failMsg || 'indisponible', 0); // pas de nouvel essai avant 10 min
+    let json;
+    try { json = await Api.yahoo({ type: 'summary', symbols: todo.join(','), modules: 'topHoldings' }); }
+    catch (e) { this.failedAt = Date.now(); this.failMsg = e.message; throw e; }
+    if (!json || typeof json.results !== 'object' || !json.results) { this.failedAt = Date.now(); this.failMsg = 'requête invalide'; throw new ApiError('requête invalide', 0); }
     for (const p of todo) {
       const r = json.results[p];
       c[p] = { ts: now, list: r && r.topHoldings ? this.parse(r.topHoldings) : [] };
