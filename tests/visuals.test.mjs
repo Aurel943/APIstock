@@ -76,3 +76,22 @@ test('ton année en bourse : performance, mois, opérations, ligne star, compara
   assert.equal(W.defaultYear('2027-01-15'), 2026);
   assert.equal(W.defaultYear('2026-12-05'), 2026);
 });
+
+test('optimiseur : poids plafonné par ligne et échanges pour changer de répartition', () => {
+  const { get } = loadApp({});
+  const O = get('Optimizer');
+  const w = Array.from(O.capWeights([0.8, 0.15, 0.05], 0.5));
+  assert.ok(Math.abs(w[0] - 0.5) < 1e-12, 'ramené au plafond');
+  assert.ok(Math.abs(w.reduce((a, b) => a + b, 0) - 1) < 1e-12, 'somme 100 %');
+  assert.ok(w.every(x => x <= 0.5 + 1e-12));
+  assert.ok(Math.abs(w[1] / w[2] - 3) < 1e-9, 'excédent réparti au prorata');
+  // impossible (3 lignes à 30 % max) : inchangé
+  assert.deepEqual(Array.from(O.capWeights([0.8, 0.1, 0.1], 0.3)), [0.8, 0.1, 0.1]);
+  // nuage plafonné : aucun point au-dessus du plafond
+  const st = { mean: [0.1, 0.05, 0.02], cov: [[0.04, 0.01, 0], [0.01, 0.02, 0], [0, 0, 0.001]] };
+  const fr = O.frontier(st, { n: 300, cap: 0.4 });
+  assert.ok(fr.points.every(p => p.w.every(x => x <= 0.4 + 1e-9)));
+  assert.ok(Math.abs(fr.maxRet.w[0] - 0.4) < 1e-9, 'rendement maximal : la meilleure ligne au plafond');
+  // échanges : 1 000 € répartis 600 / 400 → 50 / 50
+  assert.deepEqual(Array.from(O.trades([600, 400], [0.5, 0.5])), [-100, 100]);
+});

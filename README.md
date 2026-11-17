@@ -14,6 +14,14 @@ Site personnel (100 % statique, sans serveur ni compte) pour suivre ses ETF et l
 | **Agenda** — ce qui arrive | Agenda (résultats, macro, dividendes, échéances) · Actualités · Alertes de prix |
 | **Planifier** — décider | Investir (allocation cible, plan du mois, versements programmés) · Objectifs (objectifs, planificateur probabiliste, projection, retraite) · Simuler (simulation sur données réelles, laboratoire de stratégies) · Arène (univers parallèles, défi à l'aveugle, briefing vocal) |
 
+**Nouveautés de l'organisation** :
+- **Aujourd'hui** (Portefeuille › Vue d'ensemble) : variation du jour et les lignes qui l'expliquent, CAC 40 / S&P 500 / Euro Stoxx 50, événements d'aujourd'hui et de demain, alertes déclenchées et choses à faire
+- **Liste de suivi enrichie** (Marchés › Suivi & fiches) : colonnes en option (prochaine publication, potentiel selon les analystes, avis, PER, rendement) et tri par colonne ; liste en pleine largeur dès qu'une colonne est ajoutée
+- **Comparateur d'ETF** (Marchés › Comparer) : deux ETF côte à côte (frais, performances 3 et 5 ans, encours, PEA, secteurs) et leur **recouvrement** (indices et principales lignes) : doublon, fort recouvrement ou complémentaires
+- **Optimiseur réaliste** (Analyse › Optimiser) : période 3, 5 ou 10 ans, poids maximum par ligne, ETF éligibles au PEA seulement, et coût de passage sous chaque répartition (ventes, achats, frais selon le barème du compte, impôt hors PEA / assurance-vie / PER) ; répartition de chaque point au survol, point choisi d'un clic, repère « Rendement maximal »
+- **Visite guidée** au premier lancement (relançable depuis le menu ⋯)
+- **Démarrage plus rapide** : les simulations coûteuses (projection, retraite) et la carte du portefeuille ne sont calculées qu'à l'affichage de leur page
+
 Détail des fonctionnalités :
 
 **Portefeuille**

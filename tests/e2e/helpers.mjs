@@ -97,7 +97,7 @@ export function relayResponse(url, calls) {
  * Ouvre le site dans un nouveau contexte. `state` : données initiales (localStorage « apistock:v1 »).
  * Renvoie { page, errors, calls, blocked } : erreurs JavaScript, appels au relais, requêtes externes bloquées.
  */
-export async function openApp(browser, baseUrl, { state, device, theme, hash = '' } = {}) {
+export async function openApp(browser, baseUrl, { state, device, theme, hash = '', tour = false } = {}) {
   const context = await browser.newContext(Object.assign({ locale: 'fr-FR', timezoneId: 'Europe/Paris', colorScheme: theme || 'light', serviceWorkers: 'block' },
     device ? devices[device] : { viewport: { width: 1280, height: 900 } }));
   const errors = [], calls = [], blocked = [];
@@ -110,6 +110,8 @@ export async function openApp(browser, baseUrl, { state, device, theme, hash = '
     return route.abort();
   });
   if (state) await context.addInitScript(s => { if (!sessionStorage.getItem('e2e:seeded')) { localStorage.setItem('apistock:v1', s); sessionStorage.setItem('e2e:seeded', '1'); } }, JSON.stringify(state));
+  // visite guidée du premier lancement : considérée comme vue, sauf demande (tour: true)
+  if (!tour) await context.addInitScript(() => { try { if (!localStorage.getItem('apistock:tourDone')) localStorage.setItem('apistock:tourDone', 'e2e'); } catch (e) { /* stockage indisponible */ } });
   const page = await context.newPage();
   page.on('pageerror', e => errors.push(e.message));
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) errors.push(m.text()); });

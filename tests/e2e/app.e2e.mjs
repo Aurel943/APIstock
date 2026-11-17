@@ -322,9 +322,9 @@ test('menu « ⋯ » au clavier, sous-onglets mémorisés et indicateur hors lig
   await page.focus('#tabMoreBtn');
   await page.keyboard.press('ArrowDown');
   assert.equal(await page.evaluate(() => document.activeElement.id), 'termOpen');
-  await page.keyboard.press('ArrowDown');
-  await page.keyboard.press('ArrowDown');
-  await page.keyboard.press('ArrowDown');
+  // terminal → année en bourse → thème → visite guidée → réglages
+  for (let i = 0; i < 4; i++) await page.keyboard.press('ArrowDown');
+  assert.match(await page.evaluate(() => document.activeElement.textContent), /Réglages/);
   await page.keyboard.press('Enter');
   assert.equal(await page.evaluate(() => App.view), 'settings');
   assert.equal(await page.locator('#tabMore.open').count(), 0);
@@ -337,6 +337,14 @@ test('menu « ⋯ » au clavier, sous-onglets mémorisés et indicateur hors lig
   assert.equal(await page.evaluate(() => location.hash), '#markets/suivi');
   await page.click('.tabs .tab[data-view="analysis"]');
   assert.equal(await page.evaluate(() => App.page), 'analysis/risque');
+  // comparateur d'ETF : CW8 (MSCI World) contre ESE (S&P 500) → fort recouvrement, sociétés communes
+  await page.evaluate(() => App.show('markets', 'comparer'));
+  await page.waitForSelector('#etfCmpOut .etfcmp-verdict', { timeout: 15000 });
+  assert.match(await page.locator('#etfCmpOut .etfcmp-verdict').innerText(), /Fort recouvrement : environ 68 %/);
+  await page.selectOption('#etfCmpForm select >> nth=1', 'SPY@ARCX');
+  await page.waitForFunction(() => /BNP Paribas Easy S&P 500|SPDR/.test(document.querySelector('#etfCmpOut').innerText) && /recouvrement|Doublon/.test(document.querySelector('#etfCmpOut .etfcmp-verdict')?.innerText || ''));
+  await page.selectOption('#etfCmpForm select >> nth=0', 'ESE@XPAR');
+  await page.waitForFunction(() => /^Doublon/.test(document.querySelector('#etfCmpOut .etfcmp-verdict')?.innerText || ''));
   // anciens noms de pages (liens, boutons « voir… ») toujours compris
   await page.evaluate(() => App.show('world'));
   assert.equal(await page.evaluate(() => App.page), 'markets/monde');
@@ -401,6 +409,16 @@ watchlist: ['CW8@XPAR', 'NVDA@XNAS'] }) }, async ({ page, calls }) => {
   assert.deepEqual(kinds, ['market']);
   const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#agendaExport')]);
   assert.equal(dl.suggestedFilename(), 'apistock-agenda.ics');
+  // liste de suivi enrichie : colonnes en option, tri par potentiel
+  await page.evaluate(() => App.show('markets', 'suivi'));
+  await page.click('#watchCols summary');
+  for (const c of ['Résultats', 'Potentiel', 'Avis', 'PER']) await page.locator('.watch-cols-menu label', { hasText: c }).locator('input').check();
+  await page.click('#watchCols summary');
+  await page.waitForFunction(() => /Achat/.test(document.querySelector('#watchTable').innerText), null, { timeout: 15000 });
+  assert.ok(await page.locator('.grid-2.markets.watch-wide').count(), 'liste en pleine largeur');
+  await page.locator('#watchTable th', { hasText: 'Potentiel' }).click();
+  assert.match(await page.locator('#watchTable tbody tr').first().innerText(), /NVIDIA[\s\S]*\+71 %[\s\S]*Achat/);
+  assert.match(await page.locator('#watchTable th.sorted').innerText(), /Potentiel ▼/);
   // fiche de NVIDIA : résultats des derniers trimestres et prochaine publication
   await page.evaluate(() => { App.show('markets'); App.selectDetail('NVDA@XNAS'); });
   await page.waitForSelector('#detailEarnings .earn-col');
@@ -496,6 +514,13 @@ test('carte du portefeuille, optimiseur de répartition et « Ton année en bour
   assert.equal(await page.locator('.opt-col').count(), 4, 'ta répartition, la moins risquée, meilleur rendement / risque, rendement maximal');
   // rendement maximal : 100 % sur une seule ligne
   assert.match(await page.locator('.opt-col.maxret').innerText(), /100 %/);
+  // coût de passage sous chaque répartition proposée
+  assert.match(await page.locator('.opt-col.minvol').innerText(), /Pour y passer : vendre [\d\s ]+€, acheter[\s\S]*frais ≈[\s\S]*impôt ≈/);
+  // poids maximum de 50 % par ligne : recalcul, le rendement maximal n'est plus à 100 %
+  await page.selectOption('#optOpts select', '0.5');
+  await page.waitForFunction(() => !/100 %/.test(document.querySelector('.opt-col.maxret')?.innerText || '100 %') && /50 %/.test(document.querySelector('.opt-col.maxret').innerText), null, { timeout: 20000 });
+  await page.selectOption('#optOpts select', '1');
+  await page.waitForFunction(() => /100 %/.test(document.querySelector('.opt-col.maxret')?.innerText || ''), null, { timeout: 20000 });
   // survol d'un point du nuage : l'info-bulle donne sa répartition
   const box = await page.locator('#optChart').boundingBox();
   const target = await page.evaluate(() => {
@@ -957,3 +982,35 @@ test('terminal : relais sans appel groupé (worker pas redéployé) → cotation
   await page.fill('#termCmd', 'SPY US DES'); await page.keyboard.press('Enter');
   await page.waitForFunction(() => /\d/.test(($('#termGrid .des-head b') || {}).textContent || ''));
 }));
+
+test('visite guidée : au premier lancement, au clavier, puis relançable depuis le menu ⋯', async () => {
+  const app = await openApp(browser, url, { state: sampleState(), tour: true });
+  const { page } = app;
+  try {
+    await page.waitForSelector('.tour .tour-bubble h3');
+    assert.match(await page.locator('.tour-bubble h3').innerText(), /Bienvenue/);
+    await page.keyboard.press('ArrowRight');
+    assert.match(await page.locator('.tour-bubble h3').innerText(), /Portefeuille/);
+    // le projecteur entoure l'onglet présenté
+    await page.waitForFunction(() => { // fin de l'animation du projecteur
+      const s = document.querySelector('.tour-spot').getBoundingClientRect(), t = document.querySelector('.tabs .tab[data-view="portfolio"]').getBoundingClientRect();
+      return Math.abs(s.x + 6 - t.x) < 2 && Math.abs(s.y + 6 - t.y) < 2;
+    });
+    for (let i = 0; i < 8; i++) await page.keyboard.press('ArrowRight');
+    assert.match(await page.locator('.tour-bubble h3').innerText(), /C'est parti/);
+    await page.click('.tour-next');
+    assert.equal(await page.locator('.tour').count(), 0);
+    assert.ok(await page.evaluate(() => localStorage.getItem('apistock:tourDone')));
+    // pas de nouvelle visite au rechargement, mais relançable depuis le menu
+    await page.reload();
+    await page.waitForFunction(() => typeof App !== 'undefined' && App._booted);
+    await page.waitForTimeout(1200);
+    assert.equal(await page.locator('.tour').count(), 0);
+    await page.click('#tabMoreBtn');
+    await page.click('#tourOpen');
+    await page.waitForSelector('.tour .tour-bubble');
+    await page.keyboard.press('Escape');
+    assert.equal(await page.locator('.tour').count(), 0);
+    assert.deepEqual(app.errors, [], 'erreurs JavaScript');
+  } finally { await app.context.close(); }
+});

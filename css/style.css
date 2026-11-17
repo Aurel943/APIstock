@@ -998,6 +998,9 @@ details.advanced[open] > .stack { margin-top: 12px; }
 .opt-col > b { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
 .opt-unpick { font-weight: 400; }
 .opt-hint { margin: 6px 0 0; }
+.opt-opts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-bottom: 12px; }
+.opt-opts label { display: inline-flex; align-items: center; gap: 6px; }
+.opt-move { margin: 2px 0 0; padding-top: 6px; border-top: 1px dashed var(--border); line-height: 1.5; }
 .opt-chart canvas { cursor: crosshair; }
 .opt-col > .btn { align-self: flex-start; margin-top: 4px; }
 .opt-num { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); }
@@ -1633,3 +1636,72 @@ table.data.fund-table td.num, table.data.fund-table th.num { white-space: nowrap
 }
 /* Barre du haut moins large : copilote réduit à sa loupe */
 @media (max-width: 1360px) { .cp-trigger { min-width: 0; border-color: transparent; background: none; padding: 6px; } .cp-trigger-text, .cp-trigger .cp-kbd { display: none; } }
+
+/* ---- Carte « Aujourd'hui » (Portefeuille › Vue d'ensemble) ---- */
+.today-card .card-head h2 { display: flex; align-items: baseline; flex-wrap: wrap; }
+.today-date { font-weight: 400; text-transform: none; letter-spacing: 0; margin-left: .35em; }
+.today-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.4fr) minmax(0, 1fr); gap: 14px; }
+@media (max-width: 1000px) { .today-grid { grid-template-columns: minmax(0, 1fr); } }
+.today-block { background: var(--surface-2); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.today-block h3 { margin: 0; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.today-block p { margin: 0; }
+.today-block > .link { align-self: flex-start; margin-top: auto; padding-top: 4px; }
+.today-big { font: 600 24px/1.2 "JetBrains Mono", monospace; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.today-big .chip { font-size: 13px; }
+.today-events { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 13px; }
+.today-events li { display: grid; grid-template-columns: 5.6em 1.4em minmax(0, 1fr); gap: 6px; align-items: baseline; }
+.today-when { color: var(--muted); font-size: 12px; }
+.today-ev { overflow: hidden; text-overflow: ellipsis; }
+
+/* ---- Liste de suivi enrichie : colonnes en option, tri ---- */
+.grid-2.markets.watch-wide { grid-template-columns: minmax(0, 1fr); }
+th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+th.sortable:hover { color: var(--text); }
+th.sorted { color: var(--text); }
+.watch-cols { position: relative; }
+.watch-cols > summary { list-style: none; cursor: pointer; }
+.watch-cols > summary::-webkit-details-marker { display: none; }
+.watch-cols-menu {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 25; width: min(340px, 86vw); padding: 10px 12px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 10px 30px rgba(0, 0, 0, .12);
+  display: flex; flex-direction: column; gap: 6px;
+}
+.watch-cols-menu p { margin: 0 0 2px; }
+.watch-cols-menu label { align-items: flex-start; }
+
+/* ---- Comparateur d'ETF (Marchés › Comparer) : A en vert d'accent, B en indigo ---- */
+.etfcmp-form { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+.etfcmp-form select { min-width: 0; flex: 1 1 200px; }
+.etfcmp-verdict { margin: 0 0 12px; padding: 10px 14px; border-radius: 10px; background: var(--surface-2); border-left: 3px solid var(--border); }
+.etfcmp-verdict.down { border-left-color: var(--down); } .etfcmp-verdict.warn { border-left-color: var(--warn-ink); } .etfcmp-verdict.up { border-left-color: var(--up); }
+.etfcmp-table th[scope=row] { font-weight: 500; color: var(--muted); text-align: left; white-space: nowrap; }
+table.data.etfcmp-table td { white-space: normal; text-align: right; }
+table.data.etfcmp-table td.txt { font-family: inherit; }
+table.data.etfcmp-table th.num { white-space: normal; }
+@media (max-width: 640px) { table.data.etfcmp-table td, table.data.etfcmp-table th { padding-left: 4px; padding-right: 4px; font-size: 12px; } }
+.etfcmp-dot { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+.etfcmp-dot.a, .etfcmp-bars .a { background: var(--accent); } .etfcmp-dot.b, .etfcmp-bars .b { background: #6366f1; }
+.etfcmp-legend { display: flex; align-items: center; gap: 4px 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.etfcmp-legend .etfcmp-dot { margin-right: -4px; }
+.etfcmp-bars { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
+.etfcmp-bars li { display: grid; grid-template-columns: minmax(0, 8.5em) minmax(0, 1fr) 5.6em; align-items: center; gap: 8px; font-size: 12.5px; }
+.etfcmp-pair { display: grid; gap: 2px; }
+.etfcmp-pair .fb-bar { height: 6px; background: color-mix(in srgb, var(--muted) 15%, transparent); border-radius: 3px; overflow: hidden; display: block; }
+.etfcmp-pair .fb-bar span { display: block; height: 100%; border-radius: 0 3px 3px 0; }
+.etfcmp-bars .fb-val { text-align: right; font-size: 12px; }
+.etfcmp-common { list-style: none; margin: 6px 0; padding: 0; display: grid; gap: 4px; font-size: 13px; }
+.etfcmp-common li { display: flex; justify-content: space-between; gap: 8px; }
+
+/* ---- Visite guidée : projecteur sur l'élément présenté (ombre géante autour), bulle à côté ---- */
+.tour { position: fixed; inset: 0; z-index: 2000; }
+.tour-spot { position: fixed; border-radius: 10px; box-shadow: 0 0 0 9999px rgba(10, 14, 22, .58); transition: all .25s ease; pointer-events: none; outline: 2px solid var(--accent); outline-offset: 2px; }
+.tour-bubble { position: fixed; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; box-shadow: 0 14px 40px rgba(0, 0, 0, .25); transition: top .25s ease, left .25s ease; }
+.tour-bubble h3 { margin: 0 0 6px; font-size: 16px; text-transform: none; letter-spacing: 0; color: var(--text); }
+.tour-bubble p { margin: 0 0 10px; font-size: 14px; line-height: 1.5; }
+.tour-bubble .tour-step { margin: 0 0 4px; display: flex; justify-content: space-between; align-items: center; }
+.tour-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tour-actions .link { margin-right: auto; }
+.tour-dots { display: inline-flex; gap: 4px; }
+.tour-dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--border); }
+.tour-dots i.on { background: var(--accent); }
+@media (prefers-reduced-motion: reduce) { .tour-spot, .tour-bubble { transition: none; } }

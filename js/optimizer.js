@@ -40,6 +40,30 @@ const Optimizer = {
     return { mean: mean.map(m => m * 252), cov: cov.map(row => row.map(c => c * 252)) };
   },
 
+  /**
+   * Plafonne chaque poids à `cap` (0-1) en redistribuant l'excédent aux autres lignes, au prorata de leur poids
+   * (à parts égales si elles sont toutes à 0). Suppose cap × nombre de lignes ≥ 1 (sinon impossible : renvoie w).
+   */
+  capWeights(w, cap) {
+    if (!(cap < 1) || cap * w.length < 1 - 1e-9) return w.slice();
+    const x = w.slice();
+    for (let it = 0; it < 50; it++) {
+      let excess = 0;
+      const free = [];
+      x.forEach((v, i) => { if (v > cap + 1e-12) { excess += v - cap; x[i] = cap; } else if (v < cap - 1e-12) free.push(i); });
+      if (excess <= 1e-12 || !free.length) break;
+      const base = free.reduce((s, i) => s + x[i], 0);
+      free.forEach(i => { x[i] += base > 0 ? excess * x[i] / base : excess / free.length; });
+    }
+    return x;
+  },
+
+  /** Montants à vendre (négatifs) ou acheter (positifs) par ligne pour passer des valeurs actuelles à la répartition `w` */
+  trades(values, w) {
+    const total = values.reduce((s, v) => s + (v > 0 ? v : 0), 0);
+    return values.map((v, i) => w[i] * total - (v > 0 ? v : 0));
+  },
+
   /** Rendement, volatilité et ratio de Sharpe annualisés d'une répartition `w` (somme 1) */
   measure(w, { mean, cov }, rf = 0) {
     let ret = 0, v = 0;
@@ -53,10 +77,11 @@ const Optimizer = {
    * plus les répartitions extrêmes ; renvoie aussi la moins risquée, celle au meilleur ratio de Sharpe et celle au
    * rendement maximal (le rendement d'un mélange étant la moyenne pondérée des lignes, c'est 100 % sur la meilleure ligne).
    */
-  frontier(st, { n = 4000, rf = 0, seed = 42, current } = {}) {
+  frontier(st, { n = 4000, rf = 0, seed = 42, current, cap = 1 } = {}) {
     const k = st.mean.length, rand = this.rng(seed);
     const points = [];
-    const push = w => { const m = this.measure(w, st, rf); points.push(Object.assign(m, { w })); };
+    // poids maximum par ligne : chaque répartition tirée est ramenée sous le plafond
+    const push = w0 => { const w = cap < 1 ? this.capWeights(w0, cap) : w0; const m = this.measure(w, st, rf); points.push(Object.assign(m, { w })); };
     for (let i = 0; i < k; i++) push(Array.from({ length: k }, (_, j) => (j === i ? 1 : 0)));
     for (let s = 0; s < n; s++) {
       // tirage de Dirichlet (exposants variés pour explorer aussi les répartitions concentrées)
@@ -72,17 +97,87 @@ const Optimizer = {
   },
 };
 
+const OPT_STORE = 'apistock:optOpts';
+
 Object.assign(App, {
-  /** Charge ~3 ans d'historique des lignes détenues (hors valeurs saisies) et calcule le nuage */
+  /** Réglages de l'optimiseur : période (années), poids maximum par ligne (0-1), seulement les ETF éligibles au PEA */
+  optOpts() {
+    if (!this._optOpts) {
+      let o = null;
+      try { o = JSON.parse(localStorage.getItem(OPT_STORE) || 'null'); } catch (e) { o = null; }
+      this._optOpts = Object.assign({ years: 3, cap: 1, pea: false }, o || {});
+    }
+    return this._optOpts;
+  },
+
+  renderOptOpts() {
+    const box = $('#optOpts');
+    if (!box) return;
+    const o = this.optOpts();
+    const set = (k, v) => { o[k] = v; try { localStorage.setItem(OPT_STORE, JSON.stringify(o)); } catch (e) { /* stockage indisponible */ } this.renderOptOpts(); if (this.optResult) this.runOptimizer(); };
+    box.replaceChildren(
+      el('div', { class: 'seg', role: 'group', 'aria-label': 'Période' }, ...[3, 5, 10].map(y =>
+        el('button', { type: 'button', class: o.years === y ? 'active' : '', onclick: () => set('years', y) }, `${y} ans`))),
+      el('label', { class: 'small' }, 'Poids max par ligne ',
+        el('select', { onchange: e => set('cap', parseFloat(e.target.value)) },
+          ...[[1, 'sans limite'], [0.6, '60 %'], [0.5, '50 %'], [0.4, '40 %'], [0.3, '30 %']].map(([v, l]) => el('option', { value: v, selected: o.cap === v || null }, l)))),
+      el('label', { class: 'check small' }, el('input', { type: 'checkbox', checked: o.pea || null, onchange: e => set('pea', e.target.checked) }), 'Seulement les ETF éligibles au PEA'));
+  },
+
+  /**
+   * Coût estimé pour passer de la répartition actuelle à `w` : ventes et achats, frais de courtage (barème du compte),
+   * impôt sur les plus-values réalisées. Ventes réparties entre les comptes au prorata de ce que chacun détient ;
+   * arbitrage sans impôt dans un PEA, une assurance-vie ou un PER (l'argent y reste) ; impôt au taux du compte ailleurs.
+   */
+  optTransition(keys, values, w) {
+    const deltas = Optimizer.trades(values, w);
+    let sells = 0, buys = 0, fees = 0, tax = 0;
+    const wrapper = acc => ['pea', 'av', 'per'].includes(acc && acc.type);
+    keys.forEach((k, i) => {
+      const d = deltas[i];
+      if (Math.abs(d) < 1) return;
+      const inst = Store.instrument(k), q = Api.cachedQuote(k);
+      const fx = Api.fxCached(inst ? inst.currency : Store.state.settings.baseCurrency);
+      if (!q || !(q.price > 0) || !(fx > 0)) return;
+      const held = Store.state.accounts.map(a => { const p = Portfolio.positions(a.id).find(x => x.key === k); return { a, qty: p ? p.qty : 0 }; }).filter(x => x.qty > 0);
+      if (d < 0) {
+        sells += -d;
+        const totalQty = held.reduce((s, x) => s + x.qty, 0);
+        for (const h of held) {
+          const sim = Portfolio.simulateSale(k, h.a.id, (-d / (q.price * fx)) * (h.qty / totalQty));
+          if (!sim) continue;
+          fees += sim.fees;
+          if (!wrapper(h.a)) tax += sim.tax;
+        }
+      } else {
+        buys += d;
+        const acc = held.length ? held.sort((x, y) => y.qty - x.qty)[0].a : Store.state.accounts[0];
+        fees += (Portfolio.brokerFee(acc, d / fx, fx) || 0) * fx;
+      }
+    });
+    return { sells, buys, fees, tax };
+  },
+
+  /** Charge l'historique des lignes détenues (hors valeurs saisies) sur la période choisie et calcule le nuage */
   async runOptimizer() {
     const box = $('#optBody');
     const btn = $('#optRun');
+    const o = this.optOpts();
+    this.renderOptOpts();
     const { rows } = Portfolio.snapshot();
-    const lines = rows.filter(r => !Manual.is(r.key) && isFinite(r.valueBase) && r.valueBase > 0);
-    if (lines.length < 2) { box.replaceChildren(el('p', { class: 'muted' }, 'Il faut au moins deux lignes cotées pour comparer des répartitions.')); return; }
+    let lines = rows.filter(r => !Manual.is(r.key) && isFinite(r.valueBase) && r.valueBase > 0);
+    if (o.pea) lines = lines.filter(r => PEA_ELIGIBLE.has(Expo.dbSymbol(Store.instrument(r.key))));
+    if (lines.length < 2) {
+      box.replaceChildren(el('p', { class: 'muted' }, o.pea ? 'Il faut au moins deux lignes éligibles au PEA pour comparer des répartitions (décoche « Seulement les ETF éligibles au PEA »).' : 'Il faut au moins deux lignes cotées pour comparer des répartitions.'));
+      return;
+    }
+    if (o.cap * lines.length < 1) {
+      box.replaceChildren(el('p', { class: 'muted' }, `Avec ${lines.length} lignes, le poids maximum doit être d'au moins ${fmtNum(Math.ceil(100 / lines.length), 0)} % pour que la somme fasse 100 %.`));
+      return;
+    }
     btn.disabled = true; btn.textContent = 'Calcul…';
     try {
-      const start = addDaysISO(todayISO(), -3 * 365);
+      const start = addDaysISO(todayISO(), -Math.round(o.years * 365.25));
       const series = {};
       for (const r of lines) {
         const s = await Api.daily(r.key, start);
@@ -93,9 +188,10 @@ Object.assign(App, {
       if (al.returns.length < 120) throw new Error('Pas assez d\'historique commun entre tes lignes (au moins six mois).');
       const st = Optimizer.stats(al.returns);
       const total = lines.reduce((s, r) => s + r.valueBase, 0);
-      const current = al.keys.map(k => lines.find(r => r.key === k).valueBase / total);
+      const values = al.keys.map(k => lines.find(r => r.key === k).valueBase);
+      const current = values.map(v => v / total);
       const rf = (parseNum(Store.state.settings.riskFree) || 0) / 100;
-      this.optResult = { al, st, fr: Optimizer.frontier(st, { rf, current }), span: [al.dates[0], al.dates[al.dates.length - 1]] };
+      this.optResult = { al, st, values, opts: Object.assign({}, o), fr: Optimizer.frontier(st, { rf, current, cap: o.cap }), span: [al.dates[0], al.dates[al.dates.length - 1]] };
       this.renderOptimizer();
     } catch (e) {
       box.replaceChildren(el('p', { class: 'muted' }, e.message));
@@ -126,6 +222,14 @@ Object.assign(App, {
       el('div', { class: 'opt-num' }, el('span', {}, 'Volatilité'), el('b', {}, pct(p.vol))),
       el('div', { class: 'opt-num' }, el('span', {}, 'Sharpe'), el('b', {}, fmtNum(p.sharpe, 2))),
       el('ul', { class: 'opt-weights' }, ...al.keys.map((k, i) => el('li', {}, el('span', {}, Store.label(k)), el('b', { class: 'mono' }, fmtNum(p.w[i] * 100, 0) + ' %')))),
+      cls !== 'current' && res.values ? (() => {
+        const t = this.optTransition(al.keys, res.values, p.w);
+        const cur = this.base();
+        if (t.sells + t.buys < 1) return el('p', { class: 'small muted opt-move' }, 'Déjà ta répartition.');
+        return el('p', { class: 'small opt-move' }, el('span', { class: 'muted' }, 'Pour y passer : '),
+          `vendre ${fmtMoney(t.sells, cur, 0)}, acheter ${fmtMoney(t.buys, cur, 0)}`,
+          el('br'), el('span', { class: 'muted' }, `frais ≈ ${fmtMoney(t.fees, cur, 0)} · impôt ≈ ${fmtMoney(t.tax, cur, 0)}`));
+      })() : null,
       action ? el('button', { type: 'button', class: 'btn small', onclick: action }, 'Utiliser comme cible') : null);
     box.replaceChildren(
       el('div', { class: 'chart-box opt-chart' }, el('canvas', { id: 'optChart' })),
@@ -138,7 +242,12 @@ Object.assign(App, {
       el('p', { class: 'small muted opt-hint' }, pick
         ? 'Clique sur un autre point du nuage pour comparer une autre répartition.'
         : 'Survole un point pour voir sa répartition, clique dessus pour l\'ajouter à la comparaison ci-dessus.'),
-      noteTip(`Calculé sur les cours de clôture du ${fmtDate(span[0])} au ${fmtDate(span[1])} (${fr.points.length} répartitions simulées, positions positives uniquement, taux sans risque des Réglages). Une période passée favorable à un indice ne se reproduit pas forcément : à lire comme un éclairage sur le couple risque / rendement, pas comme une prévision.`, 'Méthode et limites'));
+      (() => {
+        // historique commun plus court que la période demandée : l'ETF le plus récent limite la période
+        const yrs = (new Date(span[1]) - new Date(span[0])) / (365.25 * 86400000);
+        return res.opts && yrs < res.opts.years - 0.5 ? el('p', { class: 'small warn-text' }, `Historique commun limité à ${fmtNum(yrs, 1)} an(s) au lieu de ${res.opts.years} : une de tes lignes est plus récente.`) : '';
+      })(),
+      noteTip(`Calculé sur les cours de clôture du ${fmtDate(span[0])} au ${fmtDate(span[1])} (${fr.points.length} répartitions simulées, positions positives uniquement${res.opts && res.opts.cap < 1 ? `, ${fmtNum(res.opts.cap * 100, 0)} % au plus par ligne` : ''}${res.opts && res.opts.pea ? ', lignes éligibles au PEA seulement' : ''}, taux sans risque des Réglages). « Pour y passer » : ventes et achats au cours actuel, frais selon le barème de chaque compte, impôt sur les plus-values réalisées hors PEA, assurance-vie et PER (un arbitrage à l'intérieur n'est pas imposé). Une période passée favorable à un indice ne se reproduit pas forcément : à lire comme un éclairage sur le couple risque / rendement, pas comme une prévision.`, 'Méthode et limites'));
     const pt = p => ({ x: p.vol * 100, y: p.ret * 100, w: p.w, p });
     Charts.scatter('optChart', [
       { label: 'Répartitions simulées', data: fr.points.map(pt), backgroundColor: Charts.css('--muted') + '30', pointRadius: 2, pointHoverRadius: 5, pointHoverBackgroundColor: Charts.css('--text') },

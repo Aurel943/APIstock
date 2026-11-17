@@ -432,7 +432,7 @@ Object.assign(Copilot, {
         const paid = V0 + mo * n;
         return { title: `${m(mo)}/mois pendant ${fmtNum(p.years, 0)} ans à ${fmtNum(rate, 1)} %/an`, value: m(fv),
           lines: [(V0 > 0 ? `En partant de tes ${m(V0)} actuels · ` : '') + `versé ${m(paid)} · intérêts composés ${m(fv - paid)}`, 'Hors frais, impôts et inflation : un ordre de grandeur, pas une promesse.'],
-          actions: [{ label: 'Affiner dans la projection', run: () => { App.show('simulation'); $('#projInitial').value = Math.round(V0); $('#projMonthly').value = mo; $('#projRate').value = rate; $('#projYears').value = p.years; $('#projYears').dispatchEvent(new Event('input', { bubbles: true })); App.renderProjection(); $('#projInitial').closest('.card').scrollIntoView({ behavior: 'smooth' }); } }] };
+          actions: [{ label: 'Affiner dans la projection', run: () => { App.show('plan', 'objectifs'); $('#projInitial').value = Math.round(V0); $('#projMonthly').value = mo; $('#projRate').value = rate; $('#projYears').value = p.years; $('#projYears').dispatchEvent(new Event('input', { bubbles: true })); App.renderProjection(); $('#projInitial').closest('.card').scrollIntoView({ behavior: 'smooth' }); } }] };
       }
       default: return null;
     }

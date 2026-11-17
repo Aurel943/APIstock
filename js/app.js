@@ -93,7 +93,7 @@ const App = {
       () => this.bindNav(), () => this.bindPortfolio(), () => this.bindMarkets(), () => this.bindSimulation(), () => this.bindSettings(),
       () => this.bindDialog(), () => this.bindWorld(), () => this.bindInvest(), () => this.bindCompare(), () => this.bindAccounts(),
       () => this.renderAccountsSettings(), () => this.bindGoal(), () => this.bindPrivacy(), () => this.bindCsv(), () => this.bindMobile(),
-      () => this.bindManual(), () => $('#optRun').addEventListener('click', () => this.runOptimizer()), () => this.bindLab(),
+      () => this.bindManual(), () => this.bindTour(), () => { $('#optRun').addEventListener('click', () => this.runOptimizer()); this.renderOptOpts(); }, () => this.bindLab(),
       () => this.bindQuant(), () => this.bindDesk(), () => this.bindArena(), () => this.bindInstitut(), () => this.bindTerminal(), () => this.bindFisc(), () => this.bindCopilot(),
       () => $('#tgtShare').addEventListener('click', () => this.shareAllocation()),
       () => $('#wrappedOpen').addEventListener('click', () => { this.toggleTabMenu(false); this.openWrapped(); }),
@@ -1029,9 +1029,13 @@ const App = {
   },
 
   renderWatchlist() {
-    const keys = Store.state.watchlist.filter(k => Store.instrument(k));
-    $('#watchEmpty').classList.toggle('hidden', keys.length > 0);
-    $('#watchTable').classList.toggle('hidden', keys.length === 0);
+    const all = Store.state.watchlist.filter(k => Store.instrument(k));
+    $('#watchEmpty').classList.toggle('hidden', all.length > 0);
+    $('#watchTable').classList.toggle('hidden', all.length === 0);
+    // colonnes en option et tri (watchcols.js)
+    const extra = typeof this.watchHead === 'function';
+    if (extra) $('#watchTable thead').replaceChildren(this.watchHead());
+    const keys = extra ? this.watchOrder(all) : all;
     $('#watchTable tbody').replaceChildren(...keys.map(k => {
       const inst = Store.instrument(k);
       const q = Api.cachedQuote(k);
@@ -1040,6 +1044,7 @@ const App = {
         el('td', { class: 'num' }, q ? el('span', this.flashAttrs('wl:' + k, q.price), fmtMoney(q.price, inst.currency, 3)) : '—'),
         el('td', { class: 'num ' + (q ? trendClass(q.change) : '') }, q ? (q.change > 0 ? '+' : '') + fmtNum(q.change, 3) : '—'),
         el('td', { class: 'num' }, q ? el('span', { class: 'chip ' + trendClass(q.percentChange) }, fmtPct(q.percentChange)) : '—', this.daySpark(q, 64, 18)),
+        ...(extra ? this.watchCells(k) : []),
         el('td', { class: 'num muted' }, q ? fmtNum(q.low, 2) + ' – ' + fmtNum(q.high, 2) : '—'),
         el('td', { class: 'num' },
           el('button', { class: 'iconbtn', title: 'Ajouter un achat', onclick: e => { e.stopPropagation(); this.openTx(); this.setTxInstrument(k); } }, '+'),
@@ -1417,6 +1422,8 @@ const App = {
         $('#projInitial').dispatchEvent(new Event('input'));
       });
     }
+    // simulation de Monte-Carlo coûteuse : seulement quand la carte est affichée (refaite à l'ouverture de la page)
+    if (!this.isPage('plan/objectifs')) return;
     const v = Object.fromEntries(Object.entries(ids).map(([k, id]) => [k, parseNum($(id).value) || 0]));
     const years = Math.min(60, Math.max(1, v.years));
     const pts = Portfolio.project({ initial: v.initial, monthly: v.monthly, rate: v.rate, fees: v.fees, years });
