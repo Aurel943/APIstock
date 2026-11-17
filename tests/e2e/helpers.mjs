@@ -71,9 +71,21 @@ export function relayResponse(url, calls) {
     return json({ results });
   }
   if (q.type === 'summary') {
-    // principales lignes d'un ETF (topHoldings) : réponse enregistrée, ou rien
+    // fiche, composition d'un ETF : réponse enregistrée (summary-…), ou rien
+    // révisions, avis des banques, dirigeants (trends-…) : dates décalées pour que le dernier avis date d'avant-hier
     const syms = (q.symbols || '').split(',').filter(Boolean);
-    return json('{"results":{' + syms.map(s => JSON.stringify(s) + ':' + (fixture('summary-' + slug(s)) || 'null')).join(',') + '}}');
+    const trends = /earningsTrend/.test(q.modules || '');
+    const one = s => {
+      const f = fixture((trends ? 'trends-' : 'summary-') + slug(s));
+      if (!f || !trends) return f || 'null';
+      const d = JSON.parse(f);
+      const last = Math.max(...((d.upgradeDowngradeHistory || {}).history || []).map(h => h.epochGradeDate), 0);
+      const shift = last ? Math.round((Date.now() / 1000 - 2 * 86400 - last) / 86400) * 86400 : 0;
+      for (const h of (d.upgradeDowngradeHistory || {}).history || []) h.epochGradeDate += shift;
+      for (const t of (d.insiderTransactions || {}).transactions || []) if (t.startDate && t.startDate.raw) t.startDate.raw += shift;
+      return JSON.stringify(d);
+    };
+    return json('{"results":{' + syms.map(s => JSON.stringify(s) + ':' + one(s)).join(',') + '}}');
   }
   if (q.type === 'search') return json(fixture('search-' + slug(q.q || '')) || { quotes: [] });
   if (q.type === 'news') return json({ news: [], lang: 'fr' });

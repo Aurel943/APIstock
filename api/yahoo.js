@@ -143,7 +143,7 @@ async function getYahooAuth(force) {
   return yahooAuth;
 }
 /* Modules « quoteSummary » autorisés (données publiques en lecture seule) pour ?type=summary&modules=… */
-const SUMMARY_MODULES = new Set(['calendarEvents', 'earnings', 'earningsHistory', 'earningsTrend', 'topHoldings', 'fundProfile', 'price',
+const SUMMARY_MODULES = new Set(['calendarEvents', 'earnings', 'earningsHistory', 'earningsTrend', 'topHoldings', 'fundProfile', 'price', 'insiderTransactions', 'netSharePurchaseActivity', 'insiderHolders',
   'summaryDetail', 'defaultKeyStatistics', 'financialData', 'assetProfile', 'recommendationTrend', 'upgradeDowngradeHistory']);
 async function summaryOne(sym, auth, modules) {
   const u = new URL('https://query2.finance.yahoo.com/v10/finance/quoteSummary/' + encodeURIComponent(sym));
@@ -155,6 +155,10 @@ async function summaryOne(sym, auth, modules) {
   const res = j && j.quoteSummary && j.quoteSummary.result && j.quoteSummary.result[0];
   if (!res) return null; // ETF, indice… : pas de données pour ces modules
   if (res.earnings) delete res.earnings.financialsChart; // chiffres annuels : inutiles ici
+  // listes très longues (près de 1 000 changements d'avis pour NVIDIA) : seulement les plus récents
+  const recent = (list, n) => (Array.isArray(list) ? list.slice().sort((a, b) => (b.epochGradeDate || (b.startDate && b.startDate.raw) || 0) - (a.epochGradeDate || (a.startDate && a.startDate.raw) || 0)).slice(0, n) : list);
+  if (res.upgradeDowngradeHistory) res.upgradeDowngradeHistory.history = recent(res.upgradeDowngradeHistory.history, 60);
+  if (res.insiderTransactions) res.insiderTransactions.transactions = recent(res.insiderTransactions.transactions, 80);
   const out = {};
   for (const m of modules) out[m] = res[m] || null;
   return out;
