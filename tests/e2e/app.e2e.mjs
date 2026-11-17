@@ -363,12 +363,15 @@ watchlist: ['CW8@XPAR', 'NVDA@XNAS'] }) }, async ({ page, calls }) => {
   await page.click('.tabs > .tab[data-view=agenda]');
   await page.waitForSelector('#agendaList .agenda-item');
   assert.ok(await page.locator('#agendaList .agenda-item.plan').count() >= 11, 'versements des 12 prochains mois');
-  // résultats de NVIDIA (watchlist) : une seule requête au relais, pour les actions seulement (pas les ETF)
+  // résultats de NVIDIA (watchlist) et des grandes lignes des ETF (S&P 500 et MSCI World, via SPY et URTH) : pas de résultats pour un ETF
   await page.waitForSelector('#agendaList .agenda-item.earn');
-  const cal = calls.filter(c => c.type === 'calendar');
-  assert.deepEqual(cal.map(c => c.symbols), ['NVDA']);
-  const earn = await page.locator('#agendaList .agenda-item.earn').first().innerText();
+  assert.deepEqual(calls.filter(c => c.type === 'summary').map(c => c.symbols.split(',').sort().join()), ['SPY,URTH']);
+  const cal = calls.filter(c => c.type === 'calendar').flatMap(c => c.symbols.split(','));
+  assert.ok(cal[0] === 'NVDA' && cal.includes('AAPL') && cal.includes('MSFT'), cal.join());
+  assert.ok(!cal.some(s => ['CW8.PA', 'ESE.PA', 'SPY'].includes(s)), 'pas d\'ETF');
+  const earn = await page.locator('#agendaList .agenda-item.earn', { hasText: 'NVIDIA' }).first().innerText();
   assert.match(earn, /Résultats T\d .*NVIDIA/);
+  assert.match(earn, /Pèse \d+,\d % de .*S&P 500.*MSCI World|Pèse \d+,\d % de .*MSCI World.*S&P 500/);
   assert.match(earn, /bénéfice par action attendu/);
   assert.ok(await page.locator('#agendaNote').isHidden());
   await page.locator('#agendaKinds button', { hasText: 'Indices' }).click();
@@ -378,6 +381,11 @@ watchlist: ['CW8@XPAR', 'NVDA@XNAS'] }) }, async ({ page, calls }) => {
   assert.deepEqual(kinds, ['market']);
   const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#agendaExport')]);
   assert.equal(dl.suggestedFilename(), 'apistock-agenda.ics');
+  // fiche de NVIDIA : résultats des derniers trimestres et prochaine publication
+  await page.evaluate(() => { App.show('markets'); App.selectDetail('NVDA@XNAS'); });
+  await page.waitForSelector('#detailEarnings .earn-col');
+  assert.equal(await page.locator('#detailEarnings .earn-col').count(), 5, '4 trimestres publiés + le prochain');
+  assert.match(await page.locator('#detailEarnings').innerText(), /Prochaine publication/);
 }));
 
 test('catalogue : portefeuille type appliqué comme cible ; moyennes mobiles sur la fiche', { skip: !realCharts && 'Chart.js non installé' }, () => run({ state: sampleState({ instruments: Object.assign({}, sampleState().instruments, {

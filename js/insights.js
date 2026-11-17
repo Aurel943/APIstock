@@ -191,6 +191,8 @@ Object.assign(App, {
         items.push({ key: r.key, date: next, last: d.date, perShare: d.amount, qty: r.qty, currency: ev.currency || r.currency, amount: d.amount * r.qty * (isFinite(fx) ? fx : NaN) });
       }
     }
+    // date de détachement annoncée par la société (actions, voir Earnings dans agenda.js)
+    if (typeof Earnings !== 'undefined') return Earnings.confirmDividends(items, today);
     return items.sort((a, b) => (a.date < b.date ? -1 : 1));
   },
 
@@ -222,7 +224,7 @@ Object.assign(App, {
       el('div', { class: 'table-wrap' }, el('table', { class: 'data' },
         el('thead', {}, el('tr', {}, el('th', {}, 'Vers le'), el('th', {}, 'ETF'), el('th', { class: 'num' }, 'Par part'), el('th', { class: 'num' }, 'Parts'), el('th', { class: 'num' }, 'Montant estimé'), el('th', {}, 'Dernier détachement'))),
         el('tbody', {}, ...items.map(i => el('tr', {},
-          el('td', {}, fmtDate(i.date)), el('td', {}, el('span', { class: 'sym' }, Store.label(i.key))),
+          el('td', { title: i.confirmed ? 'Date de détachement annoncée par la société' : 'Estimation : même date que l\'an dernier' }, fmtDate(i.date), i.confirmed ? ' ✓' : ''), el('td', {}, el('span', { class: 'sym' }, Store.label(i.key))),
           el('td', { class: 'num' }, fmtMoney(i.perShare, i.currency, 3)), el('td', { class: 'num' }, fmtQty(i.qty)),
           el('td', { class: 'num up' }, fmtMoney(i.amount, cur)), el('td', { class: 'muted' }, fmtDate(i.last))))))));
   },

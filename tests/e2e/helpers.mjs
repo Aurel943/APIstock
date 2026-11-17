@@ -70,6 +70,11 @@ export function relayResponse(url, calls) {
     }
     return json({ results });
   }
+  if (q.type === 'summary') {
+    // principales lignes d'un ETF (topHoldings) : réponse enregistrée, ou rien
+    const syms = (q.symbols || '').split(',').filter(Boolean);
+    return json('{"results":{' + syms.map(s => JSON.stringify(s) + ':' + (fixture('summary-' + slug(s)) || 'null')).join(',') + '}}');
+  }
   if (q.type === 'search') return json(fixture('search-' + slug(q.q || '')) || { quotes: [] });
   if (q.type === 'news') return json({ news: [], lang: 'fr' });
   if (q.type === 'ogimage') return { status: 404, body: '' };
