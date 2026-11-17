@@ -1,6 +1,30 @@
 /* Utilitaires de formatage et helpers DOM */
 'use strict';
 
+/*
+ * Drapeaux des pays : sans emoji de drapeau dans le système (Windows), on active la police de drapeaux du site (voir style.css).
+ * Test : un emoji ordinaire s'affiche en couleur, mais un drapeau non (Windows dessine alors deux lettres monochromes).
+ */
+(function flagEmojiSupport() {
+  try {
+    if (typeof document === 'undefined' || !document.createElement) return;
+    const canvas = document.createElement('canvas');
+    if (!canvas.getContext) return;
+    canvas.width = canvas.height = 1;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return;
+    ctx.textBaseline = 'top';
+    ctx.font = '100px "Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol","Noto Color Emoji",sans-serif';
+    ctx.scale(0.01, 0.01);
+    const color = ch => {
+      const px = c => { ctx.clearRect(0, 0, 100, 100); ctx.fillStyle = c; ctx.fillText(ch, 0, 0); return ctx.getImageData(0, 0, 1, 1).data.join(','); };
+      const w = px('#fff'), b = px('#000');
+      return w === b && !b.startsWith('0,0,0,'); // même pixel en blanc et en noir : glyphe en couleur
+    };
+    if (color('\u{1F60A}') && !color('\u{1F1E8}\u{1F1ED}')) document.documentElement.classList.add('no-flag-emoji');
+  } catch (e) { /* pas de canvas : on laisse le système */ }
+})();
+
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
