@@ -19,7 +19,7 @@ test('les modules sont abonnés aux événements documentés en haut de js/app.j
   assert.equal(n('rendered:all'), 5);         // fiscalité/exposition, espèces/versements/à faire, risque/dividendes/rééquilibrage, patrimoine, aujourd'hui
   assert.equal(n('rendered:portfolio'), 5);   // variations du jour, à faire, patrimoine, carte du portefeuille, aujourd'hui
   assert.equal(n('refreshed'), 3);            // cartes lentes, dividendes et divisions, actualités
-  assert.equal(n('view:shown'), 6);           // barre mobile, actualités, retraite, météo du labo quant, aujourd'hui, colonnes de la liste de suivi
+  assert.equal(n('view:shown'), 7);           // barre mobile, actualités, retraite, météo du labo quant, aujourd'hui, colonnes de la liste de suivi, comparateur d'ETF
   assert.equal(n('detail:selected'), 3);      // actualités, résultats trimestriels, analyse fondamentale / composition de la fiche
   for (const e of ['rendered:invest', 'rendered:alerts', 'rendered:accountFilter']) assert.equal(n(e), 1, e);
 });

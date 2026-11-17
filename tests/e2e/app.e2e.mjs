@@ -337,6 +337,14 @@ test('menu « ⋯ » au clavier, sous-onglets mémorisés et indicateur hors lig
   assert.equal(await page.evaluate(() => location.hash), '#markets/suivi');
   await page.click('.tabs .tab[data-view="analysis"]');
   assert.equal(await page.evaluate(() => App.page), 'analysis/risque');
+  // comparateur d'ETF : CW8 (MSCI World) contre ESE (S&P 500) → fort recouvrement, sociétés communes
+  await page.evaluate(() => App.show('markets', 'comparer'));
+  await page.waitForSelector('#etfCmpOut .etfcmp-verdict', { timeout: 15000 });
+  assert.match(await page.locator('#etfCmpOut .etfcmp-verdict').innerText(), /Fort recouvrement : environ 68 %/);
+  await page.selectOption('#etfCmpForm select >> nth=1', 'SPY@ARCX');
+  await page.waitForFunction(() => /BNP Paribas Easy S&P 500|SPDR/.test(document.querySelector('#etfCmpOut').innerText) && /recouvrement|Doublon/.test(document.querySelector('#etfCmpOut .etfcmp-verdict')?.innerText || ''));
+  await page.selectOption('#etfCmpForm select >> nth=0', 'ESE@XPAR');
+  await page.waitForFunction(() => /^Doublon/.test(document.querySelector('#etfCmpOut .etfcmp-verdict')?.innerText || ''));
   // anciens noms de pages (liens, boutons « voir… ») toujours compris
   await page.evaluate(() => App.show('world'));
   assert.equal(await page.evaluate(() => App.page), 'markets/monde');

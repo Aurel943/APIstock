@@ -178,3 +178,19 @@ test('liste de suivi : valeurs des colonnes en option et tri (valeurs inconnues 
   assert.deepEqual(plain(W.sort(['a', 'b', 'c', 'd'], k => vals[k], 'desc')), ['c', 'a', 'd', 'b']);
   assert.deepEqual(plain(W.sort(['a', 'b', 'c', 'd'], k => vals[k], 'asc')), ['d', 'a', 'c', 'b']);
 });
+
+test('comparateur d\'ETF : recouvrement des lignes (plus petit poids commun) et des indices', () => {
+  const a = loadApp(state());
+  const C = a.get('EtfCompare');
+  const ov = plain(C.overlap(
+    [{ name: 'Apple', pct: 5.6 }, { name: 'NVIDIA', pct: 5.2 }, { name: 'Nestlé', pct: 0.4 }],
+    [{ name: 'NVIDIA', pct: 7.6 }, { name: 'Apple', pct: 7.7 }, { name: 'Berkshire Hathaway', pct: 1.6 }]));
+  assert.deepEqual(ov.common.map(c => c.name), ['Apple', 'NVIDIA']);
+  assert.ok(Math.abs(ov.shared - (5.6 + 5.2)) < 1e-9, 'somme des plus petits poids');
+  assert.deepEqual(ov.onlyA.map(h => h.name), ['Nestlé']);
+  assert.deepEqual(ov.onlyB.map(h => h.name), ['Berkshire Hathaway']);
+  assert.equal(C.indexOverlap('world', 'sp500'), 68);
+  assert.equal(C.indexOverlap('sp500', 'sp500'), 100);
+  assert.equal(C.indexOverlap('world', 'none'), null);
+  assert.equal(C.indexOverlap('japan', 'em'), 0);
+});
