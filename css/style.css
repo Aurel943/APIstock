@@ -994,11 +994,17 @@ details.advanced[open] > .stack { margin-top: 12px; }
 .opt-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; margin-top: 12px; }
 .opt-col { display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: 12px; border: 2px solid var(--border); }
 .opt-col.current { border-color: var(--accent); } .opt-col.minvol { border-color: #6366f1; } .opt-col.maxsharpe { border-color: #f59e0b; }
+.opt-col.maxret { border-color: #db2777; } .opt-col.pick { border-color: var(--text); border-style: dashed; }
+.opt-col > b { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.opt-unpick { font-weight: 400; }
+.opt-hint { margin: 6px 0 0; }
+.opt-chart canvas { cursor: crosshair; }
 .opt-col > .btn { align-self: flex-start; margin-top: 4px; }
 .opt-num { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); }
 .opt-num b { color: var(--text); font-family: "JetBrains Mono", monospace; } .opt-num b.up { color: var(--up); } .opt-num b.down { color: var(--down); }
 .opt-weights { list-style: none; margin: 4px 0 0; padding: 6px 0 0; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; }
 .opt-weights li { display: flex; justify-content: space-between; gap: 8px; } .opt-weights li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.opt-weights li b { white-space: nowrap; flex: none; }
 @media (max-width: 640px) { .opt-chart { height: 280px; } }
 
 /* « Ton année en bourse » */
