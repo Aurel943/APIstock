@@ -181,6 +181,8 @@ Object.assign(App, {
 
   renderRetirement() {
     if (!$('#retireCard')) return;
+    // milliers de trajectoires simulées : calculées seulement quand la carte est affichée (refaites à l'ouverture de la page)
+    if (!this.isPage('plan/objectifs')) return;
     const cur = this.base();
     const p = this.retirementParams();
     const mc = Portfolio.retirement(p);

@@ -1422,6 +1422,8 @@ const App = {
         $('#projInitial').dispatchEvent(new Event('input'));
       });
     }
+    // simulation de Monte-Carlo coûteuse : seulement quand la carte est affichée (refaite à l'ouverture de la page)
+    if (!this.isPage('plan/objectifs')) return;
     const v = Object.fromEntries(Object.entries(ids).map(([k, id]) => [k, parseNum($(id).value) || 0]));
     const years = Math.min(60, Math.max(1, v.years));
     const pts = Portfolio.project({ initial: v.initial, monthly: v.monthly, rate: v.rate, fees: v.fees, years });

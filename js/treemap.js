@@ -59,6 +59,8 @@ Object.assign(App, {
   renderTreemap() {
     const card = $('#mapCard');
     if (!card) return;
+    // dessinée à l'ouverture d'Analyse › Composition (sa largeur n'est connue qu'une fois visible)
+    if (this.isPage && !this.isPage('analysis/composition')) return;
     const { rows } = Portfolio.snapshot();
     const items = rows.filter(r => (isFinite(r.valueBase) ? r.valueBase : r.costBase) > 0);
     this._tmAt = Date.now();
