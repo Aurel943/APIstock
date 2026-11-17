@@ -61,6 +61,8 @@ Object.assign(App, {
     if (!card) return;
     const { rows } = Portfolio.snapshot();
     const items = rows.filter(r => (isFinite(r.valueBase) ? r.valueBase : r.costBase) > 0);
+    this._tmAt = Date.now();
+    this._tmCount = items.length;
     card.classList.toggle('hidden', items.length < 2);
     if (items.length < 2) return;
     const box = $('#mapBox');
@@ -84,4 +86,14 @@ Object.assign(App, {
         big ? el('span', { class: 'map-val' }, fmtMoney(vals[t.i], cur, 0) + ' · ' + fmtPct(vals[t.i] / total * 100, 0, false)) : null);
     }));
   },
+});
+
+/*
+ * Carte affichée (Analyse › Composition) : redessinée quand le portefeuille change (cours, taux de change arrivé après
+ * l'ouverture…), aussitôt si une ligne apparaît ou disparaît, sinon au plus toutes les 5 s (couleurs du jour).
+ */
+App.on('rendered:portfolio', function () {
+  if (!this.isPage('analysis/composition') || !$('#mapCard')) return;
+  const n = Portfolio.snapshot().rows.filter(r => (isFinite(r.valueBase) ? r.valueBase : r.costBase) > 0).length;
+  if (n !== this._tmCount || Date.now() - (this._tmAt || 0) > 5000) this.renderTreemap();
 });

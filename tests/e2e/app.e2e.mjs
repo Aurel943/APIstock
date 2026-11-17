@@ -485,7 +485,8 @@ test('carte du portefeuille, optimiseur de répartition et « Ton année en bour
   await page.evaluate(() => App.show('analysis', 'composition'));
   // carte : une tuile par ligne, qui ouvre la fiche
   await page.waitForSelector('#mapCard:not(.hidden) .map-tile');
-  assert.equal(await page.locator('.map-tile').count(), 3);
+  // la ligne en dollars arrive avec le taux de change : la carte se complète sans changer de page
+  await page.waitForFunction(() => document.querySelectorAll('.map-tile').length === 3, null, { timeout: 20000 });
   await page.click('#mapMode [data-mode=gain]');
   assert.match(await page.locator('.map-tile').first().getAttribute('title'), /plus-value/);
   // optimiseur (Analyse › Optimiser) : nuage, trois répartitions, application comme cible
