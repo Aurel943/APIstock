@@ -111,7 +111,7 @@ test('mouvement d\'espèces : le solde du compte apparaît', () => run({ state: 
   await page.fill('#cashDate', '2024-01-02');
   await page.fill('#cashAmount', '5000');
   await page.click('#cashForm button[type=submit]');
-  await page.click('#pfSubnav [data-tab=synthese]');
+  await page.click('#pfSubnav [data-tab=patrimoine]');
   await page.waitForSelector('#cashCard:not(.hidden)');
   const s = await state(page);
   assert.equal(s.cashMoves.length, 1);
@@ -216,7 +216,7 @@ test('portefeuille en sous-onglets et bulles d\'information', () => run({ state:
   await page.click('#pfSubnav [data-tab=operations]');
   assert.ok(await page.locator('#txTable').isVisible(), 'opérations visibles dans leur sous-onglet');
   assert.ok(!(await page.locator('#positionsTable').isVisible()));
-  assert.equal(await page.evaluate(() => localStorage.getItem('apistock:pfTab')), 'operations', 'sous-onglet mémorisé');
+  assert.equal(await page.evaluate(() => localStorage.getItem('apistock:sub:portfolio')), 'operations', 'sous-onglet mémorisé');
   // bulle « i » : s'ouvre au clic, se ferme au clic ailleurs
   await page.click('#pfSubnav [data-tab=synthese]');
   await page.locator('#view-portfolio .info:visible').first().click();
@@ -304,8 +304,9 @@ test('opérations filtrées, contribution des lignes et vente simulée', () => r
   assert.match(await page.locator('#txCount').innerText(), /sur/);
   await page.click('#txFilters .link');
   assert.equal(await page.locator('#txTable tbody tr').count(), total);
-  // contribution : une ligne par ETF dans « Analyse »
-  await page.click('#pfSubnav [data-tab=analyse]');
+  // contribution : une ligne par ETF dans Analyse › Performance
+  await page.click('.tabs .tab[data-view="analysis"]');
+  await page.click('#anSubnav [data-tab="performance"]');
   await page.waitForSelector('#contribCard:not(.hidden)');
   assert.ok(await page.locator('#contribList li').count() >= 2);
   // vente simulée depuis la fiche
@@ -371,8 +372,9 @@ test('agenda (filtres, résultats, macro, export .ics) et bilan de santé', () =
 instruments: Object.assign({}, sampleState().instruments, {
   'NVDA@XNAS': { symbol: 'NVDA', mic: 'XNAS', exchange: 'Nasdaq', name: 'NVIDIA Corporation', currency: 'USD', type: 'Action', provider: 'yahoo', ysymbol: 'NVDA' } }),
 watchlist: ['CW8@XPAR', 'NVDA@XNAS'] }) }, async ({ page, calls }) => {
-  // bilan de santé en tête de l'onglet Analyse
-  await page.click('#pfSubnav [data-tab=analyse]');
+  // bilan de santé en tête d'Analyse › Composition
+  await page.click('.tabs .tab[data-view="analysis"]');
+  await page.click('#anSubnav [data-tab="composition"]');
   await page.waitForSelector('#healthCard:not(.hidden) .health-ring');
   const score = +(await page.locator('.health-ring b').innerText());
   assert.ok(score >= 0 && score <= 100, String(score));
@@ -430,8 +432,7 @@ watchlist: ['CW8@XPAR', 'NVDA@XNAS'] }) }, async ({ page, calls }) => {
   assert.match(etf, /URTH/);
   assert.equal(await page.locator('#detailEarnings .earn-col').count(), 0, 'pas de résultats trimestriels pour un ETF');
   // radiographie : poids réels (SPY, URTH)
-  await page.evaluate(() => { App.show('portfolio'); });
-  await page.click('#pfSubnav [data-tab=analyse]');
+  await page.evaluate(() => App.show('analysis', 'composition'));
   await page.waitForSelector('#xrayCard:not(.hidden) .xr-list li');
   assert.match(await page.locator('#xrayCard').innerText(), /Apple|NVIDIA/);
 }));
@@ -480,13 +481,14 @@ test('objectifs multiples et alerte « sous mon prix de revient »', () => run({
 }));
 
 test('carte du portefeuille, optimiseur de répartition et « Ton année en bourse »', { skip: !realCharts && 'Chart.js non installé' }, () => run({ state: sampleState() }, async ({ page }) => {
-  await page.click('#pfSubnav [data-tab=analyse]');
+  await page.evaluate(() => App.show('analysis', 'composition'));
   // carte : une tuile par ligne, qui ouvre la fiche
   await page.waitForSelector('#mapCard:not(.hidden) .map-tile');
   assert.equal(await page.locator('.map-tile').count(), 3);
   await page.click('#mapMode [data-mode=gain]');
   assert.match(await page.locator('.map-tile').first().getAttribute('title'), /plus-value/);
-  // optimiseur : nuage, trois répartitions, application comme cible
+  // optimiseur (Analyse › Optimiser) : nuage, trois répartitions, application comme cible
+  await page.click('#anSubnav [data-tab="optimiser"]');
   await page.click('#optRun');
   await page.waitForFunction(() => Chart.getChart('optChart') && Chart.getChart('optChart').data.datasets.length === 4, null, { timeout: 20000 });
   assert.equal(await page.locator('.opt-col').count(), 3);
@@ -494,7 +496,7 @@ test('carte du portefeuille, optimiseur de répartition et « Ton année en bour
   await page.waitForFunction(() => App.page === 'plan/investir');
   const sum = await page.evaluate(() => Object.values(Store.state.targets).reduce((a, b) => a + b, 0));
   assert.ok(Math.abs(sum - 100) < 0.5, 'cible à 100 % : ' + sum);
-  // récap de l'année depuis le menu « Plus »
+  // récap de l'année depuis le menu « ⋯ »
   await page.click('#tabMoreBtn');
   await page.click('#wrappedOpen');
   await page.waitForSelector('.wrapped .w-big', { timeout: 20000 });
@@ -758,7 +760,7 @@ test('outils institutionnels : stress test inversé, Black-Litterman appliqué c
 test('mode terminal (commandes, touches F), scanner de signaux et radiographie', { skip: !realCharts && 'Chart.js non installé' }, () => run({ state: sampleState() }, async ({ page }) => {
   await page.waitForFunction(() => Api.cachedQuote('CW8@XPAR') && Api.cachedQuote('ESE@XPAR') && Api.cachedQuote('SPY@ARCX'), null, { timeout: 20000 });
   // radiographie : les 7 Magnifiques vus à travers les ETF
-  await page.evaluate(() => { App.show('portfolio'); App.portfolioTab('analyse'); });
+  await page.evaluate(() => App.show('analysis', 'composition'));
   await page.waitForSelector('#xrayCard:not(.hidden) .xr-list');
   assert.match(await page.locator('#xrayBody .q-lead').innerText(), /7 Magnifiques[\s\S]*représentent [\d,]+ %/);
   assert.match(await page.locator('#xrayBody .xr-list li').first().innerText(), /NVIDIA|Apple|Microsoft/);
