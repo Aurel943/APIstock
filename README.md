@@ -46,6 +46,12 @@ Site personnel (100 % statique, sans serveur ni compte) pour suivre ses ETF et l
 - Allocation cible en % et **plan d'investissement** : « j'investis 500 € ce mois-ci » → nombre de parts à acheter de chaque ETF pour se rapprocher de la cible (parts entières ou fractionnées, rééquilibrage complet avec ventes en option), puis enregistrement des achats en un clic
 - **Alertes de prix** (cours ≥ / ≤, hausse ou baisse du jour en %) avec notifications du navigateur
 
+**Fiche d'une valeur (onglet Marchés)**
+- **Analyse fondamentale d'une action** : avis des analystes (répartition achat / conserver / vente et évolution sur un mois), objectif de cours moyen à 12 mois avec sa fourchette et le potentiel par rapport au cours, valorisation (PER, PER attendu, PEG, capitalisation, dividende, bêta), santé financière (marges, croissance, rentabilité, dette) et profil de la société, chaque indicateur expliqué en une phrase
+- **Composition & frais d'un ETF** : frais courants, performances annualisées sur 3 et 5 ans, encours, distribution ou capitalisation, société de gestion, répartition par secteur et principales lignes (celles de l'indice suivi quand l'ETF ne publie pas les siennes)
+- **Résultats trimestriels** d'une action : 4 derniers trimestres (publié / attendu) et prochaine publication
+- Données Yahoo Finance lues par le relais (`type=summary`), gardées 24 h ; la radiographie du portefeuille utilise aussi les poids réels des principales lignes des indices (mis à jour chaque semaine)
+
 **Agenda**
 - Versements programmés, dividendes attendus, jours fériés des bourses, jalons PEA / assurance-vie, déclaration de revenus, export vers l'agenda du téléphone (.ics)
 - **Résultats des sociétés** : prochaine publication trimestrielle des actions du portefeuille et de la watchlist (ex. « Résultats T3 de l'exercice 2027 · NVIDIA »), avant l'ouverture ou après la clôture, bénéfice par action et chiffre d'affaires attendus par les analystes, et résultat du trimestre précédent contre les attentes. Nécessite un relais à jour (appel `type=calendar` : recopier `proxy/cloudflare-worker.js` dans le worker, puis Deploy)

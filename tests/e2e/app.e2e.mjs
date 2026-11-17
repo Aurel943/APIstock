@@ -386,6 +386,28 @@ watchlist: ['CW8@XPAR', 'NVDA@XNAS'] }) }, async ({ page, calls }) => {
   await page.waitForSelector('#detailEarnings .earn-col');
   assert.equal(await page.locator('#detailEarnings .earn-col').count(), 5, '4 trimestres publiés + le prochain');
   assert.match(await page.locator('#detailEarnings').innerText(), /Prochaine publication/);
+  // analyse fondamentale de NVIDIA : avis des analystes, objectif de cours, valorisation, profil
+  await page.waitForSelector('#detailFund .fund-split');
+  const fund = await page.locator('#detailFund').innerText();
+  assert.match(fund, /Avis des analystes/i);
+  assert.match(fund, /54 analystes/);
+  assert.match(fund, /Objectif de cours/i);
+  assert.match(fund, /PER attendu/i);
+  assert.equal(await page.locator('#detailFund .fund-split .seg').count(), 4, 'achat fort, achat, conserver, vente (pas de vente forte)');
+  // fiche de CW8 (ETF) : frais, secteurs et principales lignes de l'indice suivi (via URTH)
+  await page.evaluate(() => App.selectDetail('CW8@XPAR'));
+  await page.waitForSelector('#detailFund .fund-bars li');
+  const etf = await page.locator('#detailFund').innerText();
+  assert.match(etf, /Composition & frais/i);
+  assert.match(etf, /0,38 % par an/i);
+  assert.match(etf, /Technologie/i);
+  assert.match(etf, /URTH/);
+  assert.equal(await page.locator('#detailEarnings .earn-col').count(), 0, 'pas de résultats trimestriels pour un ETF');
+  // radiographie : poids réels (SPY, URTH)
+  await page.evaluate(() => { App.show('portfolio'); });
+  await page.click('#pfSubnav [data-tab=analyse]');
+  await page.waitForSelector('#xrayCard:not(.hidden) .xr-list li');
+  assert.match(await page.locator('#xrayCard').innerText(), /Apple|NVIDIA/);
 }));
 
 test('catalogue : portefeuille type appliqué comme cible ; moyennes mobiles sur la fiche', { skip: !realCharts && 'Chart.js non installé' }, () => run({ state: sampleState({ instruments: Object.assign({}, sampleState().instruments, {
@@ -713,7 +735,7 @@ test('mode terminal (commandes, touches F), scanner de signaux et radiographie',
   await page.evaluate(() => { App.show('portfolio'); App.portfolioTab('analyse'); });
   await page.waitForSelector('#xrayCard:not(.hidden) .xr-list');
   assert.match(await page.locator('#xrayBody .q-lead').innerText(), /7 Magnifiques[\s\S]*représentent [\d,]+ %/);
-  assert.match(await page.locator('#xrayBody .xr-list li').first().innerText(), /NVIDIA/);
+  assert.match(await page.locator('#xrayBody .xr-list li').first().innerText(), /NVIDIA|Apple|Microsoft/);
   // scanner
   await page.evaluate(() => App.show('desk'));
   await page.click('#scanRun');

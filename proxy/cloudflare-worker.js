@@ -103,16 +103,39 @@ async function handleQuotes(q, cors) {
 const CAL_MAX = 20;
 const UA = 'Mozilla/5.0 (compatible; APIstock/1.0)';
 let yahooAuth = null; // { cookie, crumb, ts }
+/*
+ * Jeton partagé entre les instances du worker via le cache Cloudflare (sinon chaque instance redemande un jeton,
+ * et Yahoo finit par répondre « Too Many Requests ») ; sur Vercel, simple mémoire de l'instance.
+ */
+const AUTH_TTL = 6 * 3600;
+const authCache = () => (typeof globalThis.caches !== 'undefined' && globalThis.caches.default ? globalThis.caches.default : null);
+const AUTH_KEY = 'https://apistock-cache/yahoo-auth-v1';
 async function getYahooAuth(force) {
-  if (!force && yahooAuth && Date.now() - yahooAuth.ts < 6 * 3600000) return yahooAuth;
+  if (!force && yahooAuth && Date.now() - yahooAuth.ts < AUTH_TTL * 1000) return yahooAuth;
+  const cache = authCache();
+  if (cache && !force) {
+    try {
+      const hit = await cache.match(AUTH_KEY);
+      if (hit) { const a = await hit.json(); if (a && a.cookie && a.crumb) { yahooAuth = Object.assign(a, { ts: Date.now() }); return yahooAuth; } }
+    } catch (e) { /* cache indisponible : on redemande un jeton */ }
+  }
   const r = await fetch('https://fc.yahoo.com/', { headers: { 'User-Agent': UA }, redirect: 'manual' });
   const raw = typeof r.headers.getSetCookie === 'function' ? r.headers.getSetCookie().join('; ') : (r.headers.get('set-cookie') || '');
   const cookie = (raw.match(/\bA3=[^;,\s]+/) || [])[0];
   if (!cookie) throw new Error('cookie Yahoo absent');
-  const c = await fetch('https://query2.finance.yahoo.com/v1/test/getcrumb', { headers: { 'User-Agent': UA, Cookie: cookie } });
-  const crumb = (await c.text()).trim();
-  if (!c.ok || !crumb || crumb.length > 64 || /[<{\s]/.test(crumb)) throw new Error('jeton Yahoo refusé');
+  let crumb = '';
+  for (const host of ['query2', 'query1']) { // second serveur si le premier refuse (trop de demandes)
+    const c = await fetch(`https://${host}.finance.yahoo.com/v1/test/getcrumb`, { headers: { 'User-Agent': UA, Cookie: cookie } });
+    const t = (await c.text()).trim();
+    if (c.ok && t && t.length <= 64 && !/[<{\s]/.test(t)) { crumb = t; break; }
+  }
+  if (!crumb) throw new Error('jeton Yahoo refusé');
   yahooAuth = { cookie, crumb, ts: Date.now() };
+  if (cache) {
+    try {
+      await cache.put(AUTH_KEY, new Response(JSON.stringify({ cookie, crumb }), { headers: { 'Content-Type': 'application/json', 'Cache-Control': `max-age=${AUTH_TTL}` } }));
+    } catch (e) { /* tant pis : jeton gardé en mémoire */ }
+  }
   return yahooAuth;
 }
 /* Modules « quoteSummary » autorisés (données publiques en lecture seule) pour ?type=summary&modules=… */

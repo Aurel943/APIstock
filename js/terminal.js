@@ -99,6 +99,22 @@ const Scan = {
 };
 
 const Xray = {
+  /**
+   * Principales lignes des indices : réelles (10 premières, lues chaque semaine sur l'ETF américain de référence, voir
+   * Holdings dans agenda.js) quand elles sont connues, sinon les pondérations approximatives de XRAY_HOLDINGS.
+   * → { holdings: profil -> [[nom, %]], live: [{ prof, sym, ts }] }
+   */
+  liveHoldings() {
+    const holdings = Object.assign({}, XRAY_HOLDINGS), live = [];
+    if (typeof Holdings === 'undefined' || typeof ETF_PROXY === 'undefined') return { holdings, live };
+    const c = Holdings.load();
+    for (const [prof, sym] of Object.entries(ETF_PROXY)) {
+      const h = c[sym];
+      if (h && h.list && h.list.length >= 5) { holdings[prof] = h.list.map(x => [x.name, x.pct]); live.push({ prof, sym, ts: h.ts }); }
+    }
+    return { holdings, live };
+  },
+
   /** Nom de société normalisé pour rapprocher une action détenue en direct d'une ligne d'indice */
   norm(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim(); },
 
@@ -154,7 +170,12 @@ Object.assign(App, {
   renderXray() {
     const card = $('#xrayCard'), box = $('#xrayBody');
     if (!card || !box) return;
-    const X = Xray.lookthrough(this.xrayList());
+    // composition réelle des indices : rechargée en arrière-plan une fois par semaine
+    if (typeof Holdings !== 'undefined' && !this._xrayHold) {
+      this._xrayHold = Holdings.refresh().then(ch => { if (ch && this.view === 'portfolio') this.renderXray(); }).catch(() => {}).finally(() => { this._xrayHold = null; });
+    }
+    const H = Xray.liveHoldings();
+    const X = Xray.lookthrough(this.xrayList(), H.holdings);
     card.classList.toggle('hidden', !X.companies.length);
     if (!X.companies.length) return;
     const cur = this.base();
@@ -168,7 +189,10 @@ Object.assign(App, {
         el('span', { class: 'mono xr-val' }, fmtMoney(e.value, cur, 0)),
         el('span', { class: 'mono muted small' }, fmtNum(e.pct, 1) + ' %'),
         el('span', { class: 'xr-via muted small' }, 'via ' + e.via.map(v => Store.label(v.key)).join(', '))))),
-      noteTip(`Principales lignes de chaque indice (ordre de grandeur 2025, elles évoluent chaque jour) multipliées par la valeur de tes ETF ; actions détenues en direct ajoutées telles quelles. Ces ${top.length} entreprises couvrent ${fmtNum(X.covered, 0)} % de ton portefeuille : le reste est réparti entre des centaines d'autres sociétés. Indicatif, pas un inventaire officiel.`, 'Méthode')]);
+      noteTip((H.live.length
+        ? `Poids réels des 10 premières lignes de chaque indice (lus sur ${H.live.map(l => l.sym).join(', ')}, des ETF qui suivent les mêmes indices que les tiens, le ${fmtDate(new Date(Math.min(...H.live.map(l => l.ts))).toISOString().slice(0, 10))})`
+        : 'Principales lignes de chaque indice (ordre de grandeur 2025, elles évoluent chaque jour)')
+        + ` multipliées par la valeur de tes ETF ; actions détenues en direct ajoutées telles quelles. Ces ${top.length} entreprises couvrent ${fmtNum(X.covered, 0)} % de ton portefeuille : le reste est réparti entre des centaines d'autres sociétés. Indicatif, pas un inventaire officiel.`, 'Méthode')]);
   },
 
   /* ---------- scanner ---------- */
@@ -1422,7 +1446,7 @@ const TERM_FN = {
         el('li', { class: 'lv-' + s.level, onclick: () => this.termLoad(s.key, 'GP') }, el('b', {}, Store.instrument(s.key).symbol), ' ', s.text)) : [el('li', {}, S ? 'Aucun signal. Marché calme.' : '…')])));
   } },
   XRAY: { title: 'RADIOGRAPHIE : TES VRAIES ENTREPRISES', render(body) {
-    const cur = this.base(), X = Xray.lookthrough(this.xrayList());
+    const cur = this.base(), X = Xray.lookthrough(this.xrayList(), Xray.liveHoldings().holdings);
     body.replaceChildren(el('div', { class: 'tp-qline' }, 'XRAY  7 MAGNIFIQUES ', el('b', { class: X.mag7 >= 25 ? 'td' : '' }, fmtNum(X.mag7, 1) + '%'), `  ·  COUVERTURE ${fmtNum(X.covered, 0)}%`),
       el('table', { class: 'term-t' }, el('tbody', {}, ...X.companies.slice(0, 20).map(e =>
         el('tr', {}, el('td', {}, e.name, XRAY_MAG7.includes(e.name) ? el('span', { class: 'xr-m7' }, ' M7') : ''), el('td', { class: 'n' }, fmtMoney(e.value, cur, 0)), el('td', { class: 'n' }, fmtNum(e.pct, 1) + '%'))))));
