@@ -456,7 +456,7 @@ test('catalogue : portefeuille type appliqué comme cible ; moyennes mobiles sur
 }));
 
 test('objectifs multiples et alerte « sous mon prix de revient »', () => run({ state: sampleState() }, async ({ page }) => {
-  await page.evaluate(() => App.show('invest'));
+  await page.evaluate(() => App.show('plan', 'objectifs'));
   await page.waitForSelector('#goalList .goal-item');
   assert.equal(await page.locator('#goalList .goal-item').count(), 1, 'objectif principal');
   await page.click('#goalAdd');
@@ -469,7 +469,8 @@ test('objectifs multiples et alerte « sous mon prix de revient »', () => run({
   assert.equal(g.name, 'Apport immobilier');
   assert.deepEqual(g.accounts, ['cto']);
   assert.match(await page.locator('#goalList .goal-item').nth(1).innerText(), /Apport immobilier/);
-  // alerte sans valeur à saisir
+  // alerte sans valeur à saisir (Agenda › Alertes)
+  await page.evaluate(() => App.show('agenda', 'alertes'));
   await page.selectOption('#alertKey', 'CW8@XPAR');
   await page.selectOption('#alertKind', 'belowPru');
   assert.ok(!(await page.locator('#alertValue').isVisible()), 'pas de valeur à saisir');
@@ -530,12 +531,13 @@ test('laboratoire de stratégies et répartition partagée par lien', { skip: !r
 });
 
 test('labo quant : météo des marchés, anatomie du risque, scénarios, crash-test et audit', { skip: !realCharts && 'Chart.js non installé' }, () => run({ state: sampleState() }, async ({ page }) => {
-  await page.evaluate(() => App.show('quant'));
-  // la météo se lance seule à l'ouverture (MSCI World enregistré)
+  await page.evaluate(() => App.show('markets', 'monde'));
+  // la météo se lance seule à l'ouverture de Marchés › Monde (MSCI World enregistré)
   await page.waitForSelector('#qRegimeBody .q-weather', { timeout: 20000 });
   assert.ok(await page.evaluate(() => !!Chart.getChart('qRegimeChart')));
   assert.match(await page.locator('#qRegimeBody .q-weather').innerText(), /Marché (calme|agité)/);
 
+  await page.evaluate(() => App.show('analysis', 'risque'));
   await page.click('#qRiskRun');
   await page.waitForSelector('#qRiskBody .q-kpis', { timeout: 20000 });
   assert.match(await page.locator('#qRiskBody .q-lead').innerText(), /risque/);
@@ -556,9 +558,11 @@ test('labo quant : météo des marchés, anatomie du risque, scénarios, crash-t
   await page.waitForFunction(() => !document.querySelector('#qCrashRun').disabled, null, { timeout: 30000 });
   assert.ok(await page.locator('#qCrashBody').innerText());
 
+  await page.evaluate(() => App.show('analysis', 'performance'));
   await page.click('#qBehavRun');
   await page.waitForSelector('#qBehavBody .q-kpis', { timeout: 20000 });
   assert.match(await page.locator('#qBehavBody').innerText(), /Ton timing/);
+  await page.evaluate(() => App.show('analysis', 'risque'));
 
   // « Tout analyser » : progression visible, les cinq étapes terminées, confirmation
   await page.click('#qAllRun');
@@ -593,7 +597,7 @@ test('copilote (Ctrl+K), retrait malin et radar fiscal', () => run({ state: samp
   await page.waitForFunction(() => /Pour obtenir/.test(document.querySelector('#cpOut .cp-answer')?.innerText || ''));
   await page.keyboard.press('Enter');
   await page.waitForSelector('#wdBody .wd-hero');
-  assert.equal(await page.evaluate(() => App.page), 'plan/investir');
+  assert.equal(await page.evaluate(() => App.page), 'portfolio/revenus');
   assert.equal(await page.inputValue('#wdAmount'), '1000');
   const plan = await page.locator('#wdBody').innerText();
   assert.match(plan, /Vendre/);
@@ -605,8 +609,8 @@ test('copilote (Ctrl+K), retrait malin et radar fiscal', () => run({ state: samp
   assert.ok(await page.evaluate(() => Store.state.transactions.filter(t => t.note === 'Retrait malin').length) >= 1);
   assert.ok(await page.evaluate(() => Store.state.transactions.length) > before);
 
-  // radar fiscal visible dans Investir (pas d'erreur, contenu présent)
-  await page.evaluate(() => App.show('invest'));
+  // radar fiscal visible dans Portefeuille › Revenus & impôts (pas d'erreur, contenu présent)
+  await page.evaluate(() => App.show('portfolio', 'revenus'));
   assert.ok(await page.locator('#radarCard').isVisible());
   assert.ok((await page.locator('#radarBody').innerText()).length > 20);
 }));
@@ -616,7 +620,7 @@ test('une erreur au démarrage d\'un module ne désactive pas les autres boutons
   // page incomplète (ex. ancienne page en cache avec des scripts récents) : la carte « Retrait malin » manque
   await page.route('**/index.html', async route => {
     const res = await route.fetch();
-    const html = (await res.text()).replace(/<div class="card wd-card" id="wdCard">[\s\S]*?(<div class="card hidden" id="radarCard">)/, '$1');
+    const html = (await res.text()).replace(/<div data-sub="revenus" class="card wd-card" id="wdCard">[\s\S]*?(<div data-sub="operations")/, '$1');
     await route.fulfill({ response: res, body: html });
   });
   await page.reload();
@@ -639,8 +643,8 @@ test('une erreur au démarrage d\'un module ne désactive pas les autres boutons
 
 test('salle des marchés : P&L explain, signaux et stratégies, journal de trades avec alertes', { skip: !realCharts && 'Chart.js non installé' }, () => run({ state: sampleState() }, async ({ page }) => {
   await page.waitForFunction(() => Api.cachedQuote('CW8@XPAR') && Api.cachedQuote('ESE@XPAR'), null, { timeout: 20000 });
-  await page.evaluate(() => App.show('desk'));
-  // P&L explain lancé à l'ouverture, période modifiable ; le pont de valeur boucle
+  await page.evaluate(() => App.show('analysis', 'performance'));
+  // P&L explain lancé à l'ouverture d'Analyse › Performance, période modifiable ; le pont de valeur boucle
   await page.waitForSelector('#dkPnlBody .dk-hero', { timeout: 30000 });
   await page.click('#dkPeriods button[data-p="ytd"]');
   await page.waitForFunction(() => App.explainResult && App.explainResult.period === 'ytd' && !App._explaining, null, { timeout: 30000 });
@@ -659,14 +663,16 @@ test('salle des marchés : P&L explain, signaux et stratégies, journal de trade
   assert.match(await page.locator('#dkPnlBody .dk-heat-detail').innerText(), /2024 : [+−-]/);
   assert.doesNotMatch(await page.locator('#dkPnlCard').innerText(), /\bnull\b|-0,00/);
 
-  // signaux et stratégies : 4 règles comparées, courbes dessinées
+  // signaux et stratégies (Marchés › Signaux) : 4 règles comparées, courbes dessinées
+  await page.evaluate(() => App.show('markets', 'signaux'));
   await page.click('#dkSigRun');
   await page.waitForSelector('#dkSigBody .dk-sig', { timeout: 60000 });
   assert.equal(await page.locator('#dkSigBody .dk-sig').count(), 3);
   assert.equal(await page.evaluate(() => Chart.getChart('dkSigChart').data.datasets.length), 4);
   assert.match(await page.locator('#dkSigBody').innerText(), /Tendance 10 mois[\s\S]*Momentum 12-1/);
 
-  // journal : taille de position, ajout, alertes sur l'objectif et le stop
+  // journal (Portefeuille › Opérations) : taille de position, ajout, alertes sur l'objectif et le stop
+  await page.evaluate(() => App.show('portfolio', 'operations'));
   await page.selectOption('#dkJKey', 'ESE@XPAR');
   const px = await page.evaluate(() => Api.cachedQuote('ESE@XPAR').price);
   await page.fill('#dkJStop', String(Math.floor(px * 0.9)));
@@ -732,7 +738,8 @@ test('outils institutionnels : stress test inversé, Black-Litterman appliqué c
   const f1 = await page.locator('#iStressBody .q-kpi b').first().innerText();
   await page.click('#iStressBody .seg button:has-text("1 an")');
   assert.notEqual(await page.locator('#iStressBody .q-kpi b').first().innerText(), f1);
-  // Black-Litterman : une conviction forte change la répartition, appliquée comme cible
+  // Black-Litterman (Analyse › Optimiser) : une conviction forte change la répartition, appliquée comme cible
+  await page.evaluate(() => App.show('analysis', 'optimiser'));
   await page.click('#iBlRun');
   await page.waitForSelector('#iBlBody .i-views', { timeout: 30000 });
   assert.match(await page.locator('#iBlBody .q-lead').innerText(), /Sans conviction/);
@@ -745,8 +752,8 @@ test('outils institutionnels : stress test inversé, Black-Litterman appliqué c
   assert.ok(Math.abs(sum - 100) < 0.5, 'cible à 100 % : ' + sum);
   assert.ok(Object.values(targets).every(v => v <= 60.05), 'poids maximum respecté');
   assert.equal(await page.evaluate(() => App.page), 'plan/investir');
-  // planificateur : objectif choisi, probabilité et versements nécessaires croissants
-  await page.evaluate(() => App.show('simulation'));
+  // planificateur (Planifier › Objectifs) : objectif choisi, probabilité et versements nécessaires croissants
+  await page.evaluate(() => App.show('plan', 'objectifs'));
   await page.selectOption('#iPlanGoal', 'g1');
   assert.equal(await page.inputValue('#iPlanTarget'), '60000');
   await page.click('#iPlanRun');
