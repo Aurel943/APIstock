@@ -348,8 +348,11 @@ test('fiche : achats sur le graphique, « M\'alerter » ; répartition par compt
   assert.ok(parseFloat(await page.inputValue('#alertValue')) > 0);
 }));
 
-test('agenda (filtres, export .ics) et bilan de santé', () => run({ state: sampleState({ plans: [
-  { id: 'p1', key: 'CW8@XPAR', account: 'pea', amount: 300, day: 5, start: '2026-01-01', active: true, done: {} }] }) }, async ({ page }) => {
+test('agenda (filtres, résultats, macro, export .ics) et bilan de santé', () => run({ state: sampleState({ plans: [
+  { id: 'p1', key: 'CW8@XPAR', account: 'pea', amount: 300, day: 5, start: '2026-01-01', active: true, done: {} }],
+instruments: Object.assign({}, sampleState().instruments, {
+  'NVDA@XNAS': { symbol: 'NVDA', mic: 'XNAS', exchange: 'Nasdaq', name: 'NVIDIA Corporation', currency: 'USD', type: 'Action', provider: 'yahoo', ysymbol: 'NVDA' } }),
+watchlist: ['CW8@XPAR', 'NVDA@XNAS'] }) }, async ({ page, calls }) => {
   // bilan de santé en tête de l'onglet Analyse
   await page.click('#pfSubnav [data-tab=analyse]');
   await page.waitForSelector('#healthCard:not(.hidden) .health-ring');
@@ -360,6 +363,16 @@ test('agenda (filtres, export .ics) et bilan de santé', () => run({ state: samp
   await page.click('.tabs > .tab[data-view=agenda]');
   await page.waitForSelector('#agendaList .agenda-item');
   assert.ok(await page.locator('#agendaList .agenda-item.plan').count() >= 11, 'versements des 12 prochains mois');
+  // résultats de NVIDIA (watchlist) : une seule requête au relais, pour les actions seulement (pas les ETF)
+  await page.waitForSelector('#agendaList .agenda-item.earn');
+  const cal = calls.filter(c => c.type === 'calendar');
+  assert.deepEqual(cal.map(c => c.symbols), ['NVDA']);
+  const earn = await page.locator('#agendaList .agenda-item.earn').first().innerText();
+  assert.match(earn, /Résultats T\d .*NVIDIA/);
+  assert.match(earn, /bénéfice par action attendu/);
+  assert.ok(await page.locator('#agendaNote').isHidden());
+  await page.locator('#agendaKinds button', { hasText: 'Indices' }).click();
+  assert.ok(await page.locator('#agendaList .agenda-item.eco', { hasText: 'Quatre sorcières' }).count() >= 3);
   await page.locator('#agendaKinds button', { hasText: 'Bourse' }).click();
   const kinds = await page.locator('#agendaList .agenda-item').evaluateAll(l => Array.from(new Set(l.map(e => e.className.replace('agenda-item', '').replace('today', '').trim()))));
   assert.deepEqual(kinds, ['market']);

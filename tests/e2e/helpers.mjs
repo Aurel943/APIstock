@@ -56,6 +56,20 @@ export function relayResponse(url, calls) {
     const syms = (q.symbols || '').split(',').filter(Boolean);
     return json('{"results":{' + syms.map(s => JSON.stringify(s) + ':' + (fixture('quote-' + slug(s)) || 'null')).join(',') + '}}');
   }
+  if (q.type === 'calendar') {
+    // dates de résultats : réponse enregistrée, décalée pour que la prochaine publication tombe dans 10 jours
+    const syms = (q.symbols || '').split(',').filter(Boolean);
+    const results = {};
+    for (const s of syms) {
+      const f = fixture('calendar-' + slug(s));
+      if (!f) { results[s] = null; continue; }
+      const d = JSON.parse(f);
+      const next = d.calendarEvents.earnings.earningsDate[0].raw;
+      const shift = Math.round((Date.now() / 1000 + 10 * 86400 - next) / 86400) * 86400;
+      results[s] = JSON.parse(JSON.stringify(d, (k, v) => (k === 'raw' && v > 1e9 && v < 4e9 ? v + shift : v)));
+    }
+    return json({ results });
+  }
   if (q.type === 'search') return json(fixture('search-' + slug(q.q || '')) || { quotes: [] });
   if (q.type === 'news') return json({ news: [], lang: 'fr' });
   if (q.type === 'ogimage') return { status: 404, body: '' };
