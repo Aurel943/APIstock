@@ -401,6 +401,16 @@ watchlist: ['CW8@XPAR', 'NVDA@XNAS'] }) }, async ({ page, calls }) => {
   assert.deepEqual(kinds, ['market']);
   const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#agendaExport')]);
   assert.equal(dl.suggestedFilename(), 'apistock-agenda.ics');
+  // liste de suivi enrichie : colonnes en option, tri par potentiel
+  await page.evaluate(() => App.show('markets', 'suivi'));
+  await page.click('#watchCols summary');
+  for (const c of ['Résultats', 'Potentiel', 'Avis', 'PER']) await page.locator('.watch-cols-menu label', { hasText: c }).locator('input').check();
+  await page.click('#watchCols summary');
+  await page.waitForFunction(() => /Achat/.test(document.querySelector('#watchTable').innerText), null, { timeout: 15000 });
+  assert.ok(await page.locator('.grid-2.markets.watch-wide').count(), 'liste en pleine largeur');
+  await page.locator('#watchTable th', { hasText: 'Potentiel' }).click();
+  assert.match(await page.locator('#watchTable tbody tr').first().innerText(), /NVIDIA[\s\S]*\+71 %[\s\S]*Achat/);
+  assert.match(await page.locator('#watchTable th.sorted').innerText(), /Potentiel ▼/);
   // fiche de NVIDIA : résultats des derniers trimestres et prochaine publication
   await page.evaluate(() => { App.show('markets'); App.selectDetail('NVDA@XNAS'); });
   await page.waitForSelector('#detailEarnings .earn-col');

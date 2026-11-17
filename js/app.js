@@ -1029,9 +1029,13 @@ const App = {
   },
 
   renderWatchlist() {
-    const keys = Store.state.watchlist.filter(k => Store.instrument(k));
-    $('#watchEmpty').classList.toggle('hidden', keys.length > 0);
-    $('#watchTable').classList.toggle('hidden', keys.length === 0);
+    const all = Store.state.watchlist.filter(k => Store.instrument(k));
+    $('#watchEmpty').classList.toggle('hidden', all.length > 0);
+    $('#watchTable').classList.toggle('hidden', all.length === 0);
+    // colonnes en option et tri (watchcols.js)
+    const extra = typeof this.watchHead === 'function';
+    if (extra) $('#watchTable thead').replaceChildren(this.watchHead());
+    const keys = extra ? this.watchOrder(all) : all;
     $('#watchTable tbody').replaceChildren(...keys.map(k => {
       const inst = Store.instrument(k);
       const q = Api.cachedQuote(k);
@@ -1040,6 +1044,7 @@ const App = {
         el('td', { class: 'num' }, q ? el('span', this.flashAttrs('wl:' + k, q.price), fmtMoney(q.price, inst.currency, 3)) : '—'),
         el('td', { class: 'num ' + (q ? trendClass(q.change) : '') }, q ? (q.change > 0 ? '+' : '') + fmtNum(q.change, 3) : '—'),
         el('td', { class: 'num' }, q ? el('span', { class: 'chip ' + trendClass(q.percentChange) }, fmtPct(q.percentChange)) : '—', this.daySpark(q, 64, 18)),
+        ...(extra ? this.watchCells(k) : []),
         el('td', { class: 'num muted' }, q ? fmtNum(q.low, 2) + ' – ' + fmtNum(q.high, 2) : '—'),
         el('td', { class: 'num' },
           el('button', { class: 'iconbtn', title: 'Ajouter un achat', onclick: e => { e.stopPropagation(); this.openTx(); this.setTxInstrument(k); } }, '+'),

@@ -1649,3 +1649,19 @@ table.data.fund-table td.num, table.data.fund-table th.num { white-space: nowrap
 .today-events li { display: grid; grid-template-columns: 5.6em 1.4em minmax(0, 1fr); gap: 6px; align-items: baseline; }
 .today-when { color: var(--muted); font-size: 12px; }
 .today-ev { overflow: hidden; text-overflow: ellipsis; }
+
+/* ---- Liste de suivi enrichie : colonnes en option, tri ---- */
+.grid-2.markets.watch-wide { grid-template-columns: minmax(0, 1fr); }
+th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+th.sortable:hover { color: var(--text); }
+th.sorted { color: var(--text); }
+.watch-cols { position: relative; }
+.watch-cols > summary { list-style: none; cursor: pointer; }
+.watch-cols > summary::-webkit-details-marker { display: none; }
+.watch-cols-menu {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 25; width: min(340px, 86vw); padding: 10px 12px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 10px 30px rgba(0, 0, 0, .12);
+  display: flex; flex-direction: column; gap: 6px;
+}
+.watch-cols-menu p { margin: 0 0 2px; }
+.watch-cols-menu label { align-items: flex-start; }

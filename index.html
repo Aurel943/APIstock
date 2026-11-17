@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=aa5d49e3c6">
+  <link rel="stylesheet" href="css/style.css?v=ae9d7083c8">
 </head>
 <body>
   <header class="topbar">
@@ -405,7 +405,8 @@
       <div data-sub="suivi" class="grid-2 markets">
         <div class="card">
           <div class="card-head">
-            <h2>Liste de suivi<button type="button" class="info" aria-label="Explication" data-tip="Cliquer sur une ligne pour voir le graphique">i</button></h2>
+            <h2>Liste de suivi<button type="button" class="info" aria-label="Explication" data-tip="Cliquer sur une ligne pour voir sa fiche ; cliquer sur un titre de colonne pour trier ; « Colonnes » pour ajouter résultats, potentiel, avis des analystes, PER ou rendement.">i</button></h2>
+            <details class="watch-cols" id="watchCols"><summary class="btn small">Colonnes</summary></details>
           </div>
           <div class="table-wrap">
             <table class="data clickable" id="watchTable">
@@ -1236,42 +1237,43 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-  <script src="js/utils.js?v=aa5d49e3c6"></script>
-  <script src="js/store.js?v=aa5d49e3c6"></script>
-  <script src="js/api.js?v=aa5d49e3c6"></script>
-  <script src="js/markets.js?v=aa5d49e3c6"></script>
-  <script src="js/portfolio.js?v=aa5d49e3c6"></script>
-  <script src="js/charts.js?v=aa5d49e3c6"></script>
-  <script src="js/app.js?v=aa5d49e3c6"></script>
-  <script src="js/views.js?v=aa5d49e3c6"></script>
-  <script src="js/compare.js?v=aa5d49e3c6"></script>
-  <script src="js/extras.js?v=aa5d49e3c6"></script>
-  <script src="js/mobile.js?v=aa5d49e3c6"></script>
-  <script src="js/features.js?v=aa5d49e3c6"></script>
-  <script src="js/money.js?v=aa5d49e3c6"></script>
-  <script src="js/newsart.js?v=aa5d49e3c6"></script>
-  <script src="js/insights.js?v=aa5d49e3c6"></script>
-  <script src="js/wealth.js?v=aa5d49e3c6"></script>
-  <script src="js/avis.js?v=aa5d49e3c6"></script>
-  <script src="js/manual.js?v=aa5d49e3c6"></script>
-  <script src="js/health.js?v=aa5d49e3c6"></script>
-  <script src="js/agenda.js?v=aa5d49e3c6"></script>
-  <script src="js/fiche.js?v=aa5d49e3c6"></script>
-  <script src="js/today.js?v=aa5d49e3c6"></script>
-  <script src="js/catalog.js?v=aa5d49e3c6"></script>
-  <script src="js/goals.js?v=aa5d49e3c6"></script>
-  <script src="js/optimizer.js?v=aa5d49e3c6"></script>
-  <script src="js/treemap.js?v=aa5d49e3c6"></script>
-  <script src="js/wrapped.js?v=aa5d49e3c6"></script>
-  <script src="js/lab.js?v=aa5d49e3c6"></script>
-  <script src="js/share.js?v=aa5d49e3c6"></script>
-  <script src="js/labo-quant.js?v=aa5d49e3c6"></script>
-  <script src="js/fisc.js?v=aa5d49e3c6"></script>
-  <script src="js/desk.js?v=aa5d49e3c6"></script>
-  <script src="js/arena.js?v=aa5d49e3c6"></script>
-  <script src="js/institut.js?v=aa5d49e3c6"></script>
-  <script src="js/termchart.js?v=aa5d49e3c6"></script>
-  <script src="js/terminal.js?v=aa5d49e3c6"></script>
-  <script src="js/copilot.js?v=aa5d49e3c6"></script>
+  <script src="js/utils.js?v=ae9d7083c8"></script>
+  <script src="js/store.js?v=ae9d7083c8"></script>
+  <script src="js/api.js?v=ae9d7083c8"></script>
+  <script src="js/markets.js?v=ae9d7083c8"></script>
+  <script src="js/portfolio.js?v=ae9d7083c8"></script>
+  <script src="js/charts.js?v=ae9d7083c8"></script>
+  <script src="js/app.js?v=ae9d7083c8"></script>
+  <script src="js/views.js?v=ae9d7083c8"></script>
+  <script src="js/compare.js?v=ae9d7083c8"></script>
+  <script src="js/extras.js?v=ae9d7083c8"></script>
+  <script src="js/mobile.js?v=ae9d7083c8"></script>
+  <script src="js/features.js?v=ae9d7083c8"></script>
+  <script src="js/money.js?v=ae9d7083c8"></script>
+  <script src="js/newsart.js?v=ae9d7083c8"></script>
+  <script src="js/insights.js?v=ae9d7083c8"></script>
+  <script src="js/wealth.js?v=ae9d7083c8"></script>
+  <script src="js/avis.js?v=ae9d7083c8"></script>
+  <script src="js/manual.js?v=ae9d7083c8"></script>
+  <script src="js/health.js?v=ae9d7083c8"></script>
+  <script src="js/agenda.js?v=ae9d7083c8"></script>
+  <script src="js/fiche.js?v=ae9d7083c8"></script>
+  <script src="js/today.js?v=ae9d7083c8"></script>
+  <script src="js/watchcols.js?v=ae9d7083c8"></script>
+  <script src="js/catalog.js?v=ae9d7083c8"></script>
+  <script src="js/goals.js?v=ae9d7083c8"></script>
+  <script src="js/optimizer.js?v=ae9d7083c8"></script>
+  <script src="js/treemap.js?v=ae9d7083c8"></script>
+  <script src="js/wrapped.js?v=ae9d7083c8"></script>
+  <script src="js/lab.js?v=ae9d7083c8"></script>
+  <script src="js/share.js?v=ae9d7083c8"></script>
+  <script src="js/labo-quant.js?v=ae9d7083c8"></script>
+  <script src="js/fisc.js?v=ae9d7083c8"></script>
+  <script src="js/desk.js?v=ae9d7083c8"></script>
+  <script src="js/arena.js?v=ae9d7083c8"></script>
+  <script src="js/institut.js?v=ae9d7083c8"></script>
+  <script src="js/termchart.js?v=ae9d7083c8"></script>
+  <script src="js/terminal.js?v=ae9d7083c8"></script>
+  <script src="js/copilot.js?v=ae9d7083c8"></script>
 </body>
 </html>
