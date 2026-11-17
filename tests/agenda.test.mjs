@@ -130,3 +130,75 @@ test('macro : banques centrales, inflation et emploi américains, quatre sorciè
   assert.deepEqual(w, ['2026-12-18', '2027-03-19', '2027-06-18', '2027-09-17']);
   assert.match(ev.find(e => e.date === '2027-06-18' && /sorcières/.test(e.title)).sub, /Wall Street est fermée/);
 });
+
+test('ETF : principales lignes (classes d\'actions regroupées) et résultats des sociétés qui pèsent dans tes ETF', () => {
+  const a = load();
+  const H = a.get('Holdings'), E = a.get('Earnings');
+  const list = JSON.parse(JSON.stringify(H.parse({ holdings: [
+    { symbol: 'AAPL', holdingName: 'Apple Inc', holdingPercent: { raw: 0.077 } },
+    { symbol: 'NVDA', holdingName: 'NVIDIA Corp', holdingPercent: { raw: 0.0758 } },
+    { symbol: 'GOOGL', holdingName: 'Alphabet Inc Class A', holdingPercent: { raw: 0.0251 } },
+    { symbol: 'GOOG', holdingName: 'Alphabet Inc Class C', holdingPercent: { raw: 0.0202 } },
+    { symbol: 'AMZN', holdingName: 'Amazon.com Inc', holdingPercent: { raw: 0.0361 } },
+    { symbol: '00939', holdingName: 'China Construction Bank Corp Class H', holdingPercent: { raw: 0.01 } },
+  ] })));
+  assert.deepEqual(list.map(x => x.name), ['Apple', 'NVIDIA', 'Alphabet', 'Amazon']);
+  assert.equal(list.find(x => x.name === 'Alphabet').sym, 'GOOGL');
+  assert.ok(Math.abs(list.find(x => x.name === 'Alphabet').pct - 4.53) < 1e-9);
+  // SPY@ARCX (S&P 500) détenu : ses grandes lignes deviennent des sociétés suivies
+  H.cache = { SPY: { ts: Date.now(), list } };
+  const t = E.targets().find(x => x.sym === 'NVDA');
+  assert.ok(t && t.via.length === 1 && t.via[0].key === 'SPY@ARCX', 'NVIDIA via le S&P 500');
+  assert.ok(t.via[0].value > 0 && Math.abs(t.via[0].value - 2 * 600 * 0.0758) < 1e-6, 'part de la ligne SPY (2 parts à 600)');
+  assert.ok(!E.targets().some(x => x.sym === 'SPY'), 'un ETF n\'a pas de résultats');
+  E.cache = { NVDA: { ts: Date.now(), data: nvda() } };
+  const ev = a.get('Agenda').events('2026-11-12', 366).find(e => e.kind === 'earn');
+  assert.equal(ev.title, 'Résultats T3 de l\'exercice 2027 · NVIDIA');
+  assert.match(ev.sub, /^Pèse 7,6 % de ton ETF SPDR S&P 500 \(≈ 91\s€ de ton portefeuille\)\. Après la clôture/);
+});
+
+test('réaction de l\'action : après la clôture de Wall Street → lendemain ; ailleurs → veille au lendemain', () => {
+  const a = load();
+  const E = a.get('Earnings');
+  const day = (d, h = 14.5) => Date.UTC(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8, 10), Math.floor(h), (h % 1) * 60) / 1000;
+  const ts = ['2026-08-25', '2026-08-26', '2026-08-27', '2026-08-28'].map(d => day(d));
+  const closes = [100, 102, 96.9, 98];
+  const now = Date.UTC(2026, 8, 1);
+  const amc = JSON.parse(JSON.stringify(E.reactionFrom(ts, closes, 'America/New_York', Date.UTC(2026, 7, 26, 20, 20) / 1000, true, now)));
+  assert.equal(amc.date, '2026-08-27');
+  assert.ok(Math.abs(amc.pct - (96.9 / 102 - 1) * 100) < 1e-9);
+  assert.equal(amc.label, 'le lendemain');
+  assert.equal(amc.final, true);
+  const bmo = E.reactionFrom(ts, closes, 'America/New_York', Date.UTC(2026, 7, 26, 11, 0) / 1000, true, now);
+  assert.ok(Math.abs(bmo.pct - 2) < 1e-9, 'veille au jour même');
+  const eu = E.reactionFrom(ts, closes, 'Europe/Paris', Date.UTC(2026, 7, 26, 5, 0) / 1000, false, now);
+  assert.ok(Math.abs(eu.pct - (96.9 / 100 - 1) * 100) < 1e-9, 'deux séances');
+  assert.equal(E.reactionFrom(ts.slice(0, 2), closes, 'America/New_York', Date.UTC(2026, 7, 26, 20, 20) / 1000, true, now), null, 'lendemain pas encore coté');
+});
+
+test('dividendes : date de détachement annoncée par la société (confirmée) ou simple annonce', () => {
+  const a = loadApp(Object.assign(state(), {
+    instruments: Object.assign(state().instruments, { 'MC@XPAR': { symbol: 'MC', mic: 'XPAR', name: 'LVMH', currency: 'EUR', type: 'Action' } }),
+    watchlist: ['MC@XPAR'],
+  }));
+  const E = a.get('Earnings');
+  const iso = d => ({ raw: Date.parse(d + 'T00:00:00Z') / 1000 });
+  E.cache = { 'MC.PA': { ts: Date.now(), data: { calendarEvents: { exDividendDate: iso('2026-12-03'), dividendDate: iso('2026-12-05'), earnings: {} }, earnings: null } } };
+  // estimation (même date que l'an dernier) recalée sur l'annonce
+  const items = E.confirmDividends([{ key: 'MC@XPAR', date: '2026-12-01', amount: 5 }, { key: 'CW8@XPAR', date: '2026-12-10', amount: 1 }], '2026-11-17');
+  assert.deepEqual(JSON.parse(JSON.stringify(items[0])), { key: 'MC@XPAR', date: '2026-12-03', amount: 5, confirmed: true, pay: '2026-12-05' });
+  assert.equal(items[1].confirmed, undefined);
+  // action de la watchlist, sans estimation : détachement annoncé dans l'agenda
+  const ev = a.get('Agenda').events('2026-11-17', 366).find(e => e.kind === 'div');
+  assert.equal(ev.date, '2026-12-03');
+  assert.equal(ev.title, 'Détachement du dividende · LVMH');
+  assert.match(ev.sub, /paiement le 05 déc\. 2026/);
+});
+
+test('macro : PIB de la zone euro (première estimation d\'Eurostat)', () => {
+  const a = load();
+  const ev = a.get('Agenda').events('2026-11-17', 366).filter(e => e.kind === 'eco' && /PIB/.test(e.title));
+  assert.deepEqual(JSON.parse(JSON.stringify(ev.map(e => e.date))), ['2027-01-29', '2027-04-30', '2027-07-30', '2027-10-29']);
+  assert.match(ev[0].title, /croissance du PIB du T4 2026/);
+  assert.match(ev[0].sub, /^À 11h00 \(heure de Paris\)/);
+});

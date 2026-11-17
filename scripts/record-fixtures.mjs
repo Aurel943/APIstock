@@ -52,4 +52,16 @@ for (const q of SEARCHES) {
     }));
     console.log('✔ résultats', s);
   }
+  // principales lignes des ETF de référence (type=summary, module topHoldings)
+  for (const s of ['SPY', 'URTH']) {
+    await new Promise((ok, ko) => relay({ headers: {}, method: 'GET', query: { type: 'summary', symbols: s, modules: 'topHoldings' } }, {
+      setHeader() {}, end: ok, status() { return this; },
+      json(o) {
+        const th = o.results && o.results[s] && o.results[s].topHoldings;
+        if (!th) { ko(new Error('summary ' + s)); return; }
+        writeFileSync(join(out, `summary-${slug(s)}.json`), JSON.stringify({ topHoldings: { holdings: th.holdings } })); ok();
+      },
+    }));
+    console.log('✔ composition', s);
+  }
 }

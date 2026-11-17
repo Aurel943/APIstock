@@ -879,6 +879,26 @@ details.advanced[open] > .stack { margin-top: 12px; }
 .agenda-date { display: flex; flex-direction: column; align-items: center; line-height: 1.1; }
 .agenda-date b { font: 600 18px/1 "JetBrains Mono", monospace; } .agenda-date span { font-size: 11px; color: var(--muted); }
 .agenda-icon { font-size: 18px; text-align: center; }
+.agenda-recent { margin-bottom: 8px; }
+.agenda-recent h3 { text-transform: none; }
+.agenda-item.past .agenda-date b { color: var(--muted); }
+/* fiche d'une action : bénéfice par action publié (barre) et attendu (trait) des derniers trimestres */
+.earn-panel { margin-top: 18px; }
+.earn-panel h3 { margin: 0 0 6px; font-size: 15px; }
+.earn-panel p { margin: 0 0 10px; }
+.earn-chart { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px; max-width: 460px; }
+.earn-col { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 2px; border-radius: 8px; outline: none; }
+.earn-col:hover, .earn-col:focus-visible { background: var(--surface-2); }
+.earn-plot { position: relative; width: 100%; max-width: 40px; height: 90px; border-bottom: 1px solid var(--border); }
+.earn-bar { position: absolute; left: 6px; right: 6px; bottom: 0; background: var(--accent); border-radius: 4px 4px 0 0; }
+.earn-est { position: absolute; left: 0; right: 0; height: 0; border-top: 2px dashed var(--text); opacity: .7; }
+.earn-col.next .earn-est { border-top-style: dotted; }
+.earn-val { font: 600 12px/1.2 "JetBrains Mono", monospace; margin-top: 4px; }
+.earn-q { font-size: 11px; white-space: nowrap; }
+.earn-surp { font-size: 11px; font-weight: 600; } .earn-surp.up { color: var(--up); } .earn-surp.down { color: var(--down); }
+.earn-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+.earn-legend .lg-bar { width: 10px; height: 10px; border-radius: 2px; background: var(--accent); }
+.earn-legend .lg-est { width: 14px; border-top: 2px dashed var(--text); opacity: .7; margin-left: 8px; }
 .agenda-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 
 /* Catalogue d'ETF et portefeuilles types */

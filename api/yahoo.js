@@ -3,7 +3,7 @@
  * Si le site est déployé sur Vercel, ce fichier est servi à /api/yahoo et
  * l'application le détecte automatiquement (rien à configurer).
  *
- * Appels Yahoo autorisés, en lecture seule : graphique/cotation (avec dividendes et divisions), dates de résultats des sociétés (type=calendar), recherche, actualités en français (flux RSS Yahoo Finance France et Google Actualités) et image des articles.
+ * Appels Yahoo autorisés, en lecture seule : graphique/cotation (avec dividendes et divisions), dates de résultats des sociétés (type=calendar) et autres données publiques des sociétés et des ETF (type=summary), recherche, actualités en français (flux RSS Yahoo Finance France et Google Actualités) et image des articles.
  */
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
 const SYMBOL_RE = /^[A-Za-z0-9.\-=^&]{1,25}$/;
@@ -98,6 +98,8 @@ async function newsFor(q) {
 
 /*
  * Dates de résultats : ?type=calendar&symbols=A,B (20 symboles au plus) → { results: { A: { calendarEvents, earnings } | null } }
+ * Plus général : ?type=summary&symbols=A,B&modules=topHoldings,… (modules de SUMMARY_MODULES, 6 au plus), par exemple
+ * les principales lignes d'un ETF.
  * Prochaine publication trimestrielle (date, bénéfice par action et chiffre d'affaires attendus par les analystes)
  * et derniers trimestres publiés (bénéfice réel contre attendu). Données « quoteSummary » de Yahoo, qui exige
  * un cookie et un jeton (« crumb ») : le relais les obtient lui-même et les garde en mémoire quelques heures.
@@ -117,28 +119,37 @@ async function getYahooAuth(force) {
   yahooAuth = { cookie, crumb, ts: Date.now() };
   return yahooAuth;
 }
-async function calendarOne(sym, auth) {
+/* Modules « quoteSummary » autorisés (données publiques en lecture seule) pour ?type=summary&modules=… */
+const SUMMARY_MODULES = new Set(['calendarEvents', 'earnings', 'earningsHistory', 'earningsTrend', 'topHoldings', 'fundProfile', 'price',
+  'summaryDetail', 'defaultKeyStatistics', 'financialData', 'assetProfile', 'recommendationTrend', 'upgradeDowngradeHistory']);
+async function summaryOne(sym, auth, modules) {
   const u = new URL('https://query2.finance.yahoo.com/v10/finance/quoteSummary/' + encodeURIComponent(sym));
-  u.searchParams.set('modules', 'calendarEvents,earnings');
+  u.searchParams.set('modules', modules.join(','));
   u.searchParams.set('crumb', auth.crumb);
   const r = await fetch(u, { headers: { 'User-Agent': UA, Accept: 'application/json', Cookie: auth.cookie } });
   if (r.status === 401) return 'auth';
   const j = await r.json().catch(() => null);
   const res = j && j.quoteSummary && j.quoteSummary.result && j.quoteSummary.result[0];
-  if (!res) return null; // ETF, indice… : pas de résultats publiés
+  if (!res) return null; // ETF, indice… : pas de données pour ces modules
   if (res.earnings) delete res.earnings.financialsChart; // chiffres annuels : inutiles ici
-  return { calendarEvents: res.calendarEvents || null, earnings: res.earnings || null };
+  const out = {};
+  for (const m of modules) out[m] = res[m] || null;
+  return out;
 }
-async function calendarFor(symbols) {
+async function summaryFor(symbols, modules = ['calendarEvents', 'earnings']) {
   let auth = await getYahooAuth();
-  let out = await Promise.all(symbols.map(s => calendarOne(s, auth).catch(() => null)));
+  let out = await Promise.all(symbols.map(s => summaryOne(s, auth, modules).catch(() => null)));
   if (out.includes('auth')) { // jeton expiré : on en redemande un, une fois
     auth = await getYahooAuth(true);
-    out = await Promise.all(symbols.map((s, i) => (out[i] === 'auth' ? calendarOne(s, auth).catch(() => null) : out[i])));
+    out = await Promise.all(symbols.map((s, i) => (out[i] === 'auth' ? summaryOne(s, auth, modules).catch(() => null) : out[i])));
   }
   const results = {};
   symbols.forEach((s, i) => { results[s] = out[i] === 'auth' ? null : out[i]; });
   return { results };
+}
+function summaryModules(raw) {
+  const mods = Array.from(new Set(String(raw || '').split(',').map(s => s.trim()).filter(Boolean)));
+  return mods.length && mods.length <= 6 && mods.every(m => SUMMARY_MODULES.has(m)) ? mods : null;
 }
 function calendarSymbols(raw) {
   const syms = Array.from(new Set(String(raw || '').split(',').map(s => s.trim()).filter(Boolean)));
@@ -197,11 +208,12 @@ module.exports = async (req, res) => {
     if (img) { res.setHeader('Location', img); res.status(302).end(); } else res.status(404).end();
     return;
   }
-  if (q.type === 'calendar') {
+  if (q.type === 'calendar' || q.type === 'summary') {
     const syms = calendarSymbols(q.symbols);
-    if (!syms) { res.status(400).json({ error: 'requête invalide' }); return; }
-    try { res.setHeader('Cache-Control', 's-maxage=3600'); res.status(200).json(await calendarFor(syms)); }
-    catch (e) { res.status(502).json({ error: 'dates de résultats indisponibles : ' + e.message }); }
+    const mods = q.type === 'summary' ? summaryModules(q.modules) : ['calendarEvents', 'earnings'];
+    if (!syms || !mods) { res.status(400).json({ error: 'requête invalide' }); return; }
+    try { res.setHeader('Cache-Control', 's-maxage=3600'); res.status(200).json(await summaryFor(syms, mods)); }
+    catch (e) { res.status(502).json({ error: 'données Yahoo indisponibles : ' + e.message }); }
     return;
   }
   if (q.type === 'news') {
