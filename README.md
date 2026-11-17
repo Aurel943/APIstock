@@ -46,6 +46,11 @@ Site personnel (100 % statique, sans serveur ni compte) pour suivre ses ETF et l
 - Allocation cible en % et **plan d'investissement** : « j'investis 500 € ce mois-ci » → nombre de parts à acheter de chaque ETF pour se rapprocher de la cible (parts entières ou fractionnées, rééquilibrage complet avec ventes en option), puis enregistrement des achats en un clic
 - **Alertes de prix** (cours ≥ / ≤, hausse ou baisse du jour en %) avec notifications du navigateur
 
+**Agenda**
+- Versements programmés, dividendes attendus, jours fériés des bourses, jalons PEA / assurance-vie, déclaration de revenus, export vers l'agenda du téléphone (.ics)
+- **Résultats des sociétés** : prochaine publication trimestrielle des actions du portefeuille et de la watchlist (ex. « Résultats T3 de l'exercice 2027 · NVIDIA »), avant l'ouverture ou après la clôture, bénéfice par action et chiffre d'affaires attendus par les analystes, et résultat du trimestre précédent contre les attentes. Nécessite un relais à jour (appel `type=calendar` : recopier `proxy/cloudflare-worker.js` dans le worker, puis Deploy)
+- **Indices & macro** : décisions de la Fed, de la BCE, des banques d'Angleterre et du Japon, inflation (CPI) et emploi américains, « quatre sorcières » et révisions trimestrielles des indices, à l'heure de Paris (calendriers officiels jusqu'à fin 2027, à compléter chaque année dans `js/agenda.js`)
+
 **Indicateurs supplémentaires** : rendement annualisé réel (XIRR, tient compte de la date de chaque versement), plus-value nette d'impôt estimée (PEA / compte-titres / taux personnalisé, dans Réglages).
 
 **Application mobile** : interface dédiée sur téléphone (barre de navigation en bas, positions en cartes, bouton « + » flottant, fenêtres en plein écran) et site installable (PWA) — sur iPhone : Safari → Partager → « Sur l'écran d'accueil » ; sur Android : Chrome → menu → « Installer l'application ».

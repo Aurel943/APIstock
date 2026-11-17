@@ -40,3 +40,16 @@ for (const q of SEARCHES) {
   writeFileSync(join(out, `search-${slug(q)}.json`), JSON.stringify({ quotes: j.quotes || [] }));
   console.log('✔ recherche', q);
 }
+
+// dates de résultats (type=calendar) : réponse du relais Vercel (api/yahoo.js), qui obtient lui-même le jeton Yahoo
+{
+  const { createRequire } = await import('node:module');
+  const relay = createRequire(import.meta.url)('../api/yahoo.js');
+  for (const s of ['NVDA']) {
+    await new Promise((ok, ko) => relay({ headers: {}, method: 'GET', query: { type: 'calendar', symbols: s } }, {
+      setHeader() {}, end: ok, status() { return this; },
+      json(o) { if (!o.results || !o.results[s]) { ko(new Error('calendar ' + s)); return; } writeFileSync(join(out, `calendar-${slug(s)}.json`), JSON.stringify(o.results[s])); ok(); },
+    }));
+    console.log('✔ résultats', s);
+  }
+}

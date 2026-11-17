@@ -3,7 +3,7 @@
  * Si le site est déployé sur Vercel, ce fichier est servi à /api/yahoo et
  * l'application le détecte automatiquement (rien à configurer).
  *
- * Appels Yahoo autorisés, en lecture seule : graphique/cotation (avec dividendes et divisions), recherche, actualités en français (flux RSS Yahoo Finance France et Google Actualités) et image des articles.
+ * Appels Yahoo autorisés, en lecture seule : graphique/cotation (avec dividendes et divisions), dates de résultats des sociétés (type=calendar), recherche, actualités en français (flux RSS Yahoo Finance France et Google Actualités) et image des articles.
  */
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
 const SYMBOL_RE = /^[A-Za-z0-9.\-=^&]{1,25}$/;
@@ -96,6 +96,55 @@ async function newsFor(q) {
   return { lang: 'en', source: 'yahoo-en', tried, news: j.news || [] };
 }
 
+/*
+ * Dates de résultats : ?type=calendar&symbols=A,B (20 symboles au plus) → { results: { A: { calendarEvents, earnings } | null } }
+ * Prochaine publication trimestrielle (date, bénéfice par action et chiffre d'affaires attendus par les analystes)
+ * et derniers trimestres publiés (bénéfice réel contre attendu). Données « quoteSummary » de Yahoo, qui exige
+ * un cookie et un jeton (« crumb ») : le relais les obtient lui-même et les garde en mémoire quelques heures.
+ */
+const CAL_MAX = 20;
+const UA = 'Mozilla/5.0 (compatible; APIstock/1.0)';
+let yahooAuth = null; // { cookie, crumb, ts }
+async function getYahooAuth(force) {
+  if (!force && yahooAuth && Date.now() - yahooAuth.ts < 6 * 3600000) return yahooAuth;
+  const r = await fetch('https://fc.yahoo.com/', { headers: { 'User-Agent': UA }, redirect: 'manual' });
+  const raw = typeof r.headers.getSetCookie === 'function' ? r.headers.getSetCookie().join('; ') : (r.headers.get('set-cookie') || '');
+  const cookie = (raw.match(/\bA3=[^;,\s]+/) || [])[0];
+  if (!cookie) throw new Error('cookie Yahoo absent');
+  const c = await fetch('https://query2.finance.yahoo.com/v1/test/getcrumb', { headers: { 'User-Agent': UA, Cookie: cookie } });
+  const crumb = (await c.text()).trim();
+  if (!c.ok || !crumb || crumb.length > 64 || /[<{\s]/.test(crumb)) throw new Error('jeton Yahoo refusé');
+  yahooAuth = { cookie, crumb, ts: Date.now() };
+  return yahooAuth;
+}
+async function calendarOne(sym, auth) {
+  const u = new URL('https://query2.finance.yahoo.com/v10/finance/quoteSummary/' + encodeURIComponent(sym));
+  u.searchParams.set('modules', 'calendarEvents,earnings');
+  u.searchParams.set('crumb', auth.crumb);
+  const r = await fetch(u, { headers: { 'User-Agent': UA, Accept: 'application/json', Cookie: auth.cookie } });
+  if (r.status === 401) return 'auth';
+  const j = await r.json().catch(() => null);
+  const res = j && j.quoteSummary && j.quoteSummary.result && j.quoteSummary.result[0];
+  if (!res) return null; // ETF, indice… : pas de résultats publiés
+  if (res.earnings) delete res.earnings.financialsChart; // chiffres annuels : inutiles ici
+  return { calendarEvents: res.calendarEvents || null, earnings: res.earnings || null };
+}
+async function calendarFor(symbols) {
+  let auth = await getYahooAuth();
+  let out = await Promise.all(symbols.map(s => calendarOne(s, auth).catch(() => null)));
+  if (out.includes('auth')) { // jeton expiré : on en redemande un, une fois
+    auth = await getYahooAuth(true);
+    out = await Promise.all(symbols.map((s, i) => (out[i] === 'auth' ? calendarOne(s, auth).catch(() => null) : out[i])));
+  }
+  const results = {};
+  symbols.forEach((s, i) => { results[s] = out[i] === 'auth' ? null : out[i]; });
+  return { results };
+}
+function calendarSymbols(raw) {
+  const syms = Array.from(new Set(String(raw || '').split(',').map(s => s.trim()).filter(Boolean)));
+  return syms.length && syms.length <= CAL_MAX && syms.every(s => SYMBOL_RE.test(s)) ? syms : null;
+}
+
 /* ---- Image d'un article (balise og:image de sa page), pour les vignettes des actualités ---- */
 const GENERIC_IMG = /default[-_]?logo|yahoo_default|\/logo[^/]*\.(png|svg)|googleusercontent\.com\/[^/]*=s0|gstatic\.com|favicon/i;
 
@@ -146,6 +195,13 @@ module.exports = async (req, res) => {
     try { img = await articleImage(target.toString()); } catch (e) { img = null; }
     res.setHeader('Cache-Control', 's-maxage=86400');
     if (img) { res.setHeader('Location', img); res.status(302).end(); } else res.status(404).end();
+    return;
+  }
+  if (q.type === 'calendar') {
+    const syms = calendarSymbols(q.symbols);
+    if (!syms) { res.status(400).json({ error: 'requête invalide' }); return; }
+    try { res.setHeader('Cache-Control', 's-maxage=3600'); res.status(200).json(await calendarFor(syms)); }
+    catch (e) { res.status(502).json({ error: 'dates de résultats indisponibles : ' + e.message }); }
     return;
   }
   if (q.type === 'news') {

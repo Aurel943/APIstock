@@ -8,7 +8,7 @@
  *   4. Copie l'URL du worker (https://apistock-yahoo.<ton-compte>.workers.dev)
  *      dans APIstock → Réglages → « Relais Yahoo Finance »
  *
- * Appels Yahoo autorisés, en lecture seule : graphique/cotation (avec dividendes et divisions), cotations groupées (type=quotes, 40 symboles par requête), recherche, actualités en français (flux RSS Yahoo Finance France et Google Actualités) et image des articles.
+ * Appels Yahoo autorisés, en lecture seule : graphique/cotation (avec dividendes et divisions), cotations groupées (type=quotes, 40 symboles par requête), dates de résultats des sociétés (type=calendar), recherche, actualités en français (flux RSS Yahoo Finance France et Google Actualités) et image des articles.
  * Pour réserver le relais à ton site, liste ses adresses ci-dessous.
  *
  * Compteur global (optionnel) : nombre de requêtes reçues aujourd'hui par le worker,
@@ -90,6 +90,55 @@ async function handleQuotes(q, cors) {
   }));
   const body = '{"results":{' + syms.map((s, i) => JSON.stringify(s) + ':' + (parts[i] || 'null')).join(',') + '}}';
   return new Response(body, { status: 200, headers: Object.assign({ 'Content-Type': 'application/json; charset=utf-8' }, cors) });
+}
+
+/*
+ * Dates de résultats : ?type=calendar&symbols=A,B (20 symboles au plus) → { results: { A: { calendarEvents, earnings } | null } }
+ * Prochaine publication trimestrielle (date, bénéfice par action et chiffre d'affaires attendus par les analystes)
+ * et derniers trimestres publiés (bénéfice réel contre attendu). Données « quoteSummary » de Yahoo, qui exige
+ * un cookie et un jeton (« crumb ») : le relais les obtient lui-même et les garde en mémoire quelques heures.
+ */
+const CAL_MAX = 20;
+const UA = 'Mozilla/5.0 (compatible; APIstock/1.0)';
+let yahooAuth = null; // { cookie, crumb, ts }
+async function getYahooAuth(force) {
+  if (!force && yahooAuth && Date.now() - yahooAuth.ts < 6 * 3600000) return yahooAuth;
+  const r = await fetch('https://fc.yahoo.com/', { headers: { 'User-Agent': UA }, redirect: 'manual' });
+  const raw = typeof r.headers.getSetCookie === 'function' ? r.headers.getSetCookie().join('; ') : (r.headers.get('set-cookie') || '');
+  const cookie = (raw.match(/\bA3=[^;,\s]+/) || [])[0];
+  if (!cookie) throw new Error('cookie Yahoo absent');
+  const c = await fetch('https://query2.finance.yahoo.com/v1/test/getcrumb', { headers: { 'User-Agent': UA, Cookie: cookie } });
+  const crumb = (await c.text()).trim();
+  if (!c.ok || !crumb || crumb.length > 64 || /[<{\s]/.test(crumb)) throw new Error('jeton Yahoo refusé');
+  yahooAuth = { cookie, crumb, ts: Date.now() };
+  return yahooAuth;
+}
+async function calendarOne(sym, auth) {
+  const u = new URL('https://query2.finance.yahoo.com/v10/finance/quoteSummary/' + encodeURIComponent(sym));
+  u.searchParams.set('modules', 'calendarEvents,earnings');
+  u.searchParams.set('crumb', auth.crumb);
+  const r = await fetch(u, { headers: { 'User-Agent': UA, Accept: 'application/json', Cookie: auth.cookie } });
+  if (r.status === 401) return 'auth';
+  const j = await r.json().catch(() => null);
+  const res = j && j.quoteSummary && j.quoteSummary.result && j.quoteSummary.result[0];
+  if (!res) return null; // ETF, indice… : pas de résultats publiés
+  if (res.earnings) delete res.earnings.financialsChart; // chiffres annuels : inutiles ici
+  return { calendarEvents: res.calendarEvents || null, earnings: res.earnings || null };
+}
+async function calendarFor(symbols) {
+  let auth = await getYahooAuth();
+  let out = await Promise.all(symbols.map(s => calendarOne(s, auth).catch(() => null)));
+  if (out.includes('auth')) { // jeton expiré : on en redemande un, une fois
+    auth = await getYahooAuth(true);
+    out = await Promise.all(symbols.map((s, i) => (out[i] === 'auth' ? calendarOne(s, auth).catch(() => null) : out[i])));
+  }
+  const results = {};
+  symbols.forEach((s, i) => { results[s] = out[i] === 'auth' ? null : out[i]; });
+  return { results };
+}
+function calendarSymbols(raw) {
+  const syms = Array.from(new Set(String(raw || '').split(',').map(s => s.trim()).filter(Boolean)));
+  return syms.length && syms.length <= CAL_MAX && syms.every(s => SYMBOL_RE.test(s)) ? syms : null;
 }
 
 /* ---- Actualités en français : Yahoo Finance France et Google Actualités (RSS), Yahoo en anglais en secours ---- */
@@ -439,6 +488,12 @@ export default {
 
     if (q.get('type') === 'ping') return json({ ok: true }, 200, cors);
     if (q.get('type') === 'quotes') return handleQuotes(q, cors);
+    if (q.get('type') === 'calendar') {
+      const syms = calendarSymbols(q.get('symbols'));
+      if (!syms) return json({ error: 'requête invalide' }, 400, cors);
+      try { return json(await calendarFor(syms), 200, Object.assign({ 'Cache-Control': 'public, max-age=3600' }, cors)); }
+      catch (e) { return json({ error: 'dates de résultats indisponibles : ' + e.message }, 502, cors); }
+    }
     if (q.get('type') === 'ogimage') {
       // redirige vers l'image de l'article (mise en cache une journée), 404 s'il n'en a pas
       let target;

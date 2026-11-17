@@ -1,5 +1,6 @@
 /*
  * Agenda financier : toutes les échéances au même endroit (versements programmés, dividendes attendus,
+ * publications de résultats des actions suivies, grands rendez-vous macroéconomiques des indices,
  * jours de bourse fermée, jalons PEA / assurance-vie, déclaration fiscale, relevés à saisir),
  * exportables vers l'agenda du téléphone (fichier .ics).
  */
@@ -8,9 +9,228 @@
 const AGENDA_KINDS = {
   plan: { label: 'Versements', icon: '🗓' },
   div: { label: 'Dividendes', icon: '💶' },
+  earn: { label: 'Résultats', icon: '📊' },
+  eco: { label: 'Indices & macro', icon: '🌍' },
   market: { label: 'Bourse', icon: '🏛' },
   tax: { label: 'Fiscalité', icon: '🧾' },
   todo: { label: 'Relevés', icon: '✏️' },
+};
+
+/*
+ * Grands rendez-vous macroéconomiques qui font bouger les indices.
+ * Sources officielles, consultées le 17/11/2026 : federalreserve.gov (calendrier FOMC révisé le 12/11/2026),
+ * ecb.europa.eu, bankofengland.co.uk, boj.or.jp, bls.gov (CPI et Employment Situation).
+ * À compléter chaque année quand ces institutions publient le calendrier suivant (en général à l'automne).
+ * `time` : heure locale de l'annonce dans le fuseau `tz` (convertie en heure de Paris à l'affichage).
+ */
+const MACRO_CALENDAR = [
+  { id: 'fed', flag: '🇺🇸', title: 'Fed : décision sur les taux', tz: 'America/New_York', time: '14:00',
+    sub: 'Communiqué puis conférence de presse du président de la Fed 30 min plus tard. Fait bouger le S&P 500, le Nasdaq, le Dow Jones et le dollar, et par ricochet toutes les bourses.',
+    dates: ['2026-12-09', '2027-01-27', '2027-03-17', '2027-04-28', '2027-06-09', '2027-07-28', '2027-09-15', '2027-11-17'],
+    notes: { '2026-12-09': 'Avec les nouvelles prévisions des membres (« dot plot »).' } },
+  { id: 'ecb', flag: '🇪🇺', title: 'BCE : décision sur les taux', tz: 'Europe/Berlin', time: '14:15',
+    sub: 'Conférence de presse de la présidente de la BCE à 14h45. Fait bouger le CAC 40, le DAX, l\'Euro Stoxx 50 et l\'euro.',
+    dates: ['2026-12-17', '2027-02-04', '2027-03-18', '2027-04-29', '2027-06-10', '2027-07-22', '2027-09-09', '2027-10-28', '2027-12-16'] },
+  { id: 'boe', flag: '🇬🇧', title: 'Banque d\'Angleterre : décision sur les taux', tz: 'Europe/London', time: '12:00',
+    sub: 'Fait bouger le FTSE 100 et la livre sterling.',
+    dates: ['2026-12-17', '2027-02-04', '2027-03-18', '2027-04-29', '2027-06-17', '2027-07-29', '2027-09-16', '2027-11-04', '2027-12-16'],
+    notes: { '2027-02-04': 'Avec le rapport trimestriel de politique monétaire.', '2027-04-29': 'Avec le rapport trimestriel de politique monétaire.',
+      '2027-07-29': 'Avec le rapport trimestriel de politique monétaire.', '2027-11-04': 'Avec le rapport trimestriel de politique monétaire.' } },
+  { id: 'boj', flag: '🇯🇵', title: 'Banque du Japon : décision sur les taux', tz: 'Asia/Tokyo',
+    sub: 'Annonce en général dans la matinée à Tokyo (la nuit en France). Fait bouger le Nikkei 225 et le yen.',
+    dates: ['2026-12-18', '2027-01-22', '2027-03-18', '2027-04-28', '2027-06-11', '2027-07-22', '2027-09-22', '2027-10-29', '2027-12-17'] },
+  { id: 'cpi', flag: '🇺🇸', title: 'États-Unis : inflation (CPI) de {mois}', tz: 'America/New_York', time: '08:30',
+    sub: 'Chiffre suivi de près par la Fed : une surprise fait bouger Wall Street et les taux, et souvent les bourses européennes l\'après-midi.',
+    dates: ['2026-12-10', '2027-01-13', '2027-02-11', '2027-03-10', '2027-04-13', '2027-05-12', '2027-06-10', '2027-07-14', '2027-08-11', '2027-09-14', '2027-10-14', '2027-11-10', '2027-12-10'] },
+  { id: 'nfp', flag: '🇺🇸', title: 'États-Unis : rapport sur l\'emploi de {mois}', tz: 'America/New_York', time: '08:30',
+    sub: 'Créations d\'emplois et taux de chômage : l\'une des publications qui font le plus bouger les marchés.',
+    dates: ['2026-12-04', '2027-01-08', '2027-02-05', '2027-03-05', '2027-04-02', '2027-05-07', '2027-06-04', '2027-07-02', '2027-08-06', '2027-09-03', '2027-10-08', '2027-11-05', '2027-12-03'] },
+];
+
+const Macro = {
+  /** Heure de Paris d'une heure locale (« 14h30 ») */
+  parisTime(tz, date, hhmm) {
+    const t = Markets.wallToUtc(tz, date, hhmm);
+    const p = Markets.parts('Europe/Paris', t);
+    return `${p.h}h${String(p.mi).padStart(2, '0')}`;
+  },
+
+  /** Troisième vendredi de mars, juin, septembre et décembre */
+  witchingDays(from, to) {
+    const out = [];
+    for (let y = +from.slice(0, 4); y <= +to.slice(0, 4); y++) {
+      for (const m of [3, 6, 9, 12]) {
+        const first = new Date(Date.UTC(y, m - 1, 1)).getUTCDay();
+        const d = 1 + ((5 - first + 7) % 7) + 14;
+        out.push(`${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`);
+      }
+    }
+    return out.filter(d => d >= from && d <= to);
+  },
+
+  events(today, end) {
+    const out = [];
+    for (const c of MACRO_CALENDAR) {
+      for (const d of c.dates) {
+        if (d < today || d > end) continue;
+        const month = new Date(addMonthsISO(d.slice(0, 7) + '-01', -1) + 'T12:00:00Z').toLocaleDateString('fr-FR', { month: 'long', timeZone: 'UTC' });
+        const at = c.time ? `À ${this.parisTime(c.tz, d, c.time)} (heure de Paris). ` : '';
+        out.push({ date: d, kind: 'eco', title: `${c.flag} ${c.title.replace('{mois}', month)}`, sub: at + c.sub + (c.notes && c.notes[d] ? ' ' + c.notes[d] : '') });
+      }
+    }
+    const nyse = (HOLIDAYS.nyse && HOLIDAYS.nyse.closed) || [];
+    for (const d of this.witchingDays(today, end)) {
+      out.push({ date: d, kind: 'eco', title: '🌍 Quatre sorcières : échéance trimestrielle des options et contrats à terme',
+        sub: 'Volumes et volatilité en hausse, surtout en fin de séance. Le soir même, les révisions trimestrielles des indices (S&P 500, Nasdaq-100, CAC 40, Euro Stoxx 50…) prennent effet : entrées et sorties de valeurs.'
+          + (nyse.includes(d) ? ' Wall Street est fermée ce jour-là : les échéances américaines sont avancées à la veille.' : '') });
+    }
+    return out;
+  },
+};
+
+/* Prochaines publications de résultats des actions suivies (relais Yahoo, type=calendar), gardées 12 h dans le navigateur */
+const EARN_STORE = 'apistock:earnings';
+const Earnings = {
+  TTL: 12 * 3600000,
+  RETRY: 10 * 60000,
+  cache: null,      // symbole Yahoo -> { ts, data }
+  status: '',       // '' | 'loading' | 'old-relay' | 'error'
+  failedAt: 0,
+
+  load() {
+    if (!this.cache) {
+      try { this.cache = JSON.parse(localStorage.getItem(EARN_STORE) || '{}') || {}; } catch (e) { this.cache = {}; }
+    }
+    return this.cache;
+  },
+  save() {
+    const keep = new Set(this.targets().map(t => t.sym));
+    for (const s of Object.keys(this.cache || {})) if (!keep.has(s)) delete this.cache[s];
+    try { localStorage.setItem(EARN_STORE, JSON.stringify(this.cache || {})); } catch (e) { /* stockage indisponible */ }
+  },
+
+  /** Actions du portefeuille et de la watchlist (pas les ETF, fonds, indices, devises…) */
+  targets() {
+    const out = [], seen = new Set();
+    for (const key of Store.trackedKeys()) {
+      const i = Store.instrument(key);
+      if (!i || i.provider === 'manual') continue;
+      if (/etf|etc|etn|fonds|fund|trust|indice|index|crypto|devise|currency|mati|future|obligation|bond|warrant|turbo/i.test(i.type || '')) continue;
+      const sym = yahooSymbolFor(i);
+      if (!sym || !SYMBOL_OK.test(sym) || /^\^|=|-(EUR|USD)$/.test(sym) || seen.has(sym)) continue;
+      seen.add(sym);
+      out.push({ key, sym });
+    }
+    return out;
+  },
+
+  /** Recharge les dates périmées ; renvoie true si quelque chose a changé (à réafficher) */
+  async refresh(force = false) {
+    if (this._busy || !Api.hasProxy()) return false;
+    if (!force && Date.now() - this.failedAt < this.RETRY) return false;
+    const c = this.load(), now = Date.now();
+    const todo = this.targets().map(t => t.sym).filter(s => force || !c[s] || now - c[s].ts > this.TTL);
+    if (!todo.length) return false;
+    this._busy = true;
+    this.status = 'loading';
+    try {
+      for (let i = 0; i < todo.length; i += 20) {
+        const chunk = todo.slice(i, i + 20);
+        const json = await Api.yahoo({ type: 'calendar', symbols: chunk.join(',') });
+        if (!json || typeof json.results !== 'object' || !json.results) throw new ApiError('requête invalide', 0);
+        for (const s of chunk) c[s] = { ts: now, data: json.results[s] || null };
+      }
+      this.status = '';
+    } catch (e) {
+      // relais pas encore mis à jour : il ne connaît pas « type=calendar »
+      this.status = /requête invalide/i.test(e.message || '') ? 'old-relay' : 'error';
+      this.error = e.message || '';
+      this.failedAt = Date.now();
+    } finally {
+      this._busy = false;
+      this.save();
+    }
+    return true;
+  },
+
+  events(today, end) {
+    const c = this.load(), out = [];
+    for (const { key, sym } of this.targets()) {
+      const d = c[sym] && c[sym].data;
+      if (d) out.push(...this.eventsFor(d, Store.label(key), Store.instrument(key), today, end));
+    }
+    return out;
+  },
+
+  /** « T3 2026 », ou « T3 de l'exercice 2027 » si l'exercice de la société est décalé */
+  quarterLabel(fiscal, calendar) {
+    const f = /^(\d)Q(\d{4})$/.exec(fiscal || ''), cq = /^(\d)Q(\d{4})$/.exec(calendar || '');
+    if (!f) return '';
+    return f[1] === (cq && cq[1]) && f[2] === (cq && cq[2]) ? `T${f[1]} ${f[2]}` : `T${f[1]} de l'exercice ${f[2]}`;
+  },
+
+  /** Événements d'une société à partir de la réponse Yahoo (calendarEvents + earnings) */
+  eventsFor(d, name, inst = {}, today = todayISO(), end = addDaysISO(today, 366)) {
+    const raw = x => (x && isFinite(x.raw) ? x.raw : null);
+    const localISO = t => { const x = new Date(t); return x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0'); };
+    const ce = (d.calendarEvents && d.calendarEvents.earnings) || {};
+    const ec = (d.earnings && d.earnings.earningsChart) || {};
+    const ccy = (d.earnings && d.earnings.financialCurrency) || inst.currency || 'USD';
+    const money = v => fmtMoney(v, ccy, 2, true);
+    const big = v => {
+      try { return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: ccy, notation: 'compact', maximumFractionDigits: 1 }).format(v); }
+      catch (e) { return fmtNum(v / 1e9, 1) + ' Md ' + ccy; }
+    };
+    const surprise = (a, e) => (e ? fmtPct(((a - e) / Math.abs(e)) * 100, 1) : '');
+    const beat = q => {
+      const a = raw(q.actual), e = raw(q.estimate);
+      if (a === null) return '';
+      return `bénéfice par action ${money(a)}` + (e !== null ? ` contre ${money(e)} attendu (${surprise(a, e)}, ${a >= e ? 'au-dessus' : 'en dessous'} des attentes)` : '');
+    };
+    const quarters = (ec.quarterly || []).filter(q => raw(q.actual) !== null).sort((a, b) => (raw(a.reportedDate) || 0) - (raw(b.reportedDate) || 0));
+    const out = [];
+
+    // résultats publiés aujourd'hui
+    for (const q of quarters) {
+      const t = raw(q.reportedDate);
+      if (!t) continue;
+      const day = localISO(t * 1000);
+      if (day < today || day > end) continue;
+      const ql = this.quarterLabel(q.fiscalQuarter, q.calendarQuarter);
+      out.push({ date: day, kind: 'earn', title: `Résultats publiés${ql ? ' ' + ql : ''} · ${name}`, sub: beat(q).replace(/^./, ch => ch.toUpperCase()) + '.' });
+    }
+
+    // prochaine publication
+    const dates = (ce.earningsDate && ce.earningsDate.length ? ce.earningsDate : ec.earningsDate || []).map(raw).filter(Boolean).map(x => x * 1000);
+    if (!dates.length) return out;
+    const t0 = dates[0], day = localISO(t0);
+    if (day < today || day > end || out.some(e => e.date === day)) return out;
+    const estimate = !!(ce.isEarningsDateEstimate || ec.isEarningsDateEstimate);
+    // trimestre concerné : clos avant la publication, et au plus 4 mois avant
+    const pend = raw(ec.currentPeriodEndDate);
+    const ql = pend && pend * 1000 < t0 && t0 - pend * 1000 < 130 * 86400000 ? this.quarterLabel(ec.currentFiscalQuarter, ec.currentCalendarQuarter) : '';
+    const parts = [];
+    if (estimate) parts.push(dates[1] && localISO(dates[1]) !== day ? `Date estimée, entre le ${fmtDate(day)} et le ${fmtDate(localISO(dates[1]))}` : 'Date estimée');
+    else if (US_MICS.has(inst.mic)) {
+      // horaires fiables pour Wall Street : avant l'ouverture ou après la clôture
+      const p = Markets.parts('America/New_York', t0), hm = p.h * 60 + p.mi;
+      const when = hm < 9 * 60 + 30 ? 'avant l\'ouverture de Wall Street' : hm >= 16 * 60 ? 'après la clôture de Wall Street' : 'pendant la séance';
+      const pt = Markets.parts('Europe/Paris', t0);
+      if (hm > 0) parts.push(`${when.replace(/^./, ch => ch.toUpperCase())} (vers ${pt.h}h${String(pt.mi).padStart(2, '0')}, heure de Paris)`);
+    }
+    if (ql && pend) parts.push(`trimestre clos le ${fmtDate(new Date(pend * 1000).toISOString().slice(0, 10))}`);
+    const eps = raw(ce.earningsAverage) !== null ? raw(ce.earningsAverage) : raw(ec.currentQuarterEstimate);
+    if (eps !== null) {
+      const lo = raw(ce.earningsLow), hi = raw(ce.earningsHigh);
+      parts.push(`bénéfice par action attendu ${money(eps)}` + (lo !== null && hi !== null && lo !== hi ? ` (estimations de ${money(lo)} à ${money(hi)})` : ''));
+    }
+    if (raw(ce.revenueAverage) !== null) parts.push(`chiffre d'affaires attendu ${big(raw(ce.revenueAverage))}`);
+    const last = quarters[quarters.length - 1];
+    if (last && beat(last)) parts.push(`trimestre précédent : ${beat(last)}`);
+    const sub = parts.map((x, i) => (i ? x : x.replace(/^./, ch => ch.toUpperCase()))).join(' · ');
+    out.push({ date: day, kind: 'earn', title: `Résultats${ql ? ' ' + ql : ''} · ${name}`, sub: sub ? sub + '.' : 'Date annoncée par la société.' });
+    return out;
+  },
 };
 
 const Agenda = {
@@ -41,6 +261,12 @@ const Agenda = {
           sub: (isFinite(d.amount) ? '≈ ' + fmtMoney(d.amount, cur) + ' brut' : 'montant inconnu') + ` (${fmtMoney(d.perShare, d.currency, 3)} par part)` });
       }
     }
+
+    // publications de résultats des actions suivies (portefeuille et watchlist)
+    out.push(...Earnings.events(today, end));
+
+    // grands rendez-vous des indices : banques centrales, inflation et emploi américains, échéances trimestrielles
+    out.push(...Macro.events(today, end));
 
     // bourses où tu as des lignes : jours fériés et clôtures anticipées
     const held = Portfolio.snapshot('all').rows;
@@ -153,6 +379,18 @@ Object.assign(App, {
   renderAgenda() {
     const box = $('#agendaList');
     if (!box) return;
+    const pending = Earnings.refresh(); // dates de résultats périmées : rechargées en arrière-plan
+    pending.then(changed => { if (changed && this.view === 'agenda') this.renderAgenda(); });
+    const note = $('#agendaNote');
+    if (note) {
+      const msg = {
+        loading: 'Chargement des dates de résultats de tes actions…',
+        'old-relay': 'Dates de résultats indisponibles : ton relais Yahoo doit être mis à jour (copie à nouveau proxy/cloudflare-worker.js dans ton worker Cloudflare, puis Deploy).',
+        error: 'Dates de résultats indisponibles pour l\'instant' + (Earnings.error ? ' (' + Earnings.error + ')' : '') + '.',
+      }[Earnings.status] || '';
+      note.textContent = msg;
+      note.hidden = !msg;
+    }
     const all = Agenda.events();
     const counts = {};
     for (const e of all) counts[e.kind] = (counts[e.kind] || 0) + 1;
