@@ -1633,3 +1633,19 @@ table.data.fund-table td.num, table.data.fund-table th.num { white-space: nowrap
 }
 /* Barre du haut moins large : copilote réduit à sa loupe */
 @media (max-width: 1360px) { .cp-trigger { min-width: 0; border-color: transparent; background: none; padding: 6px; } .cp-trigger-text, .cp-trigger .cp-kbd { display: none; } }
+
+/* ---- Carte « Aujourd'hui » (Portefeuille › Vue d'ensemble) ---- */
+.today-card .card-head h2 { display: flex; align-items: baseline; flex-wrap: wrap; }
+.today-date { font-weight: 400; text-transform: none; letter-spacing: 0; margin-left: .35em; }
+.today-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.4fr) minmax(0, 1fr); gap: 14px; }
+@media (max-width: 1000px) { .today-grid { grid-template-columns: minmax(0, 1fr); } }
+.today-block { background: var(--surface-2); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.today-block h3 { margin: 0; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.today-block p { margin: 0; }
+.today-block > .link { align-self: flex-start; margin-top: auto; padding-top: 4px; }
+.today-big { font: 600 24px/1.2 "JetBrains Mono", monospace; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.today-big .chip { font-size: 13px; }
+.today-events { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 13px; }
+.today-events li { display: grid; grid-template-columns: 5.6em 1.4em minmax(0, 1fr); gap: 6px; align-items: baseline; }
+.today-when { color: var(--muted); font-size: 12px; }
+.today-ev { overflow: hidden; text-overflow: ellipsis; }
