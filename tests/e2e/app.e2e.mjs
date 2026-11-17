@@ -322,9 +322,9 @@ test('menu « ⋯ » au clavier, sous-onglets mémorisés et indicateur hors lig
   await page.focus('#tabMoreBtn');
   await page.keyboard.press('ArrowDown');
   assert.equal(await page.evaluate(() => document.activeElement.id), 'termOpen');
-  await page.keyboard.press('ArrowDown');
-  await page.keyboard.press('ArrowDown');
-  await page.keyboard.press('ArrowDown');
+  // terminal → année en bourse → thème → visite guidée → réglages
+  for (let i = 0; i < 4; i++) await page.keyboard.press('ArrowDown');
+  assert.match(await page.evaluate(() => document.activeElement.textContent), /Réglages/);
   await page.keyboard.press('Enter');
   assert.equal(await page.evaluate(() => App.view), 'settings');
   assert.equal(await page.locator('#tabMore.open').count(), 0);
@@ -982,3 +982,35 @@ test('terminal : relais sans appel groupé (worker pas redéployé) → cotation
   await page.fill('#termCmd', 'SPY US DES'); await page.keyboard.press('Enter');
   await page.waitForFunction(() => /\d/.test(($('#termGrid .des-head b') || {}).textContent || ''));
 }));
+
+test('visite guidée : au premier lancement, au clavier, puis relançable depuis le menu ⋯', async () => {
+  const app = await openApp(browser, url, { state: sampleState(), tour: true });
+  const { page } = app;
+  try {
+    await page.waitForSelector('.tour .tour-bubble h3');
+    assert.match(await page.locator('.tour-bubble h3').innerText(), /Bienvenue/);
+    await page.keyboard.press('ArrowRight');
+    assert.match(await page.locator('.tour-bubble h3').innerText(), /Portefeuille/);
+    // le projecteur entoure l'onglet présenté
+    await page.waitForFunction(() => { // fin de l'animation du projecteur
+      const s = document.querySelector('.tour-spot').getBoundingClientRect(), t = document.querySelector('.tabs .tab[data-view="portfolio"]').getBoundingClientRect();
+      return Math.abs(s.x + 6 - t.x) < 2 && Math.abs(s.y + 6 - t.y) < 2;
+    });
+    for (let i = 0; i < 8; i++) await page.keyboard.press('ArrowRight');
+    assert.match(await page.locator('.tour-bubble h3').innerText(), /C'est parti/);
+    await page.click('.tour-next');
+    assert.equal(await page.locator('.tour').count(), 0);
+    assert.ok(await page.evaluate(() => localStorage.getItem('apistock:tourDone')));
+    // pas de nouvelle visite au rechargement, mais relançable depuis le menu
+    await page.reload();
+    await page.waitForFunction(() => typeof App !== 'undefined' && App._booted);
+    await page.waitForTimeout(1200);
+    assert.equal(await page.locator('.tour').count(), 0);
+    await page.click('#tabMoreBtn');
+    await page.click('#tourOpen');
+    await page.waitForSelector('.tour .tour-bubble');
+    await page.keyboard.press('Escape');
+    assert.equal(await page.locator('.tour').count(), 0);
+    assert.deepEqual(app.errors, [], 'erreurs JavaScript');
+  } finally { await app.context.close(); }
+});

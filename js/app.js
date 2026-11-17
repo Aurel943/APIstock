@@ -93,7 +93,7 @@ const App = {
       () => this.bindNav(), () => this.bindPortfolio(), () => this.bindMarkets(), () => this.bindSimulation(), () => this.bindSettings(),
       () => this.bindDialog(), () => this.bindWorld(), () => this.bindInvest(), () => this.bindCompare(), () => this.bindAccounts(),
       () => this.renderAccountsSettings(), () => this.bindGoal(), () => this.bindPrivacy(), () => this.bindCsv(), () => this.bindMobile(),
-      () => this.bindManual(), () => { $('#optRun').addEventListener('click', () => this.runOptimizer()); this.renderOptOpts(); }, () => this.bindLab(),
+      () => this.bindManual(), () => this.bindTour(), () => { $('#optRun').addEventListener('click', () => this.runOptimizer()); this.renderOptOpts(); }, () => this.bindLab(),
       () => this.bindQuant(), () => this.bindDesk(), () => this.bindArena(), () => this.bindInstitut(), () => this.bindTerminal(), () => this.bindFisc(), () => this.bindCopilot(),
       () => $('#tgtShare').addEventListener('click', () => this.shareAllocation()),
       () => $('#wrappedOpen').addEventListener('click', () => { this.toggleTabMenu(false); this.openWrapped(); }),
