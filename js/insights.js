@@ -635,8 +635,8 @@ App.on('rendered:invest', function () { if (!$('#rebalBox').contains(document.ac
 App.on('rendered:alerts', function () { this.schedulePushSync(); });
 // actualités de l'instrument affiché (la liste est vide tant qu'elles n'ont pas été chargées)
 App.on('detail:selected', function (key, previous) { if (key !== previous || !$('#detailNews').childElementCount) this.loadDetailNews(key); });
-App.on('refreshed', function () { if (this.view === 'portfolio') this.loadNews().catch(() => {}); });
-App.on('view:shown', function (view) { if (view === 'portfolio') this.loadNews().catch(() => {}); });
+App.on('refreshed', function () { if (this.page === 'agenda/actus') this.loadNews().catch(() => {}); });
+App.on('view:shown', function (view) { if (view === 'agenda/actus') this.loadNews().catch(() => {}); });
 // un changement de compte invalide le calcul de risque
 App.on('rendered:accountFilter', function () {
   if (this._riskShown && this._riskShown !== (Store.state.accountFilter || 'all')) { this._riskShown = null; this.renderRiskCard(); }

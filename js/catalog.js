@@ -120,7 +120,7 @@ Object.assign(App, {
     const held = new Set(Object.values(Store.state.instruments).map(i => (i.symbol || '').toUpperCase()));
     box.replaceChildren(
       el('div', { class: 'catalog-opts' }, peaBox),
-      el('h3', {}, 'Portefeuilles types', infoTip('Des points de départ courants, avec l\'ETF le moins cher connu du site pour chaque zone. Exemples pédagogiques, pas des conseils : adapte-les à ton horizon et à ta tolérance aux baisses. « Utiliser comme cible » remplace ton allocation cible (onglet Investir), sans rien acheter.')),
+      el('h3', {}, 'Portefeuilles types', infoTip('Des points de départ courants, avec l\'ETF le moins cher connu du site pour chaque zone. Exemples pédagogiques, pas des conseils : adapte-les à ton horizon et à ta tolérance aux baisses. « Utiliser comme cible » remplace ton allocation cible (Planifier › Investir), sans rien acheter.')),
       el('div', { class: 'model-grid' }, ...models),
       el('h3', {}, 'Catalogue', infoTip('ETF connus du site, du moins cher au plus cher (frais courants annuels, TER). Vérifie toujours le document d\'informations clés (DIC) avant d\'acheter : réplication, distribution, encours.')),
       el('div', { class: 'seg catalog-zones' }, ...zones.map(z => el('button', { class: z === st.zone ? 'active' : '', onclick: () => { st.zone = z; this.renderCatalog(); } }, EXPO_PROFILES[z].label.split(' (')[0]))),

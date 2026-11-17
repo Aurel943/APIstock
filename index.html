@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=15e879ce5e">
+  <link rel="stylesheet" href="css/style.css?v=a0ee731bb7">
 </head>
 <body>
   <header class="topbar">
@@ -22,26 +22,12 @@
       <svg viewBox="0 0 32 32" width="28" height="28" aria-hidden="true"><rect width="32" height="32" rx="7" fill="var(--accent)"/><path d="M6 22l7-7 5 5 8-9" stroke="white" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <span>APIstock</span>
     </div>
-    <nav class="tabs" role="tablist">
+    <nav class="tabs" role="tablist" aria-label="Espaces">
       <button class="tab active" data-view="portfolio">Portefeuille</button>
+      <button class="tab" data-view="analysis">Analyse</button>
       <button class="tab" data-view="markets">Marchés</button>
-      <button class="tab" data-view="invest">Investir</button>
       <button class="tab" data-view="agenda">Agenda</button>
-      <div class="tab-more" id="tabMore">
-        <button class="tab-more-btn" id="tabMoreBtn" aria-haspopup="true" aria-expanded="false">Plus <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-        <div class="tab-menu" id="tabMenu" role="menu">
-          <button class="tab" data-view="catalog" role="menuitem">Catalogue d'ETF</button>
-          <button class="tab" data-view="world" role="menuitem">Monde et horaires</button>
-          <button class="tab" data-view="compare" role="menuitem">Comparer</button>
-          <button class="tab" data-view="simulation" role="menuitem">Simulation</button>
-          <button class="tab" data-view="arena" role="menuitem">Arène <span class="q-new">nouveau</span></button>
-          <button class="tab" data-view="desk" role="menuitem">Salle des marchés</button>
-          <button class="tab" data-view="quant" role="menuitem">Labo quant</button>
-          <button class="tab" data-view="settings" role="menuitem">Réglages</button>
-          <button class="tab-action" type="button" id="termOpen" role="menuitem">🖥️ Mode terminal</button>
-          <button class="tab-action" type="button" id="wrappedOpen" role="menuitem">🎉 Mon année en bourse</button>
-        </div>
-      </div>
+      <button class="tab" data-view="plan">Planifier</button>
     </nav>
     <div class="status">
       <button id="copilotBtn" class="cp-trigger" type="button" title="Pose une question sur ton portefeuille (Ctrl+K)" aria-label="Copilote : poser une question">
@@ -62,6 +48,20 @@
       <button id="themeBtn" class="btn icon" title="Changer de thème" aria-label="Thème">
         <svg viewBox="0 0 24 24" width="18" height="18"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
       </button>
+      <button id="settingsBtn" class="btn icon" title="Réglages" aria-label="Réglages" data-goto="settings">
+        <svg viewBox="0 0 24 24" width="18" height="18"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="tab-more" id="tabMore">
+        <button class="btn icon tab-more-btn" id="tabMoreBtn" aria-haspopup="true" aria-expanded="false" title="Plus d'outils" aria-label="Plus d'outils">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="5" cy="12" r="1.8" fill="currentColor"/><circle cx="12" cy="12" r="1.8" fill="currentColor"/><circle cx="19" cy="12" r="1.8" fill="currentColor"/></svg>
+        </button>
+        <div class="tab-menu" id="tabMenu" role="menu">
+          <button class="tab-action" type="button" id="termOpen" role="menuitem">🖥️ Mode terminal</button>
+          <button class="tab-action" type="button" id="wrappedOpen" role="menuitem">🎉 Mon année en bourse</button>
+          <button class="tab-action" type="button" id="themeMenuBtn" role="menuitem">🌓 Thème clair / sombre</button>
+          <button class="tab-action" type="button" data-goto="settings" role="menuitem">⚙️ Réglages</button>
+        </div>
+      </div>
     </div>
   </header>
 
@@ -72,14 +72,14 @@
   <main>
     <!-- ============ PORTEFEUILLE ============ -->
     <section id="view-portfolio" class="view active" data-sub="synthese">
-      <div class="seg acc-filter hidden" id="accFilter"></div>
-      <div class="kpis" id="kpis"></div>
       <div class="seg subnav" id="pfSubnav" role="tablist">
-        <button class="active" data-tab="synthese">Synthèse</button>
-        <button data-tab="analyse">Analyse</button>
+        <button class="active" data-tab="synthese"><span class="lbl-long">Vue d'ensemble</span><span class="lbl-short">Synthèse</span></button>
+        <button data-tab="patrimoine">Patrimoine</button>
         <button data-tab="revenus"><span class="lbl-long">Revenus &amp; impôts</span><span class="lbl-short">Impôts</span></button>
         <button data-tab="operations">Opérations</button>
       </div>
+      <div class="seg acc-filter hidden" id="accFilter"></div>
+      <div class="kpis" id="kpis"></div>
 
       <div data-sub="synthese" class="card hidden todo-card" id="todoCard">
         <div class="card-head"><h2>À faire</h2><span class="muted small" id="todoInfo"></span></div>
@@ -116,7 +116,6 @@
         <div class="pos-cards" id="positionsCards"></div>
         <p class="empty hidden" id="positionsEmpty">Aucune position. Clique sur « Ajouter une opération » pour enregistrer ton premier achat d'ETF.</p>
       </div>
-
 
       <div data-sub="synthese" class="grid-2 grid-evo">
         <div class="card">
@@ -156,7 +155,7 @@
         </div>
       </div>
 
-      <div data-sub="synthese" class="card" id="wealthCard">
+      <div data-sub="patrimoine" class="card" id="wealthCard">
         <div class="card-head">
           <h2>Patrimoine global<button type="button" class="info" aria-label="Explication" data-tip="Titres, espèces, épargne et immobilier">i</button></h2>
           <div class="actions"><button class="btn small" id="assetAdd">+ Ajouter un actif</button></div>
@@ -164,83 +163,12 @@
         <div id="wealthBody"></div>
       </div>
 
-      <div data-sub="synthese" class="card hidden" id="cashCard">
+      <div data-sub="patrimoine" class="card hidden" id="cashCard">
         <div class="card-head">
           <h2>Liquidités<button type="button" class="info" aria-label="Explication" data-tip="Espèces disponibles sur tes comptes">i</button></h2>
           <div class="actions"><button class="btn small" id="cashAdd2">+ Versement / retrait</button></div>
         </div>
         <div id="cashBody"></div>
-      </div>
-
-      <div data-sub="analyse" class="card hidden" id="healthCard">
-        <div class="card-head">
-          <h2>Bilan de santé<button type="button" class="info" aria-label="Explication" data-tip="Une note sur 100 calculée sur ta diversification (pays, secteurs, lignes non diversifiées), tes frais (ETF et courtage), les doublons, le respect de ta cible et la sauvegarde de tes données. Repères pédagogiques, pas un conseil en investissement : un portefeuille 100 % MSCI World est par exemple à ~72 % américain.">i</button></h2>
-        </div>
-        <div id="healthBody"></div>
-      </div>
-
-      <div data-sub="analyse" class="card hidden" id="mapCard">
-        <div class="card-head">
-          <h2>Carte du portefeuille<button type="button" class="info" aria-label="Explication" data-tip="Chaque rectangle est une ligne, proportionnel à son poids. Couleur : vert si elle monte, rouge si elle baisse, d'autant plus foncé que la variation est forte. Touche un rectangle pour ouvrir sa fiche.">i</button></h2>
-          <div class="seg" id="mapMode">
-            <button class="active" data-mode="day">Aujourd'hui</button>
-            <button data-mode="gain">Plus-value</button>
-          </div>
-        </div>
-        <div class="map-box" id="mapBox"></div>
-      </div>
-
-      <div data-sub="analyse" class="card hidden" id="moversCard">
-        <div class="card-head"><h2>Variations du jour</h2><span class="muted small" id="moversInfo"></span></div>
-        <div class="movers">
-          <div><h3 class="movers-title up">En hausse</h3><ul class="movers-list" id="moversUp"></ul></div>
-          <div><h3 class="movers-title down">En baisse</h3><ul class="movers-list" id="moversDown"></ul></div>
-        </div>
-      </div>
-
-      <div data-sub="analyse" class="card hidden" id="contribCard">
-        <div class="card-head">
-          <h2>Ce qui a fait ton gain<button type="button" class="info" aria-label="Explication" data-tip="Gain de chaque ligne depuis ton premier achat : plus-value latente, plus-values réalisées par tes ventes et dividendes reçus. Les lignes déjà vendues sont incluses.">i</button></h2>
-          <span class="muted small" id="contribInfo"></span>
-        </div>
-        <ul class="contrib-list" id="contribList"></ul>
-      </div>
-
-      <div data-sub="analyse" class="card hidden" id="riskCard">
-        <div class="card-head">
-          <h2>Risque du portefeuille<button type="button" class="info" aria-label="Explication" data-tip="Calculé sur la performance pondérée dans le temps (TWR), depuis ta première opération. Volatilité, pire baisse, ratio de Sharpe et bêta face au MSCI World.">i</button></h2>
-        </div>
-        <div id="riskBody"></div>
-      </div>
-
-      <div data-sub="analyse" class="card" id="optCard">
-        <div class="card-head">
-          <h2>Optimiseur de répartition<button type="button" class="info" aria-label="Explication" data-tip="À partir des cours réels de tes lignes sur 3 ans, l'appli simule des milliers de répartitions et les place selon leur risque (volatilité) et leur rendement. Elle repère la moins risquée et celle qui rapporte le plus par unité de risque (ratio de Sharpe). Le passé ne se répète pas forcément : un éclairage, pas une recommandation.">i</button></h2>
-          <button class="btn small" id="optRun" type="button">Calculer</button>
-        </div>
-        <div id="optBody"><p class="muted small">Compare ta répartition à des milliers d'autres faites avec les mêmes ETF, sur leur historique réel.</p></div>
-      </div>
-
-      <div data-sub="analyse" class="card hidden" id="exposureCard">
-        <div class="card-head">
-          <h2>Exposition réelle &amp; frais<button type="button" class="info" aria-label="Explication" data-tip="Ce que contiennent vraiment tes ETF (pondéré par leur valeur)">i</button></h2>
-        </div>
-        <div id="exposureBody"></div>
-      </div>
-
-      <div data-sub="analyse" class="card hidden" id="xrayCard">
-        <div class="card-head">
-          <h2>Radiographie : tes vraies entreprises <span class="q-new">nouveau</span><button type="button" class="info" aria-label="Explication" data-tip="À travers tes ETF, les entreprises dans lesquelles ton argent est réellement placé (principales lignes de chaque indice, pondérations approximatives) et ta dépendance aux « 7 Magnifiques » de la tech américaine.">i</button></h2>
-        </div>
-        <div id="xrayBody"></div>
-      </div>
-
-      <div data-sub="analyse" class="card hidden" id="newsCard">
-        <div class="card-head">
-          <h2>Actualités de mes placements</h2>
-          <span class="muted small" id="newsSource">Presse financière française</span>
-        </div>
-        <ul class="news-list" id="newsList" style="list-style:none;margin:0;padding:0"></ul>
       </div>
 
       <div data-sub="revenus" class="card hidden" id="divCard">
@@ -255,6 +183,27 @@
           <h2>Fiscalité<button type="button" class="info" aria-label="Explication" data-tip="Estimations indicatives : ta déclaration pré-remplie et l&#x27;IFU de ton courtier font foi">i</button></h2>
         </div>
         <div id="taxBody"></div>
+      </div>
+
+      <div data-sub="revenus" class="card hidden" id="radarCard">
+        <div class="card-head">
+          <h2>Radar fiscal<span class="q-new">nouveau</span><button type="button" class="info" aria-label="Explication" data-tip="Le site surveille tes comptes et repère l'impôt évitable : moins-values à constater avant le 31 décembre, reports de pertes qui vont expirer, gains à purger sans impôt (compte-titres et assurance-vie), anniversaires du PEA et de l'assurance-vie à attendre, dividendes taxés chaque année.">i</button></h2>
+        </div>
+        <div id="radarBody"></div>
+      </div>
+
+      <div data-sub="revenus" class="card wd-card" id="wdCard">
+        <div class="card-head">
+          <h2>Retrait malin<span class="q-new">nouveau</span><button type="button" class="info" aria-label="Explication" data-tip="Tu as besoin d'argent ? Indique le montant net : le site cherche quoi vendre, et sur quel compte, pour payer le moins d'impôt et de frais possible (liquidités, moins-values, reports de pertes, PEA de plus de 5 ans, abattement de l'assurance-vie…), et te montre l'économie face à « vendre un peu de tout ».">i</button></h2>
+        </div>
+        <div class="wd-form">
+          <label><span>J'ai besoin de (<span class="ccy"></span>, net d'impôt)</span>
+            <input type="number" id="wdAmount" min="0" step="100" inputmode="decimal" placeholder="ex. 10000">
+          </label>
+          <label class="check"><input type="checkbox" id="wdWhole" checked> Parts entières</label>
+          <button class="btn primary" id="wdRun" type="button">Trouver le moins cher</button>
+        </div>
+        <div id="wdBody"><p class="muted">Un apport, des travaux, un imprévu : avant de vendre, regarde combien d'impôt tu peux éviter.</p></div>
       </div>
 
       <div data-sub="operations" class="card">
@@ -279,37 +228,179 @@
           </table>
         </div>
       </div>
-    </section>
 
-    <!-- ============ AGENDA ============ -->
-    <section id="view-agenda" class="view">
-      <div class="card">
+      <div data-sub="operations" class="card" id="dkJournalCard">
         <div class="card-head">
-          <h2>Agenda<button type="button" class="info" aria-label="Explication" data-tip="Tes 12 prochains mois : versements programmés, dividendes attendus (d'après ceux de l'an dernier), publications de résultats des actions de ton portefeuille et de ta watchlist (avec le bénéfice et le chiffre d'affaires attendus par les analystes), grands rendez-vous des indices (Fed, BCE, Banques d'Angleterre et du Japon, inflation et emploi américains, échéances trimestrielles), jours où tes bourses sont fermées, jalons de tes PEA et assurances-vie, déclaration de revenus et relevés à saisir. « Ajouter à mon agenda » crée un fichier à ouvrir sur ton téléphone ou ton ordinateur.">i</button></h2>
-          <button class="btn small" id="agendaExport">📅 Ajouter à mon agenda</button>
+          <h2>Journal de trades<button type="button" class="info" aria-label="Explication" data-tip="Avant chaque achat, un trader note pourquoi il achète, où il prendra ses gains et où il coupera ses pertes. Le site calcule le rapport gain / risque, la taille de position pour ne risquer qu'un pourcentage fixe de ton capital, et crée les alertes.">i</button></h2>
         </div>
-        <div class="seg agenda-kinds" id="agendaKinds"></div>
-        <p class="muted small" id="agendaNote" hidden></p>
-        <div id="agendaList"></div>
+        <form class="dk-jform" id="dkJForm">
+          <label>Ligne<select id="dkJKey" required></select></label>
+          <label class="dk-jthesis">Thèse<input type="text" id="dkJText" maxlength="400" placeholder="ex. Rebond attendu après la baisse des taux"></label>
+          <label>Objectif<input type="number" id="dkJTarget" step="any" min="0" inputmode="decimal" placeholder="cours visé"></label>
+          <label>Stop<input type="number" id="dkJStop" step="any" min="0" inputmode="decimal" placeholder="cours de sortie"></label>
+          <label>Risque max (%)<input type="number" id="dkJRisk" step="0.25" min="0.25" max="10" value="1" inputmode="decimal"></label>
+          <label>À revoir le<input type="date" id="dkJReview"></label>
+          <button class="btn primary" type="submit">Ajouter au journal</button>
+        </form>
+        <p class="small dk-size" id="dkJSize" aria-live="polite"></p>
+        <div id="dkJList" class="dk-trades"></div>
       </div>
     </section>
 
-    <!-- ============ CATALOGUE D'ETF ============ -->
-    <section id="view-catalog" class="view">
-      <div class="card">
-        <div class="card-head"><h2>Catalogue d'ETF<button type="button" class="info" aria-label="Explication" data-tip="Pour choisir un ETF ou construire ton allocation : des portefeuilles types prêts à servir de cible, et les ETF connus du site rangés par zone, du moins cher au plus cher.">i</button></h2></div>
-        <div id="catalogBody"></div>
+    <!-- ============ ANALYSE ============ -->
+    <section id="view-analysis" class="view" data-sub="composition">
+      <div class="seg subnav" id="anSubnav" role="tablist">
+        <button class="active" data-tab="composition">Composition</button>
+        <button data-tab="performance">Performance</button>
+        <button data-tab="risque">Risque</button>
+        <button data-tab="optimiser">Optimiser</button>
+      </div>
+
+      <div data-sub="composition" class="card hidden" id="healthCard">
+        <div class="card-head">
+          <h2>Bilan de santé<button type="button" class="info" aria-label="Explication" data-tip="Une note sur 100 calculée sur ta diversification (pays, secteurs, lignes non diversifiées), tes frais (ETF et courtage), les doublons, le respect de ta cible et la sauvegarde de tes données. Repères pédagogiques, pas un conseil en investissement : un portefeuille 100 % MSCI World est par exemple à ~72 % américain.">i</button></h2>
+        </div>
+        <div id="healthBody"></div>
+      </div>
+
+      <div data-sub="composition" class="card hidden" id="xrayCard">
+        <div class="card-head">
+          <h2>Radiographie : tes vraies entreprises <span class="q-new">nouveau</span><button type="button" class="info" aria-label="Explication" data-tip="À travers tes ETF, les entreprises dans lesquelles ton argent est réellement placé (principales lignes de chaque indice, pondérations approximatives) et ta dépendance aux « 7 Magnifiques » de la tech américaine.">i</button></h2>
+        </div>
+        <div id="xrayBody"></div>
+      </div>
+
+      <div data-sub="composition" class="card hidden" id="exposureCard">
+        <div class="card-head">
+          <h2>Exposition réelle &amp; frais<button type="button" class="info" aria-label="Explication" data-tip="Ce que contiennent vraiment tes ETF (pondéré par leur valeur)">i</button></h2>
+        </div>
+        <div id="exposureBody"></div>
+      </div>
+
+      <div data-sub="composition" class="card hidden" id="mapCard">
+        <div class="card-head">
+          <h2>Carte du portefeuille<button type="button" class="info" aria-label="Explication" data-tip="Chaque rectangle est une ligne, proportionnel à son poids. Couleur : vert si elle monte, rouge si elle baisse, d'autant plus foncé que la variation est forte. Touche un rectangle pour ouvrir sa fiche.">i</button></h2>
+          <div class="seg" id="mapMode">
+            <button class="active" data-mode="day">Aujourd'hui</button>
+            <button data-mode="gain">Plus-value</button>
+          </div>
+        </div>
+        <div class="map-box" id="mapBox"></div>
+      </div>
+
+      <div data-sub="performance" class="card hidden" id="moversCard">
+        <div class="card-head"><h2>Variations du jour</h2><span class="muted small" id="moversInfo"></span></div>
+        <div class="movers">
+          <div><h3 class="movers-title up">En hausse</h3><ul class="movers-list" id="moversUp"></ul></div>
+          <div><h3 class="movers-title down">En baisse</h3><ul class="movers-list" id="moversDown"></ul></div>
+        </div>
+      </div>
+
+      <div data-sub="performance" class="card hidden" id="contribCard">
+        <div class="card-head">
+          <h2>Ce qui a fait ton gain<button type="button" class="info" aria-label="Explication" data-tip="Gain de chaque ligne depuis ton premier achat : plus-value latente, plus-values réalisées par tes ventes et dividendes reçus. Les lignes déjà vendues sont incluses.">i</button></h2>
+          <span class="muted small" id="contribInfo"></span>
+        </div>
+        <ul class="contrib-list" id="contribList"></ul>
+      </div>
+
+      <div data-sub="performance" class="card" id="dkPnlCard">
+        <div class="card-head">
+          <h2>P&amp;L explain<button type="button" class="info" aria-label="Explication" data-tip="Le rapport qu'un gérant reçoit chaque soir : ton gain ou ta perte décomposé en effet des cours, effet des devises, qualité de tes prix d'achat et de vente, dividendes et frais ; puis la part due au marché et celle qui vient de tes choix.">i</button></h2>
+          <div class="seg small" id="dkPeriods" role="group" aria-label="Période"></div>
+        </div>
+        <div id="dkPnlBody"><p class="muted">Chargement des historiques…</p></div>
+      </div>
+
+      <div data-sub="performance" class="card" id="qBehavCard">
+        <div class="card-head">
+          <h2>Audit de tes décisions<button type="button" class="info" aria-label="Explication" data-tip="Tes vraies opérations passées au crible : ce que ton choix des dates t'a rapporté ou coûté, si tu achètes après les hausses, si tu vends dans les baisses, et l'écart entre ton rendement et celui de tes placements.">i</button></h2>
+          <button class="btn small" id="qBehavRun" type="button">Auditer</button>
+        </div>
+        <div id="qBehavBody"><p class="muted">Le premier risque d'un investisseur, c'est lui-même. Voyons ce que disent tes opérations.</p></div>
+      </div>
+
+      <div data-sub="risque" class="card hidden" id="riskCard">
+        <div class="card-head">
+          <h2>Risque du portefeuille<button type="button" class="info" aria-label="Explication" data-tip="Calculé sur la performance pondérée dans le temps (TWR), depuis ta première opération. Volatilité, pire baisse, ratio de Sharpe et bêta face au MSCI World.">i</button></h2>
+        </div>
+        <div id="riskBody"></div>
+      </div>
+
+      <div data-sub="risque" class="card q-hero">
+        <div>
+          <h2>Labo de risque</h2>
+          <p class="muted">Les outils des gérants institutionnels, appliqués à <b>ton</b> portefeuille et calculés dans ton navigateur : crash-tests sur les vraies crises, scénarios « et si… » multi-facteurs, anatomie du risque et stress test inversé. « Tout analyser » lance aussi la météo des marchés (Marchés › Monde) et l'audit de tes décisions (Analyse › Performance).</p>
+          <div class="q-all-progress hidden" id="qAllProgress" role="status" aria-live="polite"></div>
+        </div>
+        <button class="btn primary" id="qAllRun" type="button">Tout analyser</button>
+      </div>
+
+      <div data-sub="risque" class="card" id="qCrashCard">
+        <div class="card-head">
+          <h2>Crash-test historique<button type="button" class="info" aria-label="Explication" data-tip="Ton portefeuille d'aujourd'hui, avec ses poids actuels, rejoué dans les cinq grandes crises depuis 2000 : combien tu aurais perdu, combien de temps la chute aurait duré, et quand tu serais revenu au plus haut.">i</button></h2>
+          <button class="btn small" id="qCrashRun" type="button">Lancer</button>
+        </div>
+        <div id="qCrashBody"><p class="muted">Bulle internet, subprimes, zone euro, Covid, inflation 2022 : et si ton portefeuille actuel les avait traversées ?</p></div>
+      </div>
+
+      <div data-sub="risque" class="card" id="qScenCard">
+        <div class="card-head">
+          <h2>Scénarios « et si… »<button type="button" class="info" aria-label="Explication" data-tip="Impose un choc (« la tech perd 30 % », « le dollar chute de 15 % ») : les autres facteurs suivent selon leurs corrélations historiques, et l'impact est calculé ligne par ligne d'après la sensibilité réelle de chacune.">i</button></h2>
+          <button class="btn small" id="qScenRun" type="button">Préparer</button>
+        </div>
+        <div id="qScenBody"><p class="muted">Mesure la sensibilité de chaque ligne aux actions mondiales, à la tech, à l'Europe, au dollar et à l'or, puis teste n'importe quel scénario.</p></div>
+      </div>
+
+      <div data-sub="risque" class="card" id="qRiskCard">
+        <div class="card-head">
+          <h2>Anatomie du risque<button type="button" class="info" aria-label="Explication" data-tip="D'où vient vraiment ton risque : part de chaque ligne (décomposition d'Euler), nombre de paris réellement indépendants, perte probable sur un mois (VaR et Expected Shortfall) et répartition à risque égal.">i</button></h2>
+          <button class="btn small" id="qRiskRun" type="button">Analyser</button>
+        </div>
+        <div id="qRiskBody"><p class="muted">Tes lignes sont-elles vraiment diversifiées, ou bougent-elles toutes ensemble ?</p></div>
+      </div>
+
+      <div data-sub="risque" class="card i-card" id="iStressCard">
+        <div class="card-head">
+          <h2>Stress test inversé <span class="q-new">nouveau</span><button type="button" class="info" aria-label="Explication" data-tip="La question retournée : quel est le scénario de marché le plus probable qui te ferait perdre 25 % ? Le plus petit choc, d'après les corrélations historiques, sur les actions mondiales, la tech, l'Europe, le dollar et l'or. C'est l'exercice que les régulateurs imposent aux banques.">i</button></h2>
+          <button class="btn small" id="iStressRun" type="button">Lancer</button>
+        </div>
+        <div id="iStressBody"><p class="muted">Choisis la perte que tu ne veux pas subir : le site trouve le scénario le plus plausible qui la provoquerait, et à quelle fréquence il arrive.</p></div>
+      </div>
+
+      <div data-sub="optimiser" class="card" id="optCard">
+        <div class="card-head">
+          <h2>Optimiseur de répartition<button type="button" class="info" aria-label="Explication" data-tip="À partir des cours réels de tes lignes sur 3 ans, l'appli simule des milliers de répartitions et les place selon leur risque (volatilité) et leur rendement. Elle repère la moins risquée et celle qui rapporte le plus par unité de risque (ratio de Sharpe). Le passé ne se répète pas forcément : un éclairage, pas une recommandation.">i</button></h2>
+          <button class="btn small" id="optRun" type="button">Calculer</button>
+        </div>
+        <div id="optBody"><p class="muted small">Compare ta répartition à des milliers d'autres faites avec les mêmes ETF, sur leur historique réel.</p></div>
+      </div>
+
+      <div data-sub="optimiser" class="card i-card" id="iBlCard">
+        <div class="card-head">
+          <h2>Black-Litterman : tes convictions <span class="q-new">nouveau</span><button type="button" class="info" aria-label="Explication" data-tip="Le modèle de Goldman Sachs : tu donnes tes convictions (« le Nasdaq fera 12 % par an », « l'Europe fera mieux que les États-Unis de 2 % ») avec un niveau de confiance ; il les mélange proprement à l'équilibre de ta répartition et calcule la répartition optimale, sans les excès d'un optimiseur classique.">i</button></h2>
+          <button class="btn small" id="iBlRun" type="button">Préparer</button>
+        </div>
+        <div id="iBlBody"><p class="muted">Un optimiseur classique met tout sur la ligne qui a le plus monté. Black-Litterman part de ta répartition et ne la déplace qu'autant que tes convictions le justifient.</p></div>
       </div>
     </section>
 
     <!-- ============ MARCHÉS ============ -->
-    <section id="view-markets" class="view">
-      <div class="card">
+    <section id="view-markets" class="view" data-sub="suivi">
+      <div class="seg subnav" id="mkSubnav" role="tablist">
+        <button class="active" data-tab="suivi"><span class="lbl-long">Suivi &amp; fiches</span><span class="lbl-short">Suivi</span></button>
+        <button data-tab="monde">Monde</button>
+        <button data-tab="comparer">Comparer</button>
+        <button data-tab="etf"><span class="lbl-long">Catalogue d'ETF</span><span class="lbl-short">ETF</span></button>
+        <button data-tab="signaux">Signaux</button>
+      </div>
+
+      <div data-sub="suivi" class="card">
         <div class="card-head"><h2>Rechercher</h2></div>
         <div id="marketSearch"></div>
       </div>
 
-      <div class="grid-2 markets">
+      <div data-sub="suivi" class="grid-2 markets">
         <div class="card">
           <div class="card-head">
             <h2>Liste de suivi<button type="button" class="info" aria-label="Explication" data-tip="Cliquer sur une ligne pour voir le graphique">i</button></h2>
@@ -353,11 +444,45 @@
           <div id="detailNews"></div>
         </div>
       </div>
-    </section>
 
-    <!-- ============ COMPARER ============ -->
-    <section id="view-compare" class="view">
-      <div class="card">
+      <div data-sub="monde" class="card">
+        <div class="card-head">
+          <div>
+            <h2>Indicateurs mondiaux</h2>
+            <p class="muted small" id="macroNote">Indices, devises et matières premières en direct (via Yahoo Finance).</p>
+          </div>
+        </div>
+        <div class="macro-grid" id="macroGrid"></div>
+      </div>
+
+      <div data-sub="monde" class="card" id="qRegimeCard">
+        <div class="card-head">
+          <h2>Météo des marchés<button type="button" class="info" aria-label="Explication" data-tip="Un modèle de Markov caché découvre seul, dans 15 ans de rendements du MSCI World, deux régimes de marché : calme (hausse régulière, faible volatilité) et agité (volatilité forte, krachs). Il estime dans lequel on se trouve aujourd'hui.">i</button></h2>
+          <button class="btn small" id="qRegimeRun" type="button">Analyser</button>
+        </div>
+        <div id="qRegimeBody"><p class="muted">Calme ou tempête ? Lance l'analyse pour voir dans quel régime se trouve le marché mondial.</p></div>
+      </div>
+
+      <div data-sub="monde" class="card">
+        <div class="card-head">
+          <div>
+            <h2>Horaires des bourses<button type="button" class="info" aria-label="Explication" data-tip="Séances affichées à ton heure locale. Jours fériés et clôtures anticipées 2026-2027 gérés pour Euronext, Xetra, Londres et New York ; pour les autres places, seuls les week-ends sont pris en compte.">i</button></h2>
+            <p class="muted small">Ton heure : <b id="localClock" class="mono"></b> <span id="localTz"></span></p>
+          </div>
+          <div class="seg" id="regionSel">
+            <button class="active" data-region="all">Toutes</button>
+            <button data-region="mine">Mes marchés</button>
+            <button data-region="Europe">Europe</button>
+            <button data-region="Amériques">Amériques</button>
+            <button data-region="Asie-Pacifique">Asie</button>
+          </div>
+        </div>
+        <div class="timeline" id="timeline"></div>
+      </div>
+
+      <div data-sub="monde" class="exchange-grid" id="exchangeGrid"></div>
+
+      <div data-sub="comparer" class="card">
         <div class="card-head">
           <div>
             <h2>Comparer des valeurs<button type="button" class="info" aria-label="Explication" data-tip="Indices, ETF, actions, or, crypto… ou ton propre portefeuille. Jusqu&#x27;à 5 valeurs, ramenées au même point de départ.">i</button></h2>
@@ -393,136 +518,66 @@
           <div class="chart-box"><canvas id="cmpRelChart"></canvas></div>
         </div>
       </div>
-      <div class="card">
+
+      <div data-sub="comparer" class="card">
         <div class="card-head"><h2>Statistiques sur la période</h2></div>
         <div id="cmpStats"></div>
         <div id="cmpCorr"></div>
         <p class="muted small" id="cmpNote"></p>
       </div>
-    </section>
 
-    <!-- ============ MONDE ============ -->
-    <section id="view-world" class="view">
-      <div class="card">
-        <div class="card-head">
-          <div>
-            <h2>Indicateurs mondiaux</h2>
-            <p class="muted small" id="macroNote">Indices, devises et matières premières en direct (via Yahoo Finance).</p>
-          </div>
-        </div>
-        <div class="macro-grid" id="macroGrid"></div>
+      <div data-sub="etf" class="card" id="catalogCard">
+        <div class="card-head"><h2>Catalogue d'ETF<button type="button" class="info" aria-label="Explication" data-tip="Pour choisir un ETF ou construire ton allocation : des portefeuilles types prêts à servir de cible, et les ETF connus du site rangés par zone, du moins cher au plus cher.">i</button></h2></div>
+        <div id="catalogBody"></div>
       </div>
 
-      <div class="card">
+      <div data-sub="signaux" class="card" id="scanCard">
         <div class="card-head">
-          <div>
-            <h2>Horaires des bourses<button type="button" class="info" aria-label="Explication" data-tip="Séances affichées à ton heure locale. Jours fériés et clôtures anticipées 2026-2027 gérés pour Euronext, Xetra, Londres et New York ; pour les autres places, seuls les week-ends sont pris en compte.">i</button></h2>
-            <p class="muted small">Ton heure : <b id="localClock" class="mono"></b> <span id="localTz"></span></p>
-          </div>
-          <div class="seg" id="regionSel">
-            <button class="active" data-region="all">Toutes</button>
-            <button data-region="mine">Mes marchés</button>
-            <button data-region="Europe">Europe</button>
-            <button data-region="Amériques">Amériques</button>
-            <button data-region="Asie-Pacifique">Asie</button>
-          </div>
+          <h2>Scanner de signaux <span class="q-new">nouveau</span><button type="button" class="info" aria-label="Explication" data-tip="Tes lignes et ta liste de suivi passées au crible des signaux qu'observent les traders : RSI (suracheté / survendu), croisement des moyennes 50 et 200 jours (golden cross, death cross), plus haut ou plus bas sur 52 semaines, mouvement inhabituel, séries de hausses ou de baisses, marché baissier.">i</button></h2>
+          <button class="btn small" id="scanRun" type="button">Scanner</button>
         </div>
-        <div class="timeline" id="timeline"></div>
+        <div id="scanBody"><p class="muted">Un balayage de toutes tes valeurs en quelques secondes : ce qui sort de l'ordinaire aujourd'hui.</p></div>
       </div>
 
-      <div class="exchange-grid" id="exchangeGrid"></div>
-    </section>
-
-    <!-- ============ INVESTIR ============ -->
-    <section id="view-invest" class="view">
-      <div class="card">
+      <div data-sub="signaux" class="card" id="dkSigCard">
         <div class="card-head">
-          <h2>Mes objectifs<button type="button" class="info" aria-label="Explication" data-tip="Un ou plusieurs objectifs (retraite, apport immobilier, études…), chacun financé par tous tes comptes ou par certains. Projection avec ton versement mensuel et un rendement moyen supposé. Le premier objectif sert aussi de repère dans la Simulation.">i</button></h2>
-          <button class="btn small" id="goalAdd" type="button">+ Objectif</button>
-        </div>
-        <div id="goalList" class="goal-list"></div>
-      </div>
-
-      <div class="card">
-        <div class="card-head">
-          <div>
-            <h2>Allocation cible & plan d'investissement<button type="button" class="info" aria-label="Explication" data-tip="Fixe la répartition idéale de ton portefeuille, indique la somme à investir : le site calcule combien de parts acheter de chaque ETF pour te rapprocher de ta cible.">i</button></h2>
-          </div>
+          <h2>Signaux &amp; stratégies tactiques<button type="button" class="info" aria-label="Explication" data-tip="Les règles des fonds « trend following » : rester investi quand le marché est au-dessus de sa moyenne 10 mois ou que son momentum 12 mois est positif, passer en liquidités sinon, ou ajuster l'exposition pour viser une volatilité. Chacune est rejouée sur ton portefeuille depuis 2000.">i</button></h2>
           <div class="actions">
-            <button class="btn" id="tgtFromPf">Reprendre les poids actuels</button>
-            <button class="btn" id="tgtEqual">Répartir équitablement</button>
-            <button class="btn" id="tgtShare" title="Lien avec les ETF et les pourcentages seulement, sans aucun montant">🔗 Partager</button>
+            <label class="dk-vol small">Volatilité cible <input type="number" id="dkVol" min="2" max="40" step="1" value="10" inputmode="decimal"> %</label>
+            <button class="btn small" id="dkSigRun" type="button">Tester</button>
           </div>
         </div>
-        <div class="table-wrap">
-          <table class="data" id="tgtTable">
-            <thead>
-              <tr><th>ETF</th><th class="num">Cours</th><th class="num">Valeur actuelle</th><th class="num">% actuel</th><th class="num">% cible</th><th class="num">Écart</th><th></th></tr>
-            </thead>
-            <tbody></tbody>
-            <tfoot></tfoot>
-          </table>
-        </div>
-        <div id="tgtPicker" style="margin-top:12px"></div>
+        <div id="dkSigBody"><p class="muted">Bulle internet, subprimes, Covid, 2022 : une règle simple aurait-elle protégé ton portefeuille ? Et que disent les signaux aujourd'hui ?</p></div>
+      </div>
+    </section>
 
-        <div id="rebalBox" class="rebal-box"></div>
-
-        <h3>Ce mois-ci, j'investis…</h3>
-        <div class="form-grid">
-          <label><span>Montant (<span class="ccy"></span>)</span>
-            <input type="number" id="planAmount" min="0" step="50" value="500">
-          </label>
-          <label class="check"><input type="checkbox" id="planFractional"> Parts fractionnées</label>
-          <label class="check"><input type="checkbox" id="planSell"> Autoriser les ventes (rééquilibrage complet)</label>
-        </div>
-        <div id="planResult"></div>
+    <!-- ============ AGENDA ============ -->
+    <section id="view-agenda" class="view" data-sub="agenda">
+      <div class="seg subnav" id="agSubnav" role="tablist">
+        <button class="active" data-tab="agenda">Agenda</button>
+        <button data-tab="actus">Actualités</button>
+        <button data-tab="alertes">Alertes</button>
       </div>
 
-      <div class="card wd-card" id="wdCard">
+      <div data-sub="agenda" class="card">
         <div class="card-head">
-          <h2>Retrait malin<span class="q-new">nouveau</span><button type="button" class="info" aria-label="Explication" data-tip="Tu as besoin d'argent ? Indique le montant net : le site cherche quoi vendre, et sur quel compte, pour payer le moins d'impôt et de frais possible (liquidités, moins-values, reports de pertes, PEA de plus de 5 ans, abattement de l'assurance-vie…), et te montre l'économie face à « vendre un peu de tout ».">i</button></h2>
+          <h2>Agenda<button type="button" class="info" aria-label="Explication" data-tip="Tes 12 prochains mois : versements programmés, dividendes attendus (d'après ceux de l'an dernier), publications de résultats des actions de ton portefeuille et de ta watchlist (avec le bénéfice et le chiffre d'affaires attendus par les analystes), grands rendez-vous des indices (Fed, BCE, Banques d'Angleterre et du Japon, inflation et emploi américains, échéances trimestrielles), jours où tes bourses sont fermées, jalons de tes PEA et assurances-vie, déclaration de revenus et relevés à saisir. « Ajouter à mon agenda » crée un fichier à ouvrir sur ton téléphone ou ton ordinateur.">i</button></h2>
+          <button class="btn small" id="agendaExport">📅 Ajouter à mon agenda</button>
         </div>
-        <div class="wd-form">
-          <label><span>J'ai besoin de (<span class="ccy"></span>, net d'impôt)</span>
-            <input type="number" id="wdAmount" min="0" step="100" inputmode="decimal" placeholder="ex. 10000">
-          </label>
-          <label class="check"><input type="checkbox" id="wdWhole" checked> Parts entières</label>
-          <button class="btn primary" id="wdRun" type="button">Trouver le moins cher</button>
-        </div>
-        <div id="wdBody"><p class="muted">Un apport, des travaux, un imprévu : avant de vendre, regarde combien d'impôt tu peux éviter.</p></div>
+        <div class="seg agenda-kinds" id="agendaKinds"></div>
+        <p class="muted small" id="agendaNote" hidden></p>
+        <div id="agendaList"></div>
       </div>
 
-      <div class="card hidden" id="radarCard">
+      <div data-sub="actus" class="card hidden" id="newsCard">
         <div class="card-head">
-          <h2>Radar fiscal<span class="q-new">nouveau</span><button type="button" class="info" aria-label="Explication" data-tip="Le site surveille tes comptes et repère l'impôt évitable : moins-values à constater avant le 31 décembre, reports de pertes qui vont expirer, gains à purger sans impôt (compte-titres et assurance-vie), anniversaires du PEA et de l'assurance-vie à attendre, dividendes taxés chaque année.">i</button></h2>
+          <h2>Actualités de mes placements</h2>
+          <span class="muted small" id="newsSource">Presse financière française</span>
         </div>
-        <div id="radarBody"></div>
+        <ul class="news-list" id="newsList" style="list-style:none;margin:0;padding:0"></ul>
       </div>
 
-      <div class="card" id="plansCard">
-        <div class="card-head">
-          <div>
-            <h2>Versements programmés<button type="button" class="info" aria-label="Explication" data-tip="Ton investissement mensuel automatique (DCA) : à chaque échéance, l&#x27;achat apparaît dans « À faire » sur le portefeuille, pré-rempli avec le cours du jour, et s&#x27;enregistre en un clic.">i</button></h2>
-          </div>
-        </div>
-        <div class="table-wrap">
-          <table class="data" id="plansTable">
-            <thead><tr><th>ETF</th><th>Compte</th><th class="num">Montant</th><th class="num">Jour</th><th>Prochaine échéance</th><th>État</th><th></th></tr></thead>
-            <tbody></tbody>
-          </table>
-        </div>
-        <form class="plan-form" id="planForm">
-          <label>ETF<select id="planKey" required></select></label>
-          <label id="planAccWrap">Compte<select id="planAcc"></select></label>
-          <label><span>Montant (<span class="ccy"></span>)</span><input type="number" id="planAmt" min="1" step="any" required placeholder="200"></label>
-          <label>Jour du mois<input type="number" id="planDay" min="1" max="31" value="5" required></label>
-          <label>À partir du<input type="date" id="planStart" required></label>
-          <label class="check"><input type="checkbox" id="planFrac"> Parts fractionnées</label>
-          <button class="btn primary" type="submit">Ajouter</button>
-        </form>
-      </div>
-
-      <div class="card">
+      <div data-sub="alertes" class="card">
         <div class="card-head">
           <div>
             <h2>Alertes de prix<button type="button" class="info" aria-label="Explication" data-tip="Vérifiées à chaque rafraîchissement tant que le site est ouvert, et même site fermé si les notifications push sont activées ci-dessous.">i</button></h2>
@@ -563,9 +618,82 @@
       </div>
     </section>
 
-    <!-- ============ SIMULATION ============ -->
-    <section id="view-simulation" class="view">
-      <div class="card i-card" id="iPlanCard">
+    <!-- ============ PLANIFIER ============ -->
+    <section id="view-plan" class="view" data-sub="investir">
+      <div class="seg subnav" id="plSubnav" role="tablist">
+        <button class="active" data-tab="investir">Investir</button>
+        <button data-tab="objectifs">Objectifs</button>
+        <button data-tab="simuler">Simuler</button>
+        <button data-tab="arene">Arène</button>
+      </div>
+
+      <div data-sub="investir" class="card">
+        <div class="card-head">
+          <div>
+            <h2>Allocation cible & plan d'investissement<button type="button" class="info" aria-label="Explication" data-tip="Fixe la répartition idéale de ton portefeuille, indique la somme à investir : le site calcule combien de parts acheter de chaque ETF pour te rapprocher de ta cible.">i</button></h2>
+          </div>
+          <div class="actions">
+            <button class="btn" id="tgtFromPf">Reprendre les poids actuels</button>
+            <button class="btn" id="tgtEqual">Répartir équitablement</button>
+            <button class="btn" id="tgtShare" title="Lien avec les ETF et les pourcentages seulement, sans aucun montant">🔗 Partager</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data" id="tgtTable">
+            <thead>
+              <tr><th>ETF</th><th class="num">Cours</th><th class="num">Valeur actuelle</th><th class="num">% actuel</th><th class="num">% cible</th><th class="num">Écart</th><th></th></tr>
+            </thead>
+            <tbody></tbody>
+            <tfoot></tfoot>
+          </table>
+        </div>
+        <div id="tgtPicker" style="margin-top:12px"></div>
+
+        <div id="rebalBox" class="rebal-box"></div>
+
+        <h3>Ce mois-ci, j'investis…</h3>
+        <div class="form-grid">
+          <label><span>Montant (<span class="ccy"></span>)</span>
+            <input type="number" id="planAmount" min="0" step="50" value="500">
+          </label>
+          <label class="check"><input type="checkbox" id="planFractional"> Parts fractionnées</label>
+          <label class="check"><input type="checkbox" id="planSell"> Autoriser les ventes (rééquilibrage complet)</label>
+        </div>
+        <div id="planResult"></div>
+      </div>
+
+      <div data-sub="investir" class="card" id="plansCard">
+        <div class="card-head">
+          <div>
+            <h2>Versements programmés<button type="button" class="info" aria-label="Explication" data-tip="Ton investissement mensuel automatique (DCA) : à chaque échéance, l&#x27;achat apparaît dans « À faire » sur le portefeuille, pré-rempli avec le cours du jour, et s&#x27;enregistre en un clic.">i</button></h2>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data" id="plansTable">
+            <thead><tr><th>ETF</th><th>Compte</th><th class="num">Montant</th><th class="num">Jour</th><th>Prochaine échéance</th><th>État</th><th></th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <form class="plan-form" id="planForm">
+          <label>ETF<select id="planKey" required></select></label>
+          <label id="planAccWrap">Compte<select id="planAcc"></select></label>
+          <label><span>Montant (<span class="ccy"></span>)</span><input type="number" id="planAmt" min="1" step="any" required placeholder="200"></label>
+          <label>Jour du mois<input type="number" id="planDay" min="1" max="31" value="5" required></label>
+          <label>À partir du<input type="date" id="planStart" required></label>
+          <label class="check"><input type="checkbox" id="planFrac"> Parts fractionnées</label>
+          <button class="btn primary" type="submit">Ajouter</button>
+        </form>
+      </div>
+
+      <div data-sub="objectifs" class="card">
+        <div class="card-head">
+          <h2>Mes objectifs<button type="button" class="info" aria-label="Explication" data-tip="Un ou plusieurs objectifs (retraite, apport immobilier, études…), chacun financé par tous tes comptes ou par certains. Projection avec ton versement mensuel et un rendement moyen supposé. Le premier objectif sert aussi de repère dans la Simulation.">i</button></h2>
+          <button class="btn small" id="goalAdd" type="button">+ Objectif</button>
+        </div>
+        <div id="goalList" class="goal-list"></div>
+      </div>
+
+      <div data-sub="objectifs" class="card i-card" id="iPlanCard">
         <div class="card-head">
           <h2>Planificateur probabiliste <span class="q-new">nouveau</span><button type="button" class="info" aria-label="Explication" data-tip="3 000 futurs possibles construits à partir de 26 ans d'historique réel de ta répartition (krachs compris), avec tes versements et l'inflation : la probabilité d'atteindre ton objectif, et combien verser chaque mois pour avoir 50, 75 ou 90 % de chances.">i</button></h2>
         </div>
@@ -580,20 +708,66 @@
         <div id="iPlanBody"></div>
       </div>
 
-      <div class="card" id="labCard">
+      <div data-sub="objectifs" class="card">
         <div class="card-head">
-          <h2>Laboratoire de stratégies<button type="button" class="info" aria-label="Explication" data-tip="Le même argent investi de quatre façons, rejoué sur l'historique réel de tes ETF (ta répartition cible, ou ton portefeuille actuel) : versements mensuels, tout au début, versements + rééquilibrage annuel, attendre les baisses. Pour voir ce qui a vraiment marché, et pourquoi.">i</button></h2>
+          <div>
+            <h2>Projection dans le futur<button type="button" class="info" aria-label="Explication" data-tip="Intérêts composés avec versements mensuels. Hypothèse de rendement, pas une promesse !">i</button></h2>
+          </div>
         </div>
-        <div class="lab-form">
-          <label><span>Versement mensuel (<span class="ccy"></span>)</span><input type="number" id="labMonthly" min="10" step="50" inputmode="decimal"></label>
-          <label>Période<select id="labYears"><option value="3">3 ans</option><option value="5" selected>5 ans</option><option value="10">10 ans</option><option value="15">15 ans</option></select></label>
-          <button class="btn primary" id="labRun" type="button">Comparer</button>
-          <label class="check small lab-extend"><input type="checkbox" id="labExtend" checked> Prolonger avec l'indice suivi<button type="button" class="info" aria-label="Explication" data-tip="Si un de tes ETF est plus récent que la période choisie (par exemple lancé en 2019 pour une période de 15 ans), on utilise avant son lancement l'indice qu'il réplique. Sinon, la comparaison démarre au lancement de ton ETF le plus récent.">i</button></label>
+        <div class="form-grid">
+          <label><span>Capital de départ (<span class="ccy"></span>)</span>
+            <div class="inline">
+              <input type="number" id="projInitial" min="0" step="100" value="10000">
+              <button class="btn small" id="projFromPf" title="Utiliser la valeur actuelle du portefeuille">Mon PF</button>
+            </div>
+          </label>
+          <label><span>Versement mensuel (<span class="ccy"></span>)</span>
+            <input type="number" id="projMonthly" min="0" step="50" value="300">
+          </label>
+          <label>Rendement annuel moyen (%)
+            <input type="number" id="projRate" step="0.5" value="7">
+          </label>
+          <label>Frais annuels (%)
+            <input type="number" id="projFees" step="0.05" min="0" value="0.2">
+          </label>
+          <label>Durée (années)
+            <input type="number" id="projYears" min="1" max="60" value="20">
+          </label>
+          <label>Volatilité annuelle (%)
+            <input type="number" id="projVol" min="0" max="80" step="1" value="15" title="Amplitude des variations : ~15 % pour un ETF Monde, ~20 % pour le Nasdaq, ~5 % pour un fonds obligataire">
+          </label>
         </div>
-        <div id="labBody"></div>
+        <div class="kpis" id="projKpis"></div>
+        <h3>Scénarios<button type="button" class="info" aria-label="Explication" data-tip="Monte-Carlo, 2 000 trajectoires. La zone colorée contient 80 % des scénarios simulés (entre le 10e et le 90e centile) : les marchés ne montent pas en ligne droite. Le rendement saisi est le rendement médian ; la volatilité mesure l&#x27;ampleur des variations d&#x27;une année à l&#x27;autre.">i</button></h3>
+        <div class="kpis" id="projMcKpis"></div>
+        <div class="chart-box wide"><canvas id="projChart"></canvas></div>
       </div>
 
-      <div class="card">
+      <div data-sub="objectifs" class="card" id="retireCard">
+        <div class="card-head">
+          <div>
+            <h2>Phase de retraite : vivre de son capital<button type="button" class="info" aria-label="Explication" data-tip="Retraits mensuels sur un capital qui reste placé. Combien de temps tient-il, selon les scénarios de marché ? Monte-Carlo, 2 000 trajectoires, mêmes hypothèses de marché que la projection. Le retrait de la première année est indexé chaque année sur l&#x27;inflation. Hors impôts sur les retraits. Une simulation, pas un conseil.">i</button></h2>
+          </div>
+        </div>
+        <div class="form-grid">
+          <label><span>Capital de départ (<span class="ccy"></span>)</span>
+            <div class="inline wrap">
+              <input type="number" id="retInitial" min="0" step="1000" value="300000">
+              <button class="btn small" id="retFromWealth" type="button" title="Utiliser ton patrimoine financier : titres, espèces et épargne (hors immobilier)">Mon patrimoine</button>
+            </div>
+          </label>
+          <label><span>Retrait mensuel (<span class="ccy"></span>)</span><input type="number" id="retWithdraw" min="0" step="50" value="1200"></label>
+          <label>Inflation (indexation annuelle, %)<input type="number" id="retInflation" min="0" max="20" step="0.1" value="2"></label>
+          <label>Durée (années)<input type="number" id="retYears" min="1" max="60" value="30"></label>
+          <label>Rendement annuel moyen (%, net de frais)<input type="number" id="retRate" step="0.5" value="5"></label>
+          <label>Volatilité annuelle (%)<input type="number" id="retVol" min="0" max="80" step="1" value="12"></label>
+          <label>Ton âge aujourd'hui (optionnel)<input type="number" id="retAge" min="18" max="110" step="1" placeholder="ex. 62"></label>
+        </div>
+        <div class="kpis" id="retKpis"></div>
+        <div class="chart-box wide"><canvas id="retChart"></canvas></div>
+      </div>
+
+      <div data-sub="simuler" class="card">
         <div class="card-head">
           <div>
             <h2>Simulation sur données réelles<button type="button" class="info" aria-label="Explication" data-tip="« Et si j&#x27;avais investi… » — choisis tes ETF, la répartition en %, les sommes et la date de départ. Les achats sont rejoués au cours de clôture réel.">i</button></h2>
@@ -650,137 +824,20 @@
         </div>
       </div>
 
-      <div class="card">
+      <div data-sub="simuler" class="card" id="labCard">
         <div class="card-head">
-          <div>
-            <h2>Projection dans le futur<button type="button" class="info" aria-label="Explication" data-tip="Intérêts composés avec versements mensuels. Hypothèse de rendement, pas une promesse !">i</button></h2>
-          </div>
+          <h2>Laboratoire de stratégies<button type="button" class="info" aria-label="Explication" data-tip="Le même argent investi de quatre façons, rejoué sur l'historique réel de tes ETF (ta répartition cible, ou ton portefeuille actuel) : versements mensuels, tout au début, versements + rééquilibrage annuel, attendre les baisses. Pour voir ce qui a vraiment marché, et pourquoi.">i</button></h2>
         </div>
-        <div class="form-grid">
-          <label><span>Capital de départ (<span class="ccy"></span>)</span>
-            <div class="inline">
-              <input type="number" id="projInitial" min="0" step="100" value="10000">
-              <button class="btn small" id="projFromPf" title="Utiliser la valeur actuelle du portefeuille">Mon PF</button>
-            </div>
-          </label>
-          <label><span>Versement mensuel (<span class="ccy"></span>)</span>
-            <input type="number" id="projMonthly" min="0" step="50" value="300">
-          </label>
-          <label>Rendement annuel moyen (%)
-            <input type="number" id="projRate" step="0.5" value="7">
-          </label>
-          <label>Frais annuels (%)
-            <input type="number" id="projFees" step="0.05" min="0" value="0.2">
-          </label>
-          <label>Durée (années)
-            <input type="number" id="projYears" min="1" max="60" value="20">
-          </label>
-          <label>Volatilité annuelle (%)
-            <input type="number" id="projVol" min="0" max="80" step="1" value="15" title="Amplitude des variations : ~15 % pour un ETF Monde, ~20 % pour le Nasdaq, ~5 % pour un fonds obligataire">
-          </label>
+        <div class="lab-form">
+          <label><span>Versement mensuel (<span class="ccy"></span>)</span><input type="number" id="labMonthly" min="10" step="50" inputmode="decimal"></label>
+          <label>Période<select id="labYears"><option value="3">3 ans</option><option value="5" selected>5 ans</option><option value="10">10 ans</option><option value="15">15 ans</option></select></label>
+          <button class="btn primary" id="labRun" type="button">Comparer</button>
+          <label class="check small lab-extend"><input type="checkbox" id="labExtend" checked> Prolonger avec l'indice suivi<button type="button" class="info" aria-label="Explication" data-tip="Si un de tes ETF est plus récent que la période choisie (par exemple lancé en 2019 pour une période de 15 ans), on utilise avant son lancement l'indice qu'il réplique. Sinon, la comparaison démarre au lancement de ton ETF le plus récent.">i</button></label>
         </div>
-        <div class="kpis" id="projKpis"></div>
-        <h3>Scénarios<button type="button" class="info" aria-label="Explication" data-tip="Monte-Carlo, 2 000 trajectoires. La zone colorée contient 80 % des scénarios simulés (entre le 10e et le 90e centile) : les marchés ne montent pas en ligne droite. Le rendement saisi est le rendement médian ; la volatilité mesure l&#x27;ampleur des variations d&#x27;une année à l&#x27;autre.">i</button></h3>
-        <div class="kpis" id="projMcKpis"></div>
-        <div class="chart-box wide"><canvas id="projChart"></canvas></div>
+        <div id="labBody"></div>
       </div>
 
-      <div class="card" id="retireCard">
-        <div class="card-head">
-          <div>
-            <h2>Phase de retraite : vivre de son capital<button type="button" class="info" aria-label="Explication" data-tip="Retraits mensuels sur un capital qui reste placé. Combien de temps tient-il, selon les scénarios de marché ? Monte-Carlo, 2 000 trajectoires, mêmes hypothèses de marché que la projection. Le retrait de la première année est indexé chaque année sur l&#x27;inflation. Hors impôts sur les retraits. Une simulation, pas un conseil.">i</button></h2>
-          </div>
-        </div>
-        <div class="form-grid">
-          <label><span>Capital de départ (<span class="ccy"></span>)</span>
-            <div class="inline wrap">
-              <input type="number" id="retInitial" min="0" step="1000" value="300000">
-              <button class="btn small" id="retFromWealth" type="button" title="Utiliser ton patrimoine financier : titres, espèces et épargne (hors immobilier)">Mon patrimoine</button>
-            </div>
-          </label>
-          <label><span>Retrait mensuel (<span class="ccy"></span>)</span><input type="number" id="retWithdraw" min="0" step="50" value="1200"></label>
-          <label>Inflation (indexation annuelle, %)<input type="number" id="retInflation" min="0" max="20" step="0.1" value="2"></label>
-          <label>Durée (années)<input type="number" id="retYears" min="1" max="60" value="30"></label>
-          <label>Rendement annuel moyen (%, net de frais)<input type="number" id="retRate" step="0.5" value="5"></label>
-          <label>Volatilité annuelle (%)<input type="number" id="retVol" min="0" max="80" step="1" value="12"></label>
-          <label>Ton âge aujourd'hui (optionnel)<input type="number" id="retAge" min="18" max="110" step="1" placeholder="ex. 62"></label>
-        </div>
-        <div class="kpis" id="retKpis"></div>
-        <div class="chart-box wide"><canvas id="retChart"></canvas></div>
-      </div>
-    </section>
-
-    <!-- ============ RÉGLAGES ============ -->
-    <!-- ============ LABO QUANT ============ -->
-    <section id="view-quant" class="view">
-      <div class="card q-hero">
-        <div>
-          <h2>Labo quant</h2>
-          <p class="muted">Les outils des gérants institutionnels, appliqués à <b>ton</b> portefeuille et calculés dans ton navigateur : crash-tests sur les vraies crises, scénarios conditionnels multi-facteurs, anatomie du risque, détection de régime de marché et audit de tes propres décisions.</p>
-          <div class="q-all-progress hidden" id="qAllProgress" role="status" aria-live="polite"></div>
-        </div>
-        <button class="btn primary" id="qAllRun" type="button">Tout analyser</button>
-      </div>
-
-      <div class="card" id="qRegimeCard">
-        <div class="card-head">
-          <h2>Météo des marchés<button type="button" class="info" aria-label="Explication" data-tip="Un modèle de Markov caché découvre seul, dans 15 ans de rendements du MSCI World, deux régimes de marché : calme (hausse régulière, faible volatilité) et agité (volatilité forte, krachs). Il estime dans lequel on se trouve aujourd'hui.">i</button></h2>
-          <button class="btn small" id="qRegimeRun" type="button">Analyser</button>
-        </div>
-        <div id="qRegimeBody"><p class="muted">Calme ou tempête ? Lance l'analyse pour voir dans quel régime se trouve le marché mondial.</p></div>
-      </div>
-
-      <div class="card" id="qCrashCard">
-        <div class="card-head">
-          <h2>Crash-test historique<button type="button" class="info" aria-label="Explication" data-tip="Ton portefeuille d'aujourd'hui, avec ses poids actuels, rejoué dans les cinq grandes crises depuis 2000 : combien tu aurais perdu, combien de temps la chute aurait duré, et quand tu serais revenu au plus haut.">i</button></h2>
-          <button class="btn small" id="qCrashRun" type="button">Lancer</button>
-        </div>
-        <div id="qCrashBody"><p class="muted">Bulle internet, subprimes, zone euro, Covid, inflation 2022 : et si ton portefeuille actuel les avait traversées ?</p></div>
-      </div>
-
-      <div class="card" id="qScenCard">
-        <div class="card-head">
-          <h2>Scénarios « et si… »<button type="button" class="info" aria-label="Explication" data-tip="Impose un choc (« la tech perd 30 % », « le dollar chute de 15 % ») : les autres facteurs suivent selon leurs corrélations historiques, et l'impact est calculé ligne par ligne d'après la sensibilité réelle de chacune.">i</button></h2>
-          <button class="btn small" id="qScenRun" type="button">Préparer</button>
-        </div>
-        <div id="qScenBody"><p class="muted">Mesure la sensibilité de chaque ligne aux actions mondiales, à la tech, à l'Europe, au dollar et à l'or, puis teste n'importe quel scénario.</p></div>
-      </div>
-
-      <div class="card" id="qRiskCard">
-        <div class="card-head">
-          <h2>Anatomie du risque<button type="button" class="info" aria-label="Explication" data-tip="D'où vient vraiment ton risque : part de chaque ligne (décomposition d'Euler), nombre de paris réellement indépendants, perte probable sur un mois (VaR et Expected Shortfall) et répartition à risque égal.">i</button></h2>
-          <button class="btn small" id="qRiskRun" type="button">Analyser</button>
-        </div>
-        <div id="qRiskBody"><p class="muted">Tes lignes sont-elles vraiment diversifiées, ou bougent-elles toutes ensemble ?</p></div>
-      </div>
-
-      <div class="card" id="qBehavCard">
-        <div class="card-head">
-          <h2>Audit de tes décisions<button type="button" class="info" aria-label="Explication" data-tip="Tes vraies opérations passées au crible : ce que ton choix des dates t'a rapporté ou coûté, si tu achètes après les hausses, si tu vends dans les baisses, et l'écart entre ton rendement et celui de tes placements.">i</button></h2>
-          <button class="btn small" id="qBehavRun" type="button">Auditer</button>
-        </div>
-        <div id="qBehavBody"><p class="muted">Le premier risque d'un investisseur, c'est lui-même. Voyons ce que disent tes opérations.</p></div>
-      </div>
-    
-      <div class="card i-card" id="iStressCard">
-        <div class="card-head">
-          <h2>Stress test inversé <span class="q-new">nouveau</span><button type="button" class="info" aria-label="Explication" data-tip="La question retournée : quel est le scénario de marché le plus probable qui te ferait perdre 25 % ? Le plus petit choc, d'après les corrélations historiques, sur les actions mondiales, la tech, l'Europe, le dollar et l'or. C'est l'exercice que les régulateurs imposent aux banques.">i</button></h2>
-          <button class="btn small" id="iStressRun" type="button">Lancer</button>
-        </div>
-        <div id="iStressBody"><p class="muted">Choisis la perte que tu ne veux pas subir : le site trouve le scénario le plus plausible qui la provoquerait, et à quelle fréquence il arrive.</p></div>
-      </div>
-
-      <div class="card i-card" id="iBlCard">
-        <div class="card-head">
-          <h2>Black-Litterman : tes convictions <span class="q-new">nouveau</span><button type="button" class="info" aria-label="Explication" data-tip="Le modèle de Goldman Sachs : tu donnes tes convictions (« le Nasdaq fera 12 % par an », « l'Europe fera mieux que les États-Unis de 2 % ») avec un niveau de confiance ; il les mélange proprement à l'équilibre de ta répartition et calcule la répartition optimale, sans les excès d'un optimiseur classique.">i</button></h2>
-          <button class="btn small" id="iBlRun" type="button">Préparer</button>
-        </div>
-        <div id="iBlBody"><p class="muted">Un optimiseur classique met tout sur la ligne qui a le plus monté. Black-Litterman part de ta répartition et ne la déplace qu'autant que tes convictions le justifient.</p></div>
-      </div>
-    </section>
-
-    <section id="view-arena" class="view">
-      <div class="card q-hero ar-hero">
+      <div data-sub="arene" class="card q-hero ar-hero">
         <div>
           <h2>Arène</h2>
           <p class="muted">La bourse côté jeu, sur de vraies données : ce que serait devenu chacun de tes euros dans d'autres univers, un défi de trading à l'aveugle sur une vraie période historique, et ton portefeuille lu à voix haute ou joué en musique.</p>
@@ -790,9 +847,10 @@
           <button class="btn" id="arPlay" type="button" disabled>🎵 Écouter mon parcours</button>
         </div>
       </div>
-      <p class="ar-brief-text small hidden" id="arBriefText" aria-live="polite"></p>
 
-      <div class="card" id="arMvCard">
+      <p data-sub="arene" class="ar-brief-text small hidden" id="arBriefText" aria-live="polite"></p>
+
+      <div data-sub="arene" class="card" id="arMvCard">
         <div class="card-head">
           <h2>Univers parallèles<button type="button" class="info" aria-label="Explication" data-tip="Chacun de tes vrais achats, au même montant et à la même date, rejoué dans d'autres univers : argent sous le matelas, Livret A, MSCI World, S&amp;P 500, Nasdaq-100, CAC 40, or, Bitcoin. Course animée jusqu'à aujourd'hui.">i</button></h2>
           <button class="btn small" id="arMvRun" type="button">Recalculer</button>
@@ -800,7 +858,7 @@
         <div id="arMvBody"><p class="muted">Chargement des univers…</p></div>
       </div>
 
-      <div class="card" id="arGameCard">
+      <div data-sub="arene" class="card" id="arGameCard">
         <div class="card-head">
           <h2>Défi à l'aveugle<button type="button" class="info" aria-label="Explication" data-tip="Un vrai graphique de marché tiré au hasard (S&amp;P 500, Nasdaq, CAC 40, DAX, Nikkei, or, Bitcoin…), nom et dates cachés. Chaque semaine, investi ou en liquidités ? À la fin, révélation de la période et ton score face à « acheter et conserver ».">i</button></h2>
           <button class="btn small primary" id="arGameNew" type="button">🎲 Jouer</button>
@@ -809,59 +867,7 @@
       </div>
     </section>
 
-    <section id="view-desk" class="view">
-      <div class="card q-hero dk-hero-card">
-        <div>
-          <h2>Salle des marchés</h2>
-          <p class="muted">Les écrans d'un desk de gestion, sur <b>ton</b> argent : d'où vient chaque euro de P&amp;L, quelles lignes sont en tendance et ce qu'aurait donné chaque règle tactique depuis 2000, et un journal de trades avec objectif, stop et taille de position.</p>
-        </div>
-      </div>
-
-      <div class="card" id="dkPnlCard">
-        <div class="card-head">
-          <h2>P&amp;L explain<button type="button" class="info" aria-label="Explication" data-tip="Le rapport qu'un gérant reçoit chaque soir : ton gain ou ta perte décomposé en effet des cours, effet des devises, qualité de tes prix d'achat et de vente, dividendes et frais ; puis la part due au marché et celle qui vient de tes choix.">i</button></h2>
-          <div class="seg small" id="dkPeriods" role="group" aria-label="Période"></div>
-        </div>
-        <div id="dkPnlBody"><p class="muted">Chargement des historiques…</p></div>
-      </div>
-
-      <div class="card" id="scanCard">
-        <div class="card-head">
-          <h2>Scanner de signaux <span class="q-new">nouveau</span><button type="button" class="info" aria-label="Explication" data-tip="Tes lignes et ta liste de suivi passées au crible des signaux qu'observent les traders : RSI (suracheté / survendu), croisement des moyennes 50 et 200 jours (golden cross, death cross), plus haut ou plus bas sur 52 semaines, mouvement inhabituel, séries de hausses ou de baisses, marché baissier.">i</button></h2>
-          <button class="btn small" id="scanRun" type="button">Scanner</button>
-        </div>
-        <div id="scanBody"><p class="muted">Un balayage de toutes tes valeurs en quelques secondes : ce qui sort de l'ordinaire aujourd'hui.</p></div>
-      </div>
-
-      <div class="card" id="dkSigCard">
-        <div class="card-head">
-          <h2>Signaux &amp; stratégies tactiques<button type="button" class="info" aria-label="Explication" data-tip="Les règles des fonds « trend following » : rester investi quand le marché est au-dessus de sa moyenne 10 mois ou que son momentum 12 mois est positif, passer en liquidités sinon, ou ajuster l'exposition pour viser une volatilité. Chacune est rejouée sur ton portefeuille depuis 2000.">i</button></h2>
-          <div class="actions">
-            <label class="dk-vol small">Volatilité cible <input type="number" id="dkVol" min="2" max="40" step="1" value="10" inputmode="decimal"> %</label>
-            <button class="btn small" id="dkSigRun" type="button">Tester</button>
-          </div>
-        </div>
-        <div id="dkSigBody"><p class="muted">Bulle internet, subprimes, Covid, 2022 : une règle simple aurait-elle protégé ton portefeuille ? Et que disent les signaux aujourd'hui ?</p></div>
-      </div>
-
-      <div class="card" id="dkJournalCard">
-        <div class="card-head">
-          <h2>Journal de trades<button type="button" class="info" aria-label="Explication" data-tip="Avant chaque achat, un trader note pourquoi il achète, où il prendra ses gains et où il coupera ses pertes. Le site calcule le rapport gain / risque, la taille de position pour ne risquer qu'un pourcentage fixe de ton capital, et crée les alertes.">i</button></h2>
-        </div>
-        <form class="dk-jform" id="dkJForm">
-          <label>Ligne<select id="dkJKey" required></select></label>
-          <label class="dk-jthesis">Thèse<input type="text" id="dkJText" maxlength="400" placeholder="ex. Rebond attendu après la baisse des taux"></label>
-          <label>Objectif<input type="number" id="dkJTarget" step="any" min="0" inputmode="decimal" placeholder="cours visé"></label>
-          <label>Stop<input type="number" id="dkJStop" step="any" min="0" inputmode="decimal" placeholder="cours de sortie"></label>
-          <label>Risque max (%)<input type="number" id="dkJRisk" step="0.25" min="0.25" max="10" value="1" inputmode="decimal"></label>
-          <label>À revoir le<input type="date" id="dkJReview"></label>
-          <button class="btn primary" type="submit">Ajouter au journal</button>
-        </form>
-        <p class="small dk-size" id="dkJSize" aria-live="polite"></p>
-        <div id="dkJList" class="dk-trades"></div>
-      </div>
-    </section>
-
+    <!-- ============ RÉGLAGES ============ -->
     <section id="view-settings" class="view">
       <div class="card reload-card">
         <div>
@@ -1219,65 +1225,50 @@
   </button>
   <nav class="bottom-nav" id="bottomNav" aria-label="Navigation">
     <button data-view="portfolio"><svg viewBox="0 0 24 24"><path d="M3 12l9-8 9 8M5 10v10h5v-6h4v6h5V10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Portefeuille</span></button>
+    <button data-view="analysis"><svg viewBox="0 0 24 24"><path d="M12 3v9h9A9 9 0 1 1 12 3z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M15 3.5A9 9 0 0 1 20.5 9H15z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><span>Analyse</span></button>
     <button data-view="markets"><svg viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8M15 7h6v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Marchés</span></button>
-    <button data-view="invest"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg><span>Investir</span></button>
     <button data-view="agenda"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Agenda</span></button>
-    <button data-view="more"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.8" fill="currentColor"/><circle cx="12" cy="12" r="1.8" fill="currentColor"/><circle cx="19" cy="12" r="1.8" fill="currentColor"/></svg><span>Plus</span></button>
+    <button data-view="plan"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg><span>Planifier</span></button>
   </nav>
-  <div class="sheet-backdrop" id="moreBackdrop"></div>
-  <div class="sheet" id="moreSheet" role="dialog" aria-label="Plus">
-    <div class="sheet-handle"></div>
-    <button data-view="world"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 12h18M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3z" fill="none" stroke="currentColor" stroke-width="2"/></svg><div><b>Monde et horaires</b><span>Indices, devises, matières premières, horaires des bourses</span></div></button>
-    <button data-view="catalog"><svg viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="18" cy="19" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/></svg><div><b>Catalogue d'ETF</b><span>Portefeuilles types, ETF par zone et par frais</span></div></button>
-    <button data-view="compare"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><div><b>Comparer</b><span>Nasdaq vs S&amp;P 500, ton portefeuille vs le marché…</span></div></button>
-    <button data-view="simulation"><svg viewBox="0 0 24 24"><path d="M12 3v3M12 18v3M4.2 7.5l2.6 1.5M17.2 15l2.6 1.5M4.2 16.5l2.6-1.5M17.2 9l2.6-1.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/></svg><div><b>Simulation</b><span>« Et si j'avais investi… », projection future</span></div></button>
-    <button data-view="arena"><svg viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4zM7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><div><b>Arène</b><span>Univers parallèles, défi à l'aveugle, ton portefeuille en musique</span></div></button>
-    <button data-view="desk"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6 12l3-3 3 2 5-5M8 20h8M12 16v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><div><b>Salle des marchés</b><span>P&amp;L explain, signaux de tendance, journal de trades</span></div></button>
-    <button data-view="quant"><svg viewBox="0 0 24 24"><path d="M3 20h18M5 16l4-6 4 3 6-9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="19" cy="4" r="1.6" fill="currentColor"/></svg><div><b>Labo quant</b><span>Crash-tests, scénarios, risque caché, météo des marchés</span></div></button>
-    <button data-view="settings"><svg viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="16" cy="6" r="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="10" cy="12" r="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="18" r="2" fill="none" stroke="currentColor" stroke-width="2"/></svg><div><b>Réglages</b><span>Clé API, relais Yahoo, comptes, sauvegarde</span></div></button>
-    <button data-action="terminal"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7 9l3 3-3 3M12 15h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><div><b>Mode terminal</b><span>Écran de salle de marchés : bandeau de cours, commandes, signaux</span></div></button>
-    <button data-action="wrapped"><svg viewBox="0 0 24 24"><path d="M12 3l2.6 5.6 6 .8-4.4 4.2 1.1 6-5.3-2.9-5.3 2.9 1.1-6L3.4 9.4l6-.8z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><div><b>Mon année en bourse</b><span>Ton récap animé : performance, ligne star, meilleur mois…</span></div></button>
-    <button data-action="theme"><svg viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><div><b>Thème clair / sombre</b><span>Changer l'apparence</span></div></button>
-  </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-  <script src="js/utils.js?v=15e879ce5e"></script>
-  <script src="js/store.js?v=15e879ce5e"></script>
-  <script src="js/api.js?v=15e879ce5e"></script>
-  <script src="js/markets.js?v=15e879ce5e"></script>
-  <script src="js/portfolio.js?v=15e879ce5e"></script>
-  <script src="js/charts.js?v=15e879ce5e"></script>
-  <script src="js/app.js?v=15e879ce5e"></script>
-  <script src="js/views.js?v=15e879ce5e"></script>
-  <script src="js/compare.js?v=15e879ce5e"></script>
-  <script src="js/extras.js?v=15e879ce5e"></script>
-  <script src="js/mobile.js?v=15e879ce5e"></script>
-  <script src="js/features.js?v=15e879ce5e"></script>
-  <script src="js/money.js?v=15e879ce5e"></script>
-  <script src="js/newsart.js?v=15e879ce5e"></script>
-  <script src="js/insights.js?v=15e879ce5e"></script>
-  <script src="js/wealth.js?v=15e879ce5e"></script>
-  <script src="js/avis.js?v=15e879ce5e"></script>
-  <script src="js/manual.js?v=15e879ce5e"></script>
-  <script src="js/health.js?v=15e879ce5e"></script>
-  <script src="js/agenda.js?v=15e879ce5e"></script>
-  <script src="js/fiche.js?v=15e879ce5e"></script>
-  <script src="js/catalog.js?v=15e879ce5e"></script>
-  <script src="js/goals.js?v=15e879ce5e"></script>
-  <script src="js/optimizer.js?v=15e879ce5e"></script>
-  <script src="js/treemap.js?v=15e879ce5e"></script>
-  <script src="js/wrapped.js?v=15e879ce5e"></script>
-  <script src="js/lab.js?v=15e879ce5e"></script>
-  <script src="js/share.js?v=15e879ce5e"></script>
-  <script src="js/labo-quant.js?v=15e879ce5e"></script>
-  <script src="js/fisc.js?v=15e879ce5e"></script>
-  <script src="js/desk.js?v=15e879ce5e"></script>
-  <script src="js/arena.js?v=15e879ce5e"></script>
-  <script src="js/institut.js?v=15e879ce5e"></script>
-  <script src="js/termchart.js?v=15e879ce5e"></script>
-  <script src="js/terminal.js?v=15e879ce5e"></script>
-  <script src="js/copilot.js?v=15e879ce5e"></script>
+  <script src="js/utils.js?v=a0ee731bb7"></script>
+  <script src="js/store.js?v=a0ee731bb7"></script>
+  <script src="js/api.js?v=a0ee731bb7"></script>
+  <script src="js/markets.js?v=a0ee731bb7"></script>
+  <script src="js/portfolio.js?v=a0ee731bb7"></script>
+  <script src="js/charts.js?v=a0ee731bb7"></script>
+  <script src="js/app.js?v=a0ee731bb7"></script>
+  <script src="js/views.js?v=a0ee731bb7"></script>
+  <script src="js/compare.js?v=a0ee731bb7"></script>
+  <script src="js/extras.js?v=a0ee731bb7"></script>
+  <script src="js/mobile.js?v=a0ee731bb7"></script>
+  <script src="js/features.js?v=a0ee731bb7"></script>
+  <script src="js/money.js?v=a0ee731bb7"></script>
+  <script src="js/newsart.js?v=a0ee731bb7"></script>
+  <script src="js/insights.js?v=a0ee731bb7"></script>
+  <script src="js/wealth.js?v=a0ee731bb7"></script>
+  <script src="js/avis.js?v=a0ee731bb7"></script>
+  <script src="js/manual.js?v=a0ee731bb7"></script>
+  <script src="js/health.js?v=a0ee731bb7"></script>
+  <script src="js/agenda.js?v=a0ee731bb7"></script>
+  <script src="js/fiche.js?v=a0ee731bb7"></script>
+  <script src="js/catalog.js?v=a0ee731bb7"></script>
+  <script src="js/goals.js?v=a0ee731bb7"></script>
+  <script src="js/optimizer.js?v=a0ee731bb7"></script>
+  <script src="js/treemap.js?v=a0ee731bb7"></script>
+  <script src="js/wrapped.js?v=a0ee731bb7"></script>
+  <script src="js/lab.js?v=a0ee731bb7"></script>
+  <script src="js/share.js?v=a0ee731bb7"></script>
+  <script src="js/labo-quant.js?v=a0ee731bb7"></script>
+  <script src="js/fisc.js?v=a0ee731bb7"></script>
+  <script src="js/desk.js?v=a0ee731bb7"></script>
+  <script src="js/arena.js?v=a0ee731bb7"></script>
+  <script src="js/institut.js?v=a0ee731bb7"></script>
+  <script src="js/termchart.js?v=a0ee731bb7"></script>
+  <script src="js/terminal.js?v=a0ee731bb7"></script>
+  <script src="js/copilot.js?v=a0ee731bb7"></script>
 </body>
 </html>

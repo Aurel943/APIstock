@@ -237,7 +237,7 @@ Object.assign(App, {
     if ($('#iStressRun')) $('#iStressRun').addEventListener('click', () => this.runReverseStress());
     if ($('#iBlRun')) $('#iBlRun').addEventListener('click', () => this.runBlackLitterman());
     if ($('#iPlanRun')) $('#iPlanRun').addEventListener('click', () => this.runPlanner());
-    this.on('view:shown', v => { if (v === 'simulation') this.renderPlannerForm(); });
+    this.on('view:shown', v => { if (v === 'plan/objectifs') this.renderPlannerForm(); });
   },
 
   /** Séries en devise de base de tes lignes, prolongées par l'indice suivi (depuis `start`) */

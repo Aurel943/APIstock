@@ -9,7 +9,12 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { root } from '../harness.mjs';
 
-const VIEWS = ['portfolio', 'markets', 'agenda', 'catalog', 'compare', 'world', 'invest', 'simulation', 'quant', 'desk', 'arena', 'settings'];
+/* Toutes les pages : 5 espaces en sous-onglets, et les réglages */
+const PAGES = [['portfolio', 'synthese'], ['portfolio', 'patrimoine'], ['portfolio', 'revenus'], ['portfolio', 'operations'],
+  ['analysis', 'composition'], ['analysis', 'performance'], ['analysis', 'risque'], ['analysis', 'optimiser'],
+  ['markets', 'suivi'], ['markets', 'monde'], ['markets', 'comparer'], ['markets', 'etf'], ['markets', 'signaux'],
+  ['agenda', 'agenda'], ['agenda', 'actus'], ['agenda', 'alertes'],
+  ['plan', 'investir'], ['plan', 'objectifs'], ['plan', 'simuler'], ['plan', 'arene'], ['settings', '']];
 let server, url, browser;
 
 before(async () => { ({ server, url } = await startServer()); browser = await chromium.launch(); });
@@ -149,10 +154,11 @@ for (const [label, device] of [['bureau', null], ['iPhone', 'iPhone 13']]) {
   test(`aucune erreur JavaScript sur chaque onglet (${label}, thèmes clair et sombre)`, async () => {
     for (const theme of ['light', 'dark']) {
       await run({ state: sampleState(), device, theme }, async ({ page }) => {
-        for (const v of VIEWS) {
-          await page.evaluate(v => App.show(v), v);
+        for (const [v, sub] of PAGES) {
+          await page.evaluate(([v, sub]) => App.show(v, sub), [v, sub]);
           await page.waitForTimeout(150);
-          assert.ok(await page.locator('#view-' + v).isVisible(), 'onglet ' + v + ' affiché');
+          assert.ok(await page.locator('#view-' + v).isVisible(), 'espace ' + v + ' affiché');
+          if (sub) assert.ok(await page.locator(`#view-${v} > [data-sub~="${sub}"]:not(.sub-off)`).count() > 0, `cartes de ${v}/${sub}`);
         }
       });
     }
@@ -161,8 +167,8 @@ for (const [label, device] of [['bureau', null], ['iPhone', 'iPhone 13']]) {
 
 test('affichage mobile : aucun défilement horizontal, quel que soit l\'onglet', () => run({ state: sampleState({ assets: [{ id: 'a', type: 'immo', name: 'Appartement', value: 250000, debt: 100000, date: '2025-01-01' }] }), device: 'iPhone 13' }, async ({ page }) => {
   await page.waitForTimeout(800);
-  for (const v of VIEWS) {
-    await page.evaluate(v => { App.show(v); window.scrollTo(0, 0); }, v);
+  for (const [v, sub] of PAGES) {
+    await page.evaluate(([v, sub]) => { App.show(v, sub); window.scrollTo(0, 0); }, [v, sub]);
     await page.waitForTimeout(200);
     // ni défilement de la page, ni contenu coupé par overflow-x: hidden (les tableaux défilent dans leur cadre .table-wrap)
     const over = await page.evaluate(() => {
@@ -311,16 +317,28 @@ test('opérations filtrées, contribution des lignes et vente simulée', () => r
   assert.equal(await page.inputValue('#detailSale .sale-qty'), '1');
 }));
 
-test('menu « Plus » au clavier et indicateur hors ligne', () => run({ state: sampleState() }, async ({ page, context }) => {
+test('menu « ⋯ » au clavier, sous-onglets mémorisés et indicateur hors ligne', () => run({ state: sampleState() }, async ({ page, context }) => {
   await page.focus('#tabMoreBtn');
   await page.keyboard.press('ArrowDown');
-  assert.equal(await page.evaluate(() => document.activeElement.dataset.view), 'catalog');
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'termOpen');
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
-  assert.equal(await page.evaluate(() => App.view), 'simulation');
+  assert.equal(await page.evaluate(() => App.view), 'settings');
   assert.equal(await page.locator('#tabMore.open').count(), 0);
+  // espaces : chaque espace rouvre son dernier sous-onglet, l'adresse suit (#espace/sous-onglet)
+  await page.click('.tabs .tab[data-view="analysis"]');
+  await page.click('#anSubnav [data-tab="risque"]');
+  assert.ok(await page.locator('#qCrashCard').isVisible());
+  assert.ok(await page.locator('#healthCard').isHidden());
+  await page.click('.tabs .tab[data-view="markets"]');
+  assert.equal(await page.evaluate(() => location.hash), '#markets/suivi');
+  await page.click('.tabs .tab[data-view="analysis"]');
+  assert.equal(await page.evaluate(() => App.page), 'analysis/risque');
+  // anciens noms de pages (liens, boutons « voir… ») toujours compris
+  await page.evaluate(() => App.show('world'));
+  assert.equal(await page.evaluate(() => App.page), 'markets/monde');
   // hors ligne : pastille visible, pas de tentative de mise à jour
   await context.setOffline(true);
   await page.waitForSelector('#offlinePill:not(.hidden)');
@@ -343,7 +361,7 @@ test('fiche : achats sur le graphique, « M\'alerter » ; répartition par compt
   assert.ok(labels.includes('Ton prix de revient'), JSON.stringify(labels));
   // « M'alerter » : formulaire d'alerte pré-rempli
   await page.click('.alert-shortcut');
-  assert.equal(await page.evaluate(() => App.view), 'invest');
+  assert.equal(await page.evaluate(() => App.page), 'plan/investir');
   assert.equal(await page.inputValue('#alertKey'), 'CW8@XPAR');
   assert.ok(parseFloat(await page.inputValue('#alertValue')) > 0);
 }));
@@ -425,7 +443,7 @@ test('catalogue : portefeuille type appliqué comme cible ; moyennes mobiles sur
   assert.ok(await page.locator('#catalogBody input[type=checkbox]').isChecked(), 'PEA coché par défaut (un PEA existe)');
   assert.ok(await page.locator('#catalogBody tbody tr').count() >= 2);
   await page.locator('.model-card', { hasText: 'Monde, un seul ETF' }).locator('button').click();
-  await page.waitForFunction(() => App.view === 'invest');
+  await page.waitForFunction(() => App.page === 'plan/investir');
   const targets = await page.evaluate(() => Object.fromEntries(Object.entries(Store.state.targets).filter(([, v]) => v > 0)));
   assert.deepEqual(targets, { 'DCAM@XPAR': 100 });
   // fiche : moyennes mobiles et indicateurs
@@ -473,7 +491,7 @@ test('carte du portefeuille, optimiseur de répartition et « Ton année en bour
   await page.waitForFunction(() => Chart.getChart('optChart') && Chart.getChart('optChart').data.datasets.length === 4, null, { timeout: 20000 });
   assert.equal(await page.locator('.opt-col').count(), 3);
   await page.locator('.opt-col.minvol button').click();
-  await page.waitForFunction(() => App.view === 'invest');
+  await page.waitForFunction(() => App.page === 'plan/investir');
   const sum = await page.evaluate(() => Object.values(Store.state.targets).reduce((a, b) => a + b, 0));
   assert.ok(Math.abs(sum - 100) < 0.5, 'cible à 100 % : ' + sum);
   // récap de l'année depuis le menu « Plus »
@@ -503,7 +521,7 @@ test('laboratoire de stratégies et répartition partagée par lien', { skip: !r
     assert.match(await page.locator('dialog.share-dialog').innerText(), /Monde \+ émergents/);
     assert.ok(!/share=/.test(await page.evaluate(() => location.hash)), 'le lien est retiré de l\'adresse');
     await page.locator('dialog.share-dialog button', { hasText: 'Utiliser comme cible' }).click();
-    await page.waitForFunction(() => App.view === 'invest');
+    await page.waitForFunction(() => App.page === 'plan/investir');
     const t = await page.evaluate(() => Object.fromEntries(Object.entries(Store.state.targets).filter(([, v]) => v > 0)));
     assert.deepEqual(t, { 'CW8@XPAR': 88, 'ESE@XPAR': 12 });
   });
@@ -573,7 +591,7 @@ test('copilote (Ctrl+K), retrait malin et radar fiscal', () => run({ state: samp
   await page.waitForFunction(() => /Pour obtenir/.test(document.querySelector('#cpOut .cp-answer')?.innerText || ''));
   await page.keyboard.press('Enter');
   await page.waitForSelector('#wdBody .wd-hero');
-  assert.equal(await page.evaluate(() => App.view), 'invest');
+  assert.equal(await page.evaluate(() => App.page), 'plan/investir');
   assert.equal(await page.inputValue('#wdAmount'), '1000');
   const plan = await page.locator('#wdBody').innerText();
   assert.match(plan, /Vendre/);
@@ -724,7 +742,7 @@ test('outils institutionnels : stress test inversé, Black-Litterman appliqué c
   const sum = Object.values(targets).reduce((a, b) => a + b, 0);
   assert.ok(Math.abs(sum - 100) < 0.5, 'cible à 100 % : ' + sum);
   assert.ok(Object.values(targets).every(v => v <= 60.05), 'poids maximum respecté');
-  assert.equal(await page.evaluate(() => App.view), 'invest');
+  assert.equal(await page.evaluate(() => App.page), 'plan/investir');
   // planificateur : objectif choisi, probabilité et versements nécessaires croissants
   await page.evaluate(() => App.show('simulation'));
   await page.selectOption('#iPlanGoal', 'g1');

@@ -170,8 +170,9 @@ const Copilot = {
   commands() {
     const A = App;
     const go = (view, sel, sub) => () => {
-      A.show(view);
-      if (sub) A.portfolioTab(sub);
+      // la carte visée décide de la page (elle a pu changer d'espace) ; sinon l'espace ou l'ancienne page demandée
+      const target = sel && $(sel);
+      if (target && target.closest('.view')) A.reveal(target, { scroll: false }); else A.show(view, sub);
       if (!sel) return;
       requestAnimationFrame(() => {
         const node = $(sel);
@@ -209,13 +210,13 @@ const Copilot = {
       { label: 'Marchés', kw: 'marches cours graphique fiche watchlist suivi', run: go('markets') },
       { label: 'Agenda financier', kw: 'agenda calendrier evenements', run: go('agenda') },
       { label: 'Catalogue d\'ETF', kw: 'catalogue etf portefeuilles types', run: go('catalog') },
-      { label: 'Monde et horaires des bourses', kw: 'monde horaires bourses ouverture indices', run: go('world') },
+      { label: 'Monde et horaires des bourses', kw: 'monde horaires bourses ouverture indices meteo', run: go('world') },
       { label: 'Comparer des valeurs', kw: 'comparer comparaison battre le marche', run: go('compare') },
       { label: 'Simulation « et si j\'avais investi »', kw: 'simulation et si backtest', run: go('simulation', '#simRun') },
       { label: 'Projection dans le futur', kw: 'projection futur interets composes monte carlo', run: go('simulation', '#projInitial') },
       { label: 'Laboratoire de stratégies', kw: 'laboratoire strategies dca lump sum', run: go('simulation', '#labCard') },
       { label: 'Phase de retraite', kw: 'retraite retraits rente', run: go('simulation', '#retireCard') },
-      { label: 'Labo quant', kw: 'labo quant', run: go('quant') },
+      { label: 'Labo de risque', kw: 'labo quant risque', run: go('quant') },
       { label: 'Mode terminal (écran salle de marchés)', kw: 'terminal bloomberg ecran salle marches bandeau ticker commande', run: () => App.openTerminal() },
       { label: 'Scanner de signaux (RSI, golden cross, plus hauts)', kw: 'scanner signaux rsi golden death cross moyenne mobile 200 plus haut technique', run: () => { go('desk', '#scanCard')(); App.runScan(); } },
       { label: 'Radiographie : mes vraies entreprises (Apple, NVIDIA…)', kw: 'radiographie entreprises apple nvidia microsoft magnifiques mag7 transparence actions sous jacentes xray', run: go('portfolio', '#xrayCard', 'analyse') },

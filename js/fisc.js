@@ -401,7 +401,7 @@ const Fisc = {
 };
 
 /* ==================================================================== */
-/* Affichage (onglet Investir)                                           */
+/* Affichage (Portefeuille › Revenus & impôts)                           */
 /* ==================================================================== */
 Object.assign(App, {
   bindFisc() {
@@ -409,13 +409,13 @@ Object.assign(App, {
     $('#wdRun').addEventListener('click', run);
     $('#wdAmount').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); run(); } });
     $('#wdWhole').addEventListener('change', () => { if (this.wdResult) run(); });
-    this.on('view:shown', v => { if (v === 'invest') this.renderRadar(); });
-    this.on('rendered:all', () => { if (this.view === 'invest') this.renderRadar(); });
+    this.on('view:shown', v => { if (v === 'portfolio/revenus') this.renderRadar(); });
+    this.on('rendered:all', () => { if (this.page === 'portfolio/revenus') this.renderRadar(); });
   },
 
   /** Ouvre le retrait malin avec un montant (utilisé par le copilote) */
   openWithdraw(amount) {
-    this.show('invest');
+    this.show('portfolio', 'revenus');
     if (amount > 0) $('#wdAmount').value = String(Math.round(amount));
     requestAnimationFrame(() => {
       $('#wdCard').scrollIntoView({ behavior: 'smooth', block: 'start' });

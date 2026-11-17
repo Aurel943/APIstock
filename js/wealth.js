@@ -147,7 +147,7 @@ Object.assign(App, {
 
 Object.assign(App, {
   /* ================================================================== */
-  /* PHASE DE RETRAITE (onglet Simulation)                                */
+  /* PHASE DE RETRAITE (Planifier › Objectifs)                            */
   /* ================================================================== */
   RET_FIELDS: { initial: '#retInitial', withdraw: '#retWithdraw', inflation: '#retInflation', years: '#retYears', rate: '#retRate', vol: '#retVol', age: '#retAge' },
 
@@ -199,7 +199,7 @@ Object.assign(App, {
       this.kpi('Scénario médian', d50.v, d50.sub, mc.depletion.p50 === Infinity ? 'up' : 'down'),
       this.kpi('Scénario favorable', d90.v, d90.sub, mc.depletion.p90 === Infinity ? 'up' : ''),
       this.kpi('Retrait soutenable à 90 %', fmtMoney(max90, cur, 0) + '/mois', `9 chances sur 10 que le capital tienne ${p.years} ans` + (p.inflation ? ', retrait indexé' : ''), max90 >= p.withdraw ? 'up' : 'down'));
-    if (this.view === 'simulation') {
+    if (this.page === 'plan/objectifs') {
       const det = Portfolio.retirement(Object.assign({}, p, { vol: 0, paths: 1 }));
       Charts.fan('retChart', mc.years.map(y => 'An ' + y.year + (isFinite(p.age) ? ` (${Math.floor(p.age + y.year)} ans)` : '')), {
         p10: mc.years.map(y => y.p10), p50: mc.years.map(y => y.p50), p90: mc.years.map(y => y.p90),
@@ -212,6 +212,6 @@ Object.assign(App, {
 // rendu avec le reste de l'écran et à chaque mise à jour des cours du portefeuille
 App.on('rendered:all', function () { this.renderWealth(); });
 App.on('rendered:portfolio', function () { this.renderWealth(); });
-App.on('view:shown', function (view) { if (view === 'simulation') this.renderRetirement(); });
+App.on('view:shown', function (view) { if (view === 'plan/objectifs') this.renderRetirement(); });
 
 document.addEventListener('DOMContentLoaded', () => { App.bindWealth(); App.renderWealth(); App.bindRetirement(); App.renderRetirement(); });

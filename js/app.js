@@ -14,13 +14,35 @@ const HIST_BENCH = { ysym: 'IWDA.AS', ccy: 'EUR', name: 'MSCI World' };
  *   'rendered:invest'                  renderInvest() : allocation cible et plan d'investissement
  *   'rendered:alerts'                  renderAlerts() : liste des alertes
  *   'rendered:accountFilter'           renderAccountFilter() : sélecteur de compte
- *   'view:shown'        (vue)          show(vue) : changement d'onglet
+ *   'view:shown'        (page)         show(espace, sous-onglet) : page affichée, « espace/sous-onglet » (ex. « markets/monde »)
  *   'detail:selected'   (clé, avant)   selectDetail(clé) : instrument affiché dans Marchés (et clé précédente)
  *   'refreshed'         (manuel)       refresh(manuel) terminé, y compris quand il n'y avait rien à rafraîchir
  *   'data:saved'                       Store.save() : données enregistrées dans ce navigateur
  */
+/*
+ * Organisation de l'application : 5 espaces (barre du haut, barre du bas sur téléphone), chacun en sous-onglets.
+ * Une page = « espace/sous-onglet » (ex. « analysis/risque ») : c'est elle que reçoivent les écouteurs de 'view:shown'
+ * et que donne App.page. Les cartes portent data-sub="sous-onglet" dans la section de leur espace.
+ */
+const SPACES = {
+  portfolio: ['synthese', 'patrimoine', 'revenus', 'operations'],
+  analysis: ['composition', 'performance', 'risque', 'optimiser'],
+  markets: ['suivi', 'monde', 'comparer', 'etf', 'signaux'],
+  agenda: ['agenda', 'actus', 'alertes'],
+  plan: ['investir', 'objectifs', 'simuler', 'arene'],
+  settings: [],
+};
+/* Anciennes pages (liens enregistrés, copilote, boutons « voir… ») → espace et sous-onglet d'aujourd'hui */
+const LEGACY_PAGES = {
+  invest: ['plan', 'investir'], simulation: ['plan', 'simuler'], arena: ['plan', 'arene'], catalog: ['markets', 'etf'],
+  world: ['markets', 'monde'], compare: ['markets', 'comparer'], desk: ['markets', 'signaux'], quant: ['analysis', 'risque'],
+};
+const LEGACY_SUBS = { 'portfolio/analyse': ['analysis', 'composition'] };
+
 const App = {
   _listeners: {},
+  sub: 'synthese',   // sous-onglet affiché (this.view : espace affiché)
+  page: 'portfolio/synthese',
 
   /** Abonnement à un événement ; renvoie une fonction de désabonnement */
   on(name, fn) {
@@ -107,7 +129,8 @@ const App = {
     const sharedHash = location.hash; // lu avant que la navigation ne réécrive l'adresse
     const hash = location.hash.replace('#', '');
     const guard = fn => { try { fn(); } catch (e) { this.reportError(e); } };
-    guard(() => this.show(['portfolio', 'markets', 'agenda', 'catalog', 'compare', 'world', 'invest', 'simulation', 'quant', 'desk', 'arena', 'settings'].includes(hash) ? hash : (Api.ready() ? 'portfolio' : 'settings')));
+    const [hView, hSub] = hash.split('/');
+    guard(() => (SPACES[hView] || LEGACY_PAGES[hView] ? this.show(hView, hSub) : this.show(Api.ready() ? 'portfolio' : 'settings')));
     guard(() => this.renderAll());
     guard(() => this.openSharedFromHash(sharedHash)); // lien de répartition partagée (#share=…)
     Api.detectProxy().finally(() => {
@@ -139,9 +162,16 @@ const App = {
   /* Navigation & thème                                                   */
   /* ------------------------------------------------------------------ */
   bindNav() {
-    $$('.tab').forEach(b => b.addEventListener('click', () => { this.show(b.dataset.view); this.toggleTabMenu(false); }));
+    $$('.tab[data-view]').forEach(b => b.addEventListener('click', () => { this.show(b.dataset.view); this.toggleTabMenu(false); }));
+    // sous-onglets de chaque espace
+    $$('.view > .subnav').forEach(nav => {
+      const view = nav.closest('.view').id.replace('view-', '');
+      nav.querySelectorAll('button[data-tab]').forEach(b => b.addEventListener('click', () => this.show(view, b.dataset.tab)));
+    });
+    $$('#tabMenu button').forEach(b => b.addEventListener('click', () => this.toggleTabMenu(false)));
+    if ($('#themeMenuBtn')) $('#themeMenuBtn').addEventListener('click', () => $('#themeBtn').click());
     $('#tabMoreBtn').addEventListener('click', e => { e.stopPropagation(); this.toggleTabMenu(); });
-    const items = () => $$('#tabMenu .tab');
+    const items = () => $$('#tabMenu button');
     $('#tabMoreBtn').addEventListener('keydown', e => {
       if (e.key === 'ArrowDown') { e.preventDefault(); this.toggleTabMenu(true); items()[0].focus(); }
     });
@@ -171,31 +201,71 @@ const App = {
     else delete document.documentElement.dataset.theme;
   },
 
-  show(view) {
-    if (view === 'agenda') setTimeout(() => this.renderAgenda(), 0);
-    if (view === 'catalog') setTimeout(() => this.renderCatalog(), 0);
-    this.view = view;
-    $$('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === view));
-    $('#tabMoreBtn').classList.toggle('active', !!$('#tabMenu .tab.active'));
-    const changed = !$('#view-' + view).classList.contains('active');
+  /** Sous-onglet mémorisé d'un espace (on y revient en rouvrant l'espace) */
+  lastSub(view) {
+    let v = null;
+    try { v = localStorage.getItem('apistock:sub:' + view); } catch (e) { /* stockage indisponible */ }
+    return SPACES[view] && SPACES[view].includes(v) ? v : null;
+  },
+
+  /** Page affichée parmi celles données (« espace/sous-onglet » ou espace seul) */
+  isPage(...pages) { return pages.includes(this.page) || pages.includes(this.view); },
+
+  /**
+   * Affiche un espace et un sous-onglet. Accepte les anciens noms de pages (« invest », « world »…).
+   * Sans sous-onglet : le dernier ouvert dans cet espace, sinon le premier.
+   */
+  show(view, sub) {
+    if (LEGACY_PAGES[view]) { sub = sub && SPACES[LEGACY_PAGES[view][0]].includes(sub) ? sub : LEGACY_PAGES[view][1]; view = LEGACY_PAGES[view][0]; }
+    if (LEGACY_SUBS[view + '/' + sub]) [view, sub] = LEGACY_SUBS[view + '/' + sub];
+    if (!SPACES[view] || !$('#view-' + view)) view = 'portfolio';
+    const subs = SPACES[view];
+    if (subs.length && !subs.includes(sub)) sub = this.lastSub(view) || subs[0];
+    if (!subs.length) sub = '';
+    const page = view + (sub ? '/' + sub : '');
+    const changed = page !== this.page || !$('#view-' + view).classList.contains('active');
+    this.view = view; this.sub = sub; this.page = page;
+    $$('.tab[data-view]').forEach(t => t.classList.toggle('active', t.dataset.view === view));
     $$('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + view));
+    const sec = $('#view-' + view);
+    if (sub) {
+      sec.dataset.sub = sub;
+      sec.querySelectorAll(':scope > .subnav button').forEach(x => x.classList.toggle('active', x.dataset.tab === sub));
+      sec.querySelectorAll(':scope > [data-sub]').forEach(c => c.classList.toggle('sub-off', !c.dataset.sub.split(' ').includes(sub)));
+      try { localStorage.setItem('apistock:sub:' + view, sub); } catch (e) { /* stockage indisponible */ }
+    }
     if (changed && this._booted) window.scrollTo({ top: 0 });
     this._booted = true;
-    history.replaceState(null, '', '#' + view);
+    history.replaceState(null, '', '#' + page);
     clearInterval(this._globalTimer);
     if (view === 'settings') {
       this.loadGlobalCount();
       this._globalTimer = setInterval(() => { if (!document.hidden) this.loadGlobalCount(); }, 60000);
     }
-    if (view === 'portfolio' && this._portfolioStale) { this._portfolioStale = false; this.renderPortfolio(); }
-    if (view === 'markets' && !this.detailKey && Store.state.watchlist.length) this.selectDetail(Store.state.watchlist[0]);
-    if (view === 'simulation') this.renderProjection();
-    if (view === 'world') { this.renderWorld(); this.loadWorldQuotes(); }
-    if (view === 'compare') this.showCompare();
-    if (view === 'invest') { this.renderInvest(); this.renderAlerts(); }
+    // rendus propres à chaque page
+    if ((view === 'portfolio' || view === 'analysis') && this._portfolioStale) { this._portfolioStale = false; this.renderPortfolio(); }
+    if (page === 'agenda/agenda') setTimeout(() => this.renderAgenda(), 0);
+    if (page === 'markets/etf') setTimeout(() => this.renderCatalog(), 0);
+    if (page === 'markets/suivi' && !this.detailKey && Store.state.watchlist.length) this.selectDetail(Store.state.watchlist[0]);
+    if (page === 'markets/monde') { this.renderWorld(); this.loadWorldQuotes(); }
+    if (page === 'markets/comparer') this.showCompare();
+    if (page === 'plan/investir' || page === 'plan/objectifs') this.renderInvest();
+    if (page === 'plan/objectifs') this.renderProjection();
+    if (page === 'agenda/alertes') this.renderAlerts();
+    if (page === 'analysis/composition' && this.renderTreemap) requestAnimationFrame(() => this.renderTreemap()); // largeur connue une fois visible
     // les graphiques créés pendant que l'onglet était caché doivent être redimensionnés
     requestAnimationFrame(() => Object.values(Charts.instances).forEach(c => c.resize()));
-    this.emit('view:shown', view);
+    this.emit('view:shown', page);
+  },
+
+  /** Affiche la page qui contient un élément (carte, champ…), puis le fait défiler à l'écran */
+  reveal(sel, opts = {}) {
+    const node = typeof sel === 'string' ? $(sel) : sel;
+    if (!node) return;
+    const sec = node.closest('.view');
+    const card = node.closest('[data-sub]');
+    if (sec) this.show(sec.id.replace('view-', ''), card && card.closest('.view') === sec ? card.dataset.sub.split(' ')[0] : undefined);
+    if (opts.scroll !== false) setTimeout(() => node.scrollIntoView({ behavior: 'smooth', block: opts.block || 'start' }), 60);
   },
 
   schedule() {
@@ -244,12 +314,13 @@ const App = {
       const sel = window.getSelection && window.getSelection();
       if (this.pointerDown || (sel && !sel.isCollapsed && sel.toString())) { this._rqPending = true; return; }
       this._rqPending = false;
-      if (this.view === 'portfolio') this.renderPortfolio();
+      if (this.view === 'portfolio' || this.view === 'analysis') this.renderPortfolio();
       else this._portfolioStale = true;
       this.renderWatchlist();
       this.renderDetailHeader();
       this.renderMarketState();
-      if (this.view === 'invest') { this.renderInvest(); this.renderAlerts(); }
+      if (this.isPage('plan/investir', 'plan/objectifs')) this.renderInvest();
+      if (this.isPage('agenda/alertes')) this.renderAlerts();
     });
   },
 
@@ -320,8 +391,8 @@ const App = {
     this.renderInvest();
     this.renderAlerts();
     this.renderMarketState();
-    if (this.view === 'world') this.renderWorld();
-    if (this.view === 'agenda') this.renderAgenda();
+    if (this.isPage('markets/monde')) this.renderWorld();
+    if (this.isPage('agenda/agenda')) this.renderAgenda();
     this.renderHealth();
     this.renderTreemap();
     this.emit('rendered:all');
@@ -413,7 +484,7 @@ const App = {
     }
   },
 
-  /** Menu « Plus » de la barre du haut (Comparer, Simulation, Réglages) */
+  /** Menu « ⋯ » de la barre du haut (mode terminal, année en bourse, réglages) */
   toggleTabMenu(open) {
     const box = $('#tabMore');
     if (!box) return;
@@ -425,21 +496,11 @@ const App = {
   /* ------------------------------------------------------------------ */
   /* PORTEFEUILLE                                                         */
   /* ------------------------------------------------------------------ */
-  // Sous-onglets du portefeuille (Synthèse, Analyse…) : un seul groupe de cartes visible à la fois
-  portfolioTab(tab) {
-    if (!$(`#pfSubnav [data-tab="${tab}"]`)) tab = 'synthese'; // ancien sous-onglet (ex. « Patrimoine »)
-    $('#view-portfolio').dataset.sub = tab;
-    $$('#pfSubnav button').forEach(x => x.classList.toggle('active', x.dataset.tab === tab));
-    if (tab === 'analyse' && this.renderTreemap) requestAnimationFrame(() => this.renderTreemap()); // largeur connue une fois visible
-    try { localStorage.setItem('apistock:pfTab', tab); } catch (e) { /* stockage indisponible */ }
-  },
+  /** Sous-onglet du portefeuille (ancienne entrée, gardée pour les autres modules) */
+  portfolioTab(tab) { this.show('portfolio', tab); },
 
   bindPortfolio() {
     $('#addTxBtn').addEventListener('click', () => this.openTx());
-    $$('#pfSubnav button').forEach(b => b.addEventListener('click', () => this.portfolioTab(b.dataset.tab)));
-    let saved = null;
-    try { saved = localStorage.getItem('apistock:pfTab'); } catch (e) { /* stockage indisponible */ }
-    if (saved && $('#pfSubnav [data-tab="' + saved + '"]')) this.portfolioTab(saved);
     $$('#allocMode button').forEach(b => b.addEventListener('click', () => {
       this.allocMode = b.dataset.mode;
       $$('#allocMode button').forEach(x => x.classList.toggle('active', x === b));
@@ -992,6 +1053,7 @@ const App = {
   },
 
   selectDetail(key) {
+    if (this.view === 'markets' && this.sub !== 'suivi') this.show('markets', 'suivi');
     const previous = this.detailKey;
     this.detailKey = key;
     this.renderWatchlist();
@@ -1377,9 +1439,9 @@ const App = {
       this.kpi('Scénario médian', fmtMoney(end.p50, cur, 0), '1 chance sur 2 de faire mieux'),
       this.kpi('Scénario favorable', fmtMoney(end.p90, cur, 0), '1 chance sur 10 de faire mieux', 'up'),
       this.kpi('Risque de perte', fmtPct(mc.probLoss * 100, 0, false), 'Capital final inférieur au total versé', mc.probLoss > 0.1 ? 'down' : ''),
-      goal > 0 ? this.kpi('Objectif atteint', fmtPct(mc.probTarget * 100, 0, false), 'Chance d\'avoir ' + fmtMoney(goal, cur, 0) + ' (onglet Investir) dans ' + years + ' an(s)', mc.probTarget >= 0.5 ? 'up' : 'down') : null,
+      goal > 0 ? this.kpi('Objectif atteint', fmtPct(mc.probTarget * 100, 0, false), 'Chance d\'avoir ' + fmtMoney(goal, cur, 0) + ' (Planifier › Objectifs) dans ' + years + ' an(s)', mc.probTarget >= 0.5 ? 'up' : 'down') : null,
     ].filter(Boolean));
-    if (this.view === 'simulation') {
+    if (this.isPage('plan/objectifs')) {
       Charts.fan('projChart', yearly.map(x => 'An ' + x.month / 12), {
         invested: yearly.map(x => x.invested), expected: yearly.map(x => x.value),
         p10: mc.years.map(y => y.p10), p50: mc.years.map(y => y.p50), p90: mc.years.map(y => y.p90),

@@ -4,6 +4,18 @@ Site personnel (100 % statique, sans serveur ni compte) pour suivre ses ETF et l
 
 ## Fonctionnalités
 
+**Organisation** : 5 espaces (barre du haut, ou barre du bas sur téléphone), chacun découpé en sous-onglets ; ⚙ en haut à droite pour les réglages, « ⋯ » pour le mode terminal, « Mon année en bourse » et le thème. L'adresse suit la page (`#markets/monde`), et chaque espace rouvre le dernier sous-onglet consulté.
+
+| Espace | Sous-onglets |
+|---|---|
+| **Portefeuille** — ce que j'ai | Vue d'ensemble (à faire, positions, évolution, répartition, comptes) · Patrimoine (patrimoine global, liquidités) · Revenus & impôts (dividendes, fiscalité, radar fiscal, retrait malin) · Opérations (opérations, journal de trades) |
+| **Analyse** — le comprendre | Composition (bilan de santé, radiographie, exposition & frais, carte) · Performance (variations du jour, ce qui a fait ton gain, P&L explain, audit de tes décisions) · Risque (risque, crash-tests, scénarios, anatomie du risque, stress test inversé) · Optimiser (optimiseur, Black-Litterman) |
+| **Marchés** — explorer | Suivi & fiches (recherche, liste de suivi, fiche complète) · Monde (indicateurs, météo des marchés, horaires des bourses) · Comparer · Catalogue d'ETF · Signaux (scanner, stratégies tactiques) |
+| **Agenda** — ce qui arrive | Agenda (résultats, macro, dividendes, échéances) · Actualités · Alertes de prix |
+| **Planifier** — décider | Investir (allocation cible, plan du mois, versements programmés) · Objectifs (objectifs, planificateur probabiliste, projection, retraite) · Simuler (simulation sur données réelles, laboratoire de stratégies) · Arène (univers parallèles, défi à l'aveugle, briefing vocal) |
+
+Détail des fonctionnalités :
+
 **Portefeuille**
 - Saisie de tes opérations (achats / ventes, quantité, prix, frais)
 - Calcul du **PRU** (prix de revient unitaire moyen pondéré)
@@ -46,7 +58,7 @@ Site personnel (100 % statique, sans serveur ni compte) pour suivre ses ETF et l
 - Allocation cible en % et **plan d'investissement** : « j'investis 500 € ce mois-ci » → nombre de parts à acheter de chaque ETF pour se rapprocher de la cible (parts entières ou fractionnées, rééquilibrage complet avec ventes en option), puis enregistrement des achats en un clic
 - **Alertes de prix** (cours ≥ / ≤, hausse ou baisse du jour en %) avec notifications du navigateur
 
-**Fiche d'une valeur (onglet Marchés)**
+**Fiche d'une valeur (Marchés › Suivi & fiches)**
 - **Analyse fondamentale d'une action** : avis des analystes (répartition achat / conserver / vente et évolution sur un mois), objectif de cours moyen à 12 mois avec sa fourchette et le potentiel par rapport au cours, valorisation (PER, PER attendu, PEG, capitalisation, dividende, bêta), santé financière (marges, croissance, rentabilité, dette) et profil de la société, chaque indicateur expliqué en une phrase
 - **Révisions des prévisions** : bénéfice par action attendu (trimestre en cours et suivant, exercice en cours et suivant), son évolution sur 30 et 90 jours, nombre d'analystes l'ayant relevé ou abaissé, et un verdict (prévisions revues à la hausse / à la baisse / stables)
 - **Avis des banques** sur 90 jours : relèvements, abaissements et objectifs de cours, banque par banque (« Melius Research abaisse à Conserver (était Achat) · objectif 315 → 185 $ »)
@@ -73,7 +85,7 @@ Site personnel (100 % statique, sans serveur ni compte) pour suivre ses ETF et l
 - *Phase de retraite* : retraits mensuels indexés sur l'inflation sur un capital placé (bouton « Mon patrimoine ») → probabilité que le capital tienne jusqu'au bout, âge ou date d'épuisement dans les scénarios défavorable / médian / favorable, retrait maximal soutenable à 90 %, graphique en éventail (Monte-Carlo).
 
 **Mode terminal, scanner, radiographie**
-- **Mode terminal** (menu Plus) : écran plein de salle de marchés, en ambre sur noir, en **4 fenêtres indépendantes** (Alt+1…4 ou clic pour changer de fenêtre active, double-clic ou Alt+Z pour agrandir, disposition gardée d'une visite à l'autre)
+- **Mode terminal** (menu « ⋯ » en haut à droite) : écran plein de salle de marchés, en ambre sur noir, en **4 fenêtres indépendantes** (Alt+1…4 ou clic pour changer de fenêtre active, double-clic ou Alt+Z pour agrandir, disposition gardée d'une visite à l'autre)
   - ligne de commande `<VALEUR> [SECTEUR] <FONCTION> [PÉRIODE] <GO>` : `CW8 GP`, `GOLD CMDTY GPC 5A`, `SPX INDEX GIP 5J`, `EURUSD CURNCY GP`, `AAPL US EQUITY DES`, `2 WEI` (dans la fenêtre 2), `3` (action n° 3 du menu rouge) ; **saisie assistée** (Tab complète fonctions, titres, alias, matières premières), **historique** (↑ ↓) ; n'importe quel symbole Yahoo (`MC.PA`, `AAPL`…) et alias (`SPX`, `CCMP`, `INDU`, `CAC`, `DAX`, `UKX`, `SX5E`, `NKY`, `VIX`, `GOLD`, `BRENT`, `WHEAT`, `COCOA`, `CATTLE`, `US10Y`, `DXY`…, aussi en français : `OR`, `BLE`, `CACAO`…)
   - **graphiques en chandeliers** (dessinés sans bibliothèque) : bougies, barres OHLC, Heikin-Ashi, ligne, aire ; bougies journalières, hebdomadaires ou mensuelles ; moyennes mobiles 20 / 50 / 200, bandes de Bollinger, volume, RSI 14, MACD ; échelle logarithmique ; réticule avec lecture O / H / B / C / volume ; zoom à la molette ou au pincement, déplacement à la souris ou au doigt, double-clic pour revenir ; `GP` (1M → MAX), `GPC` / `GPO` / `GPH` / `GPL` (style direct), `GIP` (intraday 1J en 5 min, 5J en 15 min)
   - **toutes les matières premières** (`CMDTY`, `CMAP` en carte colorée) : 29 contrats à terme par famille (énergie, métaux précieux et industriels, céréales et oléagineux, softs, élevage et lait), avec unité, courbe de la séance et position dans la fourchette 52 semaines
@@ -89,18 +101,18 @@ Site personnel (100 % statique, sans serveur ni compte) pour suivre ses ETF et l
 - **Black-Litterman** (Labo quant) : tes convictions (rendement annuel attendu d'une ligne, ou « A fera mieux que B de x % ») avec un niveau de confiance, mélangées à l'équilibre implicite de ta répartition → rendements révisés et répartition optimale (sans vente à découvert, poids maximum réglable), applicable comme cible
 - **Planificateur probabiliste** (Simulation) : 3 000 futurs construits par bootstrap par blocs de 12 mois dans l'historique réel de ta répartition depuis 2000 (indices suivis), avec tes versements et l'inflation → probabilité d'atteindre un objectif, éventail des résultats et versement mensuel nécessaire pour 50, 75 ou 90 % de chances
 
-**Arène** (menu Plus) — la bourse côté jeu, sur de vraies données
+**Arène** (Planifier › Arène) — la bourse côté jeu, sur de vraies données
 - **Univers parallèles** : chacun de tes vrais achats (même montant, même date) rejoué sous le matelas, sur un Livret A (taux officiels successifs), dans le MSCI World, le S&P 500, le Nasdaq-100, le CAC 40, l'or et le Bitcoin ; course animée jusqu'à aujourd'hui, podium, et ce que tu aurais en plus ou en moins dans chaque univers
 - **Défi à l'aveugle** : un vrai graphique historique tiré au hasard (S&P 500, Nasdaq, CAC 40, DAX, Nikkei, or, Bitcoin…), nom et dates cachés ; chaque semaine, investi ou en liquidités (0,1 % par aller-retour, clavier B / V / espace) ; révélation de la période, score face à « acheter et conserver », titre (du « Loup de Wall Street » au « Vendeur paniqué ») et record personnel
 - **Briefing vocal** : ton point marché lu à voix haute par le navigateur (valeur, variation du jour, meilleure et pire ligne, gain depuis le début, alertes)
 - **Ton parcours en musique** : une note par semaine de ta performance (aiguë quand ça monte, grave quand ça baisse, gamme pentatonique)
 
-**Salle des marchés** (menu Plus) — les écrans d'un desk de gestion
+**Salle des marchés** (P&L explain : Analyse › Performance ; signaux : Marchés › Signaux ; journal : Portefeuille › Opérations) — les écrans d'un desk de gestion
 - **P&L explain** : le gain ou la perte d'une période (mois en cours, 1 mois, 3 mois, depuis janvier, 1 an, depuis le début) décomposé en effet prix, **effet de change par devise** (« le dollar t'a coûté 340 € »), exécution (prix obtenu face à la clôture du jour), dividendes et frais ; pont de valeur départ → arrivée ; part expliquée par le marché (bêta face au MSCI World) et **alpha** (tes choix) ; calendrier des P&L séance par séance ; statistiques de trader (jours gagnants, gain moyen / perte moyenne, profit factor, meilleure et pire séance, pire baisse)
 - **Signaux & stratégies tactiques** : pour chaque ligne, écart à la moyenne 10 mois, momentum 12-1 et 6 mois, volatilité, signal haussier / mitigé / baissier ; quatre règles (conserver, tendance 10 mois, momentum 12-1, tendance + volatilité cible réglable) rejouées mois par mois sur ton portefeuille depuis 2000 (indice suivi quand l'ETF est plus récent), liquidités au taux sans risque, 0,1 % de frais par euro échangé → rendement annuel, volatilité, pire baisse, Sharpe, Calmar, temps investi, courbes, et part investie ce mois-ci selon chaque règle
 - **Journal de trades** : thèse, objectif, stop et date de revue ; **taille de position** pour ne risquer qu'un pourcentage fixe du capital (1 % par défaut), rapport gain / risque, multiple de R, statut (en cours, objectif atteint, stop touché, à revoir) ; alertes de prix créées en un clic sur l'objectif et le stop ; synchronisé entre appareils
 
-**Labo quant** (menu Plus) — les outils des gérants institutionnels, calculés dans le navigateur
+**Labo quant** (Analyse › Risque ; météo des marchés : Marchés › Monde ; audit : Analyse › Performance) — les outils des gérants institutionnels, calculés dans le navigateur
 - **Météo des marchés** : modèle de Markov caché à deux régimes (calme / agité) estimé par Baum-Welch sur les rendements hebdomadaires du MSCI World → probabilité d'être aujourd'hui (et la semaine prochaine) en régime agité, rendement, volatilité et durée moyenne de chaque régime
 - **Crash-test historique** : ton portefeuille actuel rejoué dans la bulle internet, les subprimes, la crise de l'euro, le Covid et l'inflation 2022 (indice suivi quand l'ETF est trop récent) → perte en € et en %, durée de la chute, date de retour au plus haut
 - **Scénarios « et si… »** : régression de chaque ligne sur cinq facteurs (actions mondiales, tech, Europe, dollar, or) ; impose un choc sur un ou plusieurs facteurs, les autres suivent leur espérance conditionnelle (loi normale multivariée) → impact ligne par ligne, avec la fiabilité (R²)
@@ -113,7 +125,7 @@ Site personnel (100 % statique, sans serveur ni compte) pour suivre ses ETF et l
 - Actions : « acheter 3 CW8 à 520 » prépare l'opération, « mode sombre », « mode discret », « rafraîchir », « exporter »
 - Raccourcis vers toutes les cartes du site (« crash-test », « fiscalité », « alertes »…), navigation au clavier
 
-**Fiscalité active** (onglet Investir)
+**Fiscalité active** (Portefeuille › Revenus & impôts)
 - **Retrait malin** : « j'ai besoin de X € nets » → quoi vendre, sur quel compte, pour payer le moins d'impôt et de frais. Liquidités d'abord, moins-values du compte-titres (qui effacent d'abord les plus-values déjà réalisées dans l'année), gains couverts par les moins-values reportées des 10 dernières années, PEA de plus de 5 ans (prélèvements sociaux sur la seule part de gains du retrait), assurance-vie (abattement annuel après 8 ans, puis 7,5 %), et seulement ensuite les lignes les plus imposées ; frais selon le barème de chaque compte. Comparaison chiffrée avec « vendre un peu de tout », PEA de moins de 5 ans et PER laissés de côté (avec explication), ventes enregistrables en un clic
 - **Radar fiscal** : moins-values à constater avant le 31 décembre pour effacer l'impôt de l'année (vente puis rachat d'un ETF équivalent), moins-values à mettre en réserve pour 10 ans, reports qui expirent en fin d'année et gains à réaliser sans impôt pour relever le prix de revient, purge des gains d'assurance-vie dans l'abattement annuel, anniversaires PEA (5 ans) et assurance-vie (8 ans) à attendre, impôt annuel sur les dividendes du compte-titres — chaque piste avec l'impôt économisé estimé
 

@@ -756,12 +756,8 @@ td.num .day-spark { display: block; margin: 4px 0 0 auto; }
   background: var(--text); color: var(--surface); font-size: 12.5px; line-height: 1.45; font-weight: 400;
   box-shadow: 0 6px 24px rgba(0, 0, 0, .18); pointer-events: none; white-space: pre-line;
 }
-/* Sous-onglets du portefeuille */
+/* Sous-onglets de chaque espace : seules les cartes du sous-onglet affiché sont visibles (classe posée par App.show) */
 .subnav { margin: 4px 0 16px; }
-#view-portfolio[data-sub="synthese"] [data-sub]:not([data-sub~="synthese"]),
-#view-portfolio[data-sub="analyse"] [data-sub]:not([data-sub~="analyse"]),
-#view-portfolio[data-sub="revenus"] [data-sub]:not([data-sub~="revenus"]),
-#view-portfolio[data-sub="operations"] [data-sub]:not([data-sub~="operations"]) { display: none; }
 .subnav { display: flex; width: fit-content; max-width: 100%; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
 .subnav::-webkit-scrollbar { display: none; }
 .subnav button { font-size: 13.5px; padding: 7px 14px; white-space: nowrap; }
@@ -772,24 +768,16 @@ label > .info { margin-left: 4px; }
 .note-tip { display: flex; align-items: center; justify-content: flex-end; margin: 10px 0 0; }
 .lbl { display: inline-flex; align-items: center; }
 
-/* Barre du haut : menu « Plus » */
-.tabs { overflow: visible; }
+/* Barre du haut : menu « ⋯ » (mode terminal, année en bourse, thème, réglages) */
 .tab-more { position: relative; }
-.tab-more-btn {
-  display: inline-flex; align-items: center; gap: 4px; border: 0; background: none; color: var(--muted);
-  font: inherit; font-weight: 500; padding: 8px 14px; border-radius: 8px; cursor: pointer; white-space: nowrap;
-}
-.tab-more-btn:hover, .tab-more.open .tab-more-btn { background: var(--surface-2); color: var(--text); }
-.tab-more-btn.active { background: var(--surface-2); color: var(--text); box-shadow: inset 0 -2px 0 var(--accent); }
+.tab-more.open .tab-more-btn { background: var(--surface-2); color: var(--text); }
 .tab-menu {
-  display: none; position: absolute; top: calc(100% + 6px); left: 0; z-index: 20; min-width: 170px; padding: 6px;
+  display: none; position: absolute; top: calc(100% + 6px); right: 0; z-index: 30; min-width: 210px; padding: 6px;
   background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 10px 30px rgba(0, 0, 0, .12);
   flex-direction: column; gap: 2px;
 }
 .tab-more.open .tab-menu { display: flex; }
-.tab-menu .tab { text-align: left; width: 100%; }
-.tab-menu .tab.active { box-shadow: inset 2px 0 0 var(--accent); }
-@media (max-width: 1100px) { #lastUpdate { display: none; } }
+@media (max-width: 1440px) { #lastUpdate { display: none; } }
 .refresh-warn { color: #d97706; font-size: 14px; cursor: help; }
 #cmpStatus.warn-text { color: #b45309; }
 
@@ -915,10 +903,10 @@ details.advanced[open] > .stack { margin-top: 12px; }
 .model-lines li { grid-template-columns: 10px auto minmax(0, 1fr) auto; }
 .model-lines .dot { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
 .catalog-zones { margin-bottom: 10px; max-width: 100%; }
-#view-catalog h3 { display: flex; align-items: center; }
+#catalogCard h3 { display: flex; align-items: center; }
 /* Fiche : moyennes mobiles */
 .detail-ind { margin-left: auto; margin-right: 8px; white-space: nowrap; }
-#view-catalog .tag { margin-left: 8px; }
+#catalogCard .tag { margin-left: 8px; }
 
 /* « À faire » : détail des versements en retrait, lien « Voir les autres » */
 .todo-item.todo-sub { padding-left: 18px; }
@@ -1627,3 +1615,15 @@ table.data.fund-table td.num, table.data.fund-table th.num { white-space: nowrap
 .fund-events li.ev-up { border-left-color: var(--up); } .fund-events li.ev-down { border-left-color: var(--down); }
 .fund-events .fund-date { padding-top: 1px; }
 .fund-box details { margin-top: 8px; } .fund-box details summary { cursor: pointer; color: var(--muted); } .fund-box details .fund-events { margin-top: 7px; }
+
+/* Organisation en espaces : cartes hors du sous-onglet affiché masquées */
+.view > [data-sub].sub-off { display: none; }
+/* Téléphone : thème et réglages passent dans le menu ⋯ ; sous-onglets défilants si nombreux */
+@media (max-width: 760px) {
+  #themeBtn, #settingsBtn { display: none; }
+}
+@media (max-width: 640px) {
+  .subnav button { flex: 1 0 auto; }
+}
+/* Barre du haut moins large : copilote réduit à sa loupe */
+@media (max-width: 1360px) { .cp-trigger { min-width: 0; border-color: transparent; background: none; padding: 6px; } .cp-trigger-text, .cp-trigger .cp-kbd { display: none; } }
