@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=6f846ffaa3">
+  <link rel="stylesheet" href="css/style.css?v=d87c1ecbae">
 </head>
 <body>
   <header class="topbar">
@@ -216,7 +216,7 @@
             <button class="btn small" id="cashAdd">+ Versement / retrait</button>
             <label class="btn small" title="Sélectionne un ou plusieurs avis d'opéré PDF de ton courtier">📄 Importer des avis d'opéré <input type="file" class="avisImport" accept="application/pdf,.pdf" multiple hidden></label>
             <button class="btn small" id="reportBtn">Rapport annuel (PDF)</button>
-            <button class="btn small" id="txExport">Exporter en CSV</button></div>
+            <button class="btn small" id="txExport">Exporter en CSV</button> <button class="btn small" id="xlsxExport" type="button">Exporter en Excel</button></div>
         </div>
         <div class="tx-filters" id="txFilters"></div>
         <div class="table-wrap">
@@ -230,6 +230,13 @@
             <tbody></tbody>
           </table>
         </div>
+      </div>
+
+      <div data-sub="operations" class="card" id="brokerCard">
+        <div class="card-head">
+          <h2>Et chez un autre courtier ? <span class="q-new">nouveau</span><button type="button" class="info" aria-label="Explication" data-tip="Tes vrais ordres passés, recalculés avec les barèmes d'autres courtiers en ligne (BoursoBank, Fortuneo, DEGIRO, ou celui que tu saisis) : ce que tu aurais payé, frais des mois sans ordre compris, et l'économie possible par an.">i</button></h2>
+        </div>
+        <div id="brokerBody"></div>
       </div>
 
       <div data-sub="operations" class="card" id="dkJournalCard">
@@ -280,6 +287,13 @@
         <div id="exposureBody"></div>
       </div>
 
+      <div data-sub="composition" class="card" id="fxCard">
+        <div class="card-head">
+          <h2>Devises et couverture de change <span class="q-new">nouveau</span><button type="button" class="info" aria-label="Explication" data-tip="Les devises dont dépend vraiment ton portefeuille (en regardant dans tes ETF : un MSCI World coté en euros reste exposé au dollar), ce que te coûterait leur baisse face à l'euro, et pour tes ETF couverts, ce que la couverture a réellement coûté ou rapporté.">i</button></h2>
+        </div>
+        <div id="fxBody"></div>
+      </div>
+
       <div data-sub="composition" class="card hidden" id="mapCard">
         <div class="card-head">
           <h2>Carte du portefeuille<button type="button" class="info" aria-label="Explication" data-tip="Chaque rectangle est une ligne, proportionnel à son poids. Couleur : vert si elle monte, rouge si elle baisse, d'autant plus foncé que la variation est forte. Touche un rectangle pour ouvrir sa fiche.">i</button></h2>
@@ -323,6 +337,13 @@
           </div>
         </div>
         <div id="attrBody"><p class="muted">Tu bats le marché, ou c'est lui qui te bat ? Et surtout : pourquoi ?</p></div>
+      </div>
+
+      <div data-sub="performance" class="card" id="revCard">
+        <div class="card-head">
+          <h2>Revue du mois <span class="q-new">nouveau</span><button type="button" class="info" aria-label="Explication" data-tip="Ton mois en une page : performance face au MSCI World, ce qui l'explique (cours, devises, dividendes, frais), les lignes qui ont le plus compté, tes opérations et ce qui arrive le mois suivant. Imprimable ou enregistrable en PDF.">i</button></h2>
+        </div>
+        <div id="revBody"></div>
       </div>
 
       <div data-sub="performance" class="card" id="dkPnlCard">
@@ -379,6 +400,21 @@
           <button class="btn small" id="styleRun" type="button">Analyser</button>
         </div>
         <div id="styleBody"><p class="muted">Value ou croissance, géants ou petites sociétés, offensif ou défensif : le vrai profil de tes lignes, au-delà de leur nom.</p></div>
+      </div>
+
+      <div data-sub="risque" class="card" id="divtCard">
+        <div class="card-head">
+          <h2>Diversification dans le temps <span class="q-new">nouveau</span><button type="button" class="info" aria-label="Explication" data-tip="Tes lignes bougent-elles ensemble ? Leur corrélation moyenne et le nombre de paris vraiment indépendants, sur 52 semaines glissantes depuis 5 ans, avec une alerte quand elles deviennent plus liées que d'habitude.">i</button></h2>
+          <button class="btn small" id="divtRun" type="button">Analyser</button>
+        </div>
+        <div id="divtBody"><p class="muted">Une diversification qui marche en temps calme peut disparaître dans une crise : voyons comment la tienne évolue.</p></div>
+      </div>
+
+      <div data-sub="risque" class="card" id="bondCard">
+        <div class="card-head">
+          <h2>Obligations et taux <span class="q-new">nouveau</span><button type="button" class="info" aria-label="Explication" data-tip="Tes fonds obligataires : le rendement attendu si tu les gardes jusqu'à l'échéance, ce que tu perdrais (ou gagnerais) si les taux bougent, et pour un fonds à échéance, sa valeur au terme face au fonds euros et au Livret A.">i</button></h2>
+        </div>
+        <div id="bondBody"></div>
       </div>
 
       <div data-sub="risque" class="card" id="qRiskCard">
@@ -673,6 +709,13 @@
         <button data-tab="objectifs">Objectifs</button>
         <button data-tab="simuler">Simuler</button>
         <button data-tab="arene">Arène</button>
+      </div>
+
+      <div data-sub="investir" class="card" id="budgetCard">
+        <div class="card-head">
+          <h2>Budget et épargne de précaution <span class="q-new">nouveau</span><button type="button" class="info" aria-label="Explication" data-tip="Ce que tu mets de côté chaque mois, combien de mois de dépenses tes liquidités couvrent, et combien tu peux investir ce mois-ci sans toucher à ta sécurité. Le montant peut préparer le plan du mois en un clic.">i</button></h2>
+        </div>
+        <div id="budgetBody"></div>
       </div>
 
       <div data-sub="investir" class="card">
@@ -1064,6 +1107,7 @@
             <h4 class="sub-title">Opérations en CSV (Excel)<button type="button" class="info" aria-label="Explication" data-tip="Pour retravailler tes opérations, ou importer l&#x27;historique exporté de ton courtier. Colonnes reconnues : date, type (achat / vente / dividende / division), compte, symbole, place, nom, quantité (ou parité pour une division), prix, frais, devise, note.">i</button></h4>
             <div class="actions">
               <button class="btn" id="csvExport">Exporter en CSV</button>
+              <button class="btn" id="xlsxExport2" type="button">Exporter en Excel (.xlsx)</button>
               <label class="btn">Importer un CSV… <input type="file" id="csvImport" accept=".csv,text/csv,text/plain" hidden></label>
               <button class="btn" id="csvTemplate">Télécharger un modèle</button>
             </div>
@@ -1289,52 +1333,59 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-  <script src="js/utils.js?v=6f846ffaa3"></script>
-  <script src="js/store.js?v=6f846ffaa3"></script>
-  <script src="js/api.js?v=6f846ffaa3"></script>
-  <script src="js/markets.js?v=6f846ffaa3"></script>
-  <script src="js/portfolio.js?v=6f846ffaa3"></script>
-  <script src="js/charts.js?v=6f846ffaa3"></script>
-  <script src="js/app.js?v=6f846ffaa3"></script>
-  <script src="js/views.js?v=6f846ffaa3"></script>
-  <script src="js/compare.js?v=6f846ffaa3"></script>
-  <script src="js/extras.js?v=6f846ffaa3"></script>
-  <script src="js/mobile.js?v=6f846ffaa3"></script>
-  <script src="js/features.js?v=6f846ffaa3"></script>
-  <script src="js/money.js?v=6f846ffaa3"></script>
-  <script src="js/newsart.js?v=6f846ffaa3"></script>
-  <script src="js/insights.js?v=6f846ffaa3"></script>
-  <script src="js/wealth.js?v=6f846ffaa3"></script>
-  <script src="js/avis.js?v=6f846ffaa3"></script>
-  <script src="js/manual.js?v=6f846ffaa3"></script>
-  <script src="js/health.js?v=6f846ffaa3"></script>
-  <script src="js/agenda.js?v=6f846ffaa3"></script>
-  <script src="js/fiche.js?v=6f846ffaa3"></script>
-  <script src="js/today.js?v=6f846ffaa3"></script>
-  <script src="js/watchcols.js?v=6f846ffaa3"></script>
-  <script src="js/etfcompare.js?v=6f846ffaa3"></script>
-  <script src="js/tour.js?v=6f846ffaa3"></script>
-  <script src="js/catalog.js?v=6f846ffaa3"></script>
-  <script src="js/goals.js?v=6f846ffaa3"></script>
-  <script src="js/optimizer.js?v=6f846ffaa3"></script>
-  <script src="js/treemap.js?v=6f846ffaa3"></script>
-  <script src="js/wrapped.js?v=6f846ffaa3"></script>
-  <script src="js/lab.js?v=6f846ffaa3"></script>
-  <script src="js/share.js?v=6f846ffaa3"></script>
-  <script src="js/labo-quant.js?v=6f846ffaa3"></script>
-  <script src="js/fisc.js?v=6f846ffaa3"></script>
-  <script src="js/desk.js?v=6f846ffaa3"></script>
-  <script src="js/arena.js?v=6f846ffaa3"></script>
-  <script src="js/institut.js?v=6f846ffaa3"></script>
-  <script src="js/termchart.js?v=6f846ffaa3"></script>
-  <script src="js/terminal.js?v=6f846ffaa3"></script>
-  <script src="js/copilot.js?v=6f846ffaa3"></script>
-  <script src="js/inflation.js?v=6f846ffaa3"></script>
-  <script src="js/attribution.js?v=6f846ffaa3"></script>
-  <script src="js/styles.js?v=6f846ffaa3"></script>
-  <script src="js/ecartsuivi.js?v=6f846ffaa3"></script>
-  <script src="js/credit.js?v=6f846ffaa3"></script>
-  <script src="js/screener.js?v=6f846ffaa3"></script>
-  <script src="js/ordre.js?v=6f846ffaa3"></script>
+  <script src="js/utils.js?v=d87c1ecbae"></script>
+  <script src="js/store.js?v=d87c1ecbae"></script>
+  <script src="js/api.js?v=d87c1ecbae"></script>
+  <script src="js/markets.js?v=d87c1ecbae"></script>
+  <script src="js/portfolio.js?v=d87c1ecbae"></script>
+  <script src="js/charts.js?v=d87c1ecbae"></script>
+  <script src="js/app.js?v=d87c1ecbae"></script>
+  <script src="js/views.js?v=d87c1ecbae"></script>
+  <script src="js/compare.js?v=d87c1ecbae"></script>
+  <script src="js/extras.js?v=d87c1ecbae"></script>
+  <script src="js/mobile.js?v=d87c1ecbae"></script>
+  <script src="js/features.js?v=d87c1ecbae"></script>
+  <script src="js/money.js?v=d87c1ecbae"></script>
+  <script src="js/newsart.js?v=d87c1ecbae"></script>
+  <script src="js/insights.js?v=d87c1ecbae"></script>
+  <script src="js/wealth.js?v=d87c1ecbae"></script>
+  <script src="js/avis.js?v=d87c1ecbae"></script>
+  <script src="js/manual.js?v=d87c1ecbae"></script>
+  <script src="js/health.js?v=d87c1ecbae"></script>
+  <script src="js/agenda.js?v=d87c1ecbae"></script>
+  <script src="js/fiche.js?v=d87c1ecbae"></script>
+  <script src="js/today.js?v=d87c1ecbae"></script>
+  <script src="js/watchcols.js?v=d87c1ecbae"></script>
+  <script src="js/etfcompare.js?v=d87c1ecbae"></script>
+  <script src="js/tour.js?v=d87c1ecbae"></script>
+  <script src="js/catalog.js?v=d87c1ecbae"></script>
+  <script src="js/goals.js?v=d87c1ecbae"></script>
+  <script src="js/optimizer.js?v=d87c1ecbae"></script>
+  <script src="js/treemap.js?v=d87c1ecbae"></script>
+  <script src="js/wrapped.js?v=d87c1ecbae"></script>
+  <script src="js/lab.js?v=d87c1ecbae"></script>
+  <script src="js/share.js?v=d87c1ecbae"></script>
+  <script src="js/labo-quant.js?v=d87c1ecbae"></script>
+  <script src="js/fisc.js?v=d87c1ecbae"></script>
+  <script src="js/desk.js?v=d87c1ecbae"></script>
+  <script src="js/arena.js?v=d87c1ecbae"></script>
+  <script src="js/institut.js?v=d87c1ecbae"></script>
+  <script src="js/termchart.js?v=d87c1ecbae"></script>
+  <script src="js/terminal.js?v=d87c1ecbae"></script>
+  <script src="js/copilot.js?v=d87c1ecbae"></script>
+  <script src="js/inflation.js?v=d87c1ecbae"></script>
+  <script src="js/attribution.js?v=d87c1ecbae"></script>
+  <script src="js/styles.js?v=d87c1ecbae"></script>
+  <script src="js/ecartsuivi.js?v=d87c1ecbae"></script>
+  <script src="js/credit.js?v=d87c1ecbae"></script>
+  <script src="js/screener.js?v=d87c1ecbae"></script>
+  <script src="js/ordre.js?v=d87c1ecbae"></script>
+  <script src="js/courtiers.js?v=d87c1ecbae"></script>
+  <script src="js/obligations.js?v=d87c1ecbae"></script>
+  <script src="js/devises.js?v=d87c1ecbae"></script>
+  <script src="js/diversif.js?v=d87c1ecbae"></script>
+  <script src="js/budget.js?v=d87c1ecbae"></script>
+  <script src="js/revue.js?v=d87c1ecbae"></script>
+  <script src="js/xlsx.js?v=d87c1ecbae"></script>
 </body>
 </html>

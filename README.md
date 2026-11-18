@@ -8,13 +8,20 @@ Site personnel (100 % statique, sans serveur ni compte) pour suivre ses ETF et l
 
 | Espace | Sous-onglets |
 |---|---|
-| **Portefeuille** — ce que j'ai | Vue d'ensemble (à faire, positions, évolution, répartition, comptes) · Patrimoine (patrimoine global, liquidités) · Revenus & impôts (dividendes, fiscalité, radar fiscal, retrait malin) · Opérations (opérations, journal de trades) |
-| **Analyse** — le comprendre | Composition (bilan de santé, radiographie, exposition & frais, carte) · Performance (variations du jour, ce qui a fait ton gain, performance réelle, face au MSCI World, P&L explain, audit de tes décisions) · Risque (risque, exposition aux styles, crash-tests, scénarios, anatomie du risque, stress test inversé) · Optimiser (optimiseur, Black-Litterman) |
+| **Portefeuille** — ce que j'ai | Vue d'ensemble (à faire, positions, évolution, répartition, comptes) · Patrimoine (patrimoine global, liquidités) · Revenus & impôts (dividendes, fiscalité, radar fiscal, retrait malin) · Opérations (opérations, export Excel, comparateur de courtiers, journal de trades) |
+| **Analyse** — le comprendre | Composition (bilan de santé, radiographie, exposition & frais, devises et couverture, carte) · Performance (variations du jour, ce qui a fait ton gain, performance réelle, face au MSCI World, revue du mois, P&L explain, audit de tes décisions) · Risque (risque, exposition aux styles, diversification dans le temps, obligations et taux, crash-tests, scénarios, anatomie du risque, stress test inversé) · Optimiser (optimiseur, Black-Litterman) |
 | **Marchés** — explorer | Suivi & fiches (recherche, liste de suivi, fiche complète, passer un ordre, écart de suivi) · Monde (indicateurs, météo des marchés, horaires des bourses) · Comparer · Catalogue d'ETF · Signaux (filtre d'actions, scanner, stratégies tactiques) |
 | **Agenda** — ce qui arrive | Agenda (résultats, macro, dividendes, échéances) · Actualités · Alertes de prix |
-| **Planifier** — décider | Investir (allocation cible, plan du mois, versements programmés) · Objectifs (objectifs, planificateur probabiliste, projection, retraite) · Simuler (simulation sur données réelles, rembourser son crédit ou investir, laboratoire de stratégies) · Arène (univers parallèles, défi à l'aveugle, briefing vocal) |
+| **Planifier** — décider | Investir (budget et épargne de précaution, allocation cible, plan du mois, versements programmés) · Objectifs (objectifs, planificateur probabiliste, projection, retraite) · Simuler (simulation sur données réelles, rembourser son crédit ou investir, laboratoire de stratégies) · Arène (univers parallèles, défi à l'aveugle, briefing vocal) |
 
 **Dernières nouveautés** :
+- **Et chez un autre courtier ?** (Portefeuille › Opérations) : tes vrais ordres recalculés avec les barèmes de BoursoBank (Découverte, Classic), Fortuneo (Starter, Progress, Trader Pro) et DEGIRO, relevés sur leurs sites le 18 novembre 2026 (dans `js/courtiers.js`, à mettre à jour quand ils changent), frais des mois sans ordre et plafond légal du PEA (0,50 %) compris ; « Autre courtier » pour n'importe quel barème (Bourse Direct, Trade Republic…)
+- **Export Excel** (Portefeuille › Opérations et Réglages) : classeur .xlsx écrit dans le navigateur, sans bibliothèque — synthèse, positions par compte, opérations, plus-values réalisées (détail et par année et par compte), dividendes ; vraies valeurs numériques et dates, en-têtes figés
+- **Obligations et taux** (Analyse › Risque) : les fonds obligataires sont reconnus (profil « Obligations »), rendement à l'échéance et sensibilité saisis d'après le reporting du fonds, effet d'une variation des taux de −1, +1 et +2 points, et pour un fonds à échéance sa valeur au terme face au fonds euros et au Livret A ; simulateur de fonds à échéance
+- **Devises et couverture de change** (Analyse › Composition) : exposition réelle par devise (en regardant dans les ETF), effet d'une variation des devises face à l'euro, ETF couverts reconnus d'après leur nom (« EUR Hedged »…) ou cochés à la main — leur exposition compte alors dans la devise de couverture, partout dans le site — et coût réel de la couverture face au même indice non couvert
+- **Diversification dans le temps** (Analyse › Risque) : corrélation moyenne entre tes lignes et nombre de paris indépendants sur 52 semaines glissantes depuis 5 ans, graphique et alerte quand elles deviennent plus liées que d'habitude
+- **Budget et épargne de précaution** (Planifier › Investir) : épargne et taux d'épargne du mois, mois de dépenses couverts par tes liquidités (compte courant, livrets), montant à investir une fois l'épargne de précaution complète, et plan du mois préparé en un clic
+- **Revue du mois** (Analyse › Performance) : le mois en une page — performance face au MSCI World, ce qui l'explique (cours, devises, dividendes, frais), lignes qui ont le plus compté, opérations, ce qui arrive le mois suivant ; imprimable en PDF
 - **Performance réelle** (Analyse › Performance) : ta performance une fois l'inflation déduite, année par année, rendement réel (XIRR) et gain en pouvoir d'achat (chaque versement ramené en euros d'aujourd'hui). Indice des prix à la consommation de l'INSEE, mensuel, inscrit dans `js/inflation.js` (à compléter chaque mois dans `CPI_FR.values`)
 - **Face au MSCI World : d'où vient l'écart** (Analyse › Performance) : attribution de Brinson mois par mois (reliée par la méthode de Cariño) — répartition géographique (États-Unis, Europe, Japon, émergents, or, crypto, en regardant dans tes ETF) et choix des lignes, avec la part due aux devises ; sur 1, 3, 5 ans ou depuis le début
 - **Exposition aux styles** (Analyse › Risque) : value ou croissance, petites ou grandes capitalisations, momentum, qualité, faible volatilité, mesurés sur 3 ans face au MSCI World (régression sur les ETF iShares MSCI World « factor ») pour le portefeuille et chaque ligne
@@ -295,6 +302,13 @@ js/ecartsuivi.js  écart de suivi des ETF face à leur indice (nom choisi pour n
 js/credit.js      rembourser son crédit ou investir (remboursement anticipé contre placement)
 js/screener.js    filtre d'actions sur leurs chiffres (univers de 108 grandes sociétés)
 js/ordre.js       passer un ordre : créneau conseillé, fourchette, taille de l'ordre
+js/courtiers.js   comparateur de courtiers (barèmes relevés, rejeu des ordres, plafond du PEA)
+js/obligations.js obligations et taux : rendement à l'échéance, sensibilité, fonds à échéance
+js/devises.js     devises et couverture de change
+js/diversif.js    diversification dans le temps (corrélations glissantes)
+js/budget.js      budget et épargne de précaution
+js/revue.js       revue du mois (imprimable)
+js/xlsx.js        export Excel (.xlsx) sans bibliothèque
 sw.js, manifest.webmanifest, icons/   application installable (PWA)
 js/app.js         interface et bus d'événements (App.on / App.emit, liste des événements en tête du fichier)
 api/yahoo.js      relais Yahoo Finance (fonction Vercel)

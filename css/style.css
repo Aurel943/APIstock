@@ -1753,3 +1753,44 @@ table.data.etfcmp-table th.num { white-space: normal; }
   .style-bars li { grid-template-columns: minmax(0, 8.5em) minmax(0, 1fr) max-content; }
   .style-lvl { display: none; }
 }
+
+/* ---------- Comparateur de courtiers (Portefeuille › Opérations) ---------- */
+.broker-head { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin-bottom: 10px; font-size: 13px; }
+.broker-table td.num, .broker-table th.num { white-space: nowrap; }
+.broker-table tr.broker-mine td { background: var(--surface-2); }
+.broker-best { margin-left: 6px; }
+.broker-rule { white-space: normal; min-width: 14em; }
+.broker-custom { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 10px 0 4px; }
+.broker-custom input { max-width: 100%; }
+
+/* ---------- Obligations, devises, diversification (Analyse) ---------- */
+.bond-table td.num, .fx-table td.num { white-space: nowrap; }
+.bond-in { width: 6.5em; max-width: 100%; font-family: "JetBrains Mono", monospace; }
+.bond-table input[type="date"].bond-in { width: 9.5em; }
+.bond-table tr.bond-total td { border-top: 2px solid var(--border); }
+.bond-dated { margin: 8px 0; }
+.bond-calc { margin-top: 12px; }
+.bond-calc summary, .fx-hedge summary { cursor: pointer; color: var(--accent); font-size: 13px; }
+.bond-calc-form { margin: 10px 0; }
+.bond-calc-form label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.fx-shock { margin: 4px 0 8px; }
+.fx-shock input { width: 5em; }
+.fx-hedge { margin-top: 12px; }
+.fx-hedge-list { list-style: none; padding: 0; margin: 6px 0 0; display: grid; gap: 6px; font-size: 13px; }
+.fx-hedge-list li { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
+.fx-hedge-out { color: var(--muted); flex-basis: 100%; }
+.fx-hedge-out:empty { display: none; }
+.div-chart { height: 240px; margin: 8px 0 12px; }
+
+/* ---------- Budget (Planifier) et revue du mois (Analyse) ---------- */
+.budget-form { margin-bottom: 14px; }
+.budget-form label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.budget-form label.check { flex-direction: row; align-items: center; gap: 6px; align-self: end; color: var(--muted); }
+.rev-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+.rev-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 12px; margin: 12px 0; }
+.rev-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 13px; }
+.rev-list li { display: flex; justify-content: space-between; gap: 10px; border-bottom: 1px solid var(--border); padding: 3px 0; }
+.rev-list li span { min-width: 0; overflow-wrap: anywhere; }
+.rev-list b { white-space: nowrap; }
+.rev-next { margin-top: 12px; }
+.fx-shock label { display: inline-flex; flex-direction: row; align-items: center; gap: 6px; flex-wrap: wrap; }

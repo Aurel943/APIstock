@@ -381,6 +381,7 @@ const EXPO_PROFILES = {
     sector: { ind: 23, cyc: 17, fin: 15, tech: 13, comm: 8, health: 7, stap: 6, mat: 6, re: 2.5, util: 1.3, energy: 1.2 },
     ccy: { JPY: 100 } },
   gold: { label: 'Or', special: 'Or (matière première)', ccy: { USD: 100 } },
+  bond: { label: 'Obligations', special: 'Obligations', ccy: { EUR: 100 } },
   crypto: { label: 'Crypto-monnaie', special: 'Crypto-monnaies', ccy: { Crypto: 100 } },
   stock: { label: 'Action individuelle' },
   none: { label: 'Non renseigné' },
@@ -411,14 +412,27 @@ const US_FUNDS = new Set(['SPY', 'VOO', 'IVV', 'QQQ', 'QQQM', 'ACWI', 'URTH', 'G
 const OVERLAP = { 'sp500|world': 68, 'ndx|world': 30, 'ndx|sp500': 45, 'allworld|world': 87, 'allworld|sp500': 60, 'allworld|ndx': 27,
   'allworld|em': 10, 'europe|world': 15, 'allworld|europe': 14, 'es50|europe': 45, 'cac|europe': 20, 'cac|es50': 35, 'japan|world': 5.5, 'allworld|japan': 5.5 };
 
+/* Fonds obligataires d'après leur nom (testé avant les indices d'actions : « World Government Bond » est une obligation) */
+const BOND_RE = /\bbonds?\b|obligat|treasur|\bgovt\b|government|aggregate|\bcorporate\b|\bcorp\b|fixed income|\bibonds\b|high yield|inflation.linked|\btreasuries\b/i;
+/* ETF couvert contre le risque de change, et devise de couverture (par défaut la devise de base) */
+const HEDGED_RE = /hedged|\bhdg\b|couvert|\(h\)|\bh\)|[- ]h(?:ed)?\s*$/i;
+
 const Expo = {
+  /** Devise vers laquelle un ETF est couvert contre le change, ou null s'il ne l'est pas */
+  hedgeOf(inst) {
+    const n = ((inst && inst.name) || '') + ' ' + ((inst && inst.short) || '');
+    if (inst && inst.hedged !== undefined && inst.hedged !== '') return inst.hedged ? (inst.hedgeCcy || Store.state.settings.baseCurrency || 'EUR') : null;
+    if (!HEDGED_RE.test(n)) return null;
+    const m = n.match(/\b(EUR|USD|GBP|CHF)\b[\s-]*(?:hedged|hdg|couvert)|(?:hedged|hdg|couvert)[\s-]*(?:en\s+)?(EUR|USD|GBP|CHF)\b/i);
+    return m ? (m[1] || m[2]).toUpperCase() : (Store.state.settings.baseCurrency || 'EUR');
+  },
   guess(inst) {
     if (!inst) return { profile: 'none', ter: NaN, auto: true };
     const sym = (inst.symbol || '').toUpperCase(), ysym = (inst.ysymbol || '').toUpperCase().split('.')[0];
     const hit = ETF_DB[sym] || ETF_DB[ysym];
     if (hit) return { profile: hit[0], ter: hit[1], auto: true };
     const n = (inst.name || '') + ' ' + (inst.short || '');
-    const byName = [[/nasdaq.?100/i, 'ndx'], [/s&p.?500/i, 'sp500'], [/all.?world|acwi|monde entier/i, 'allworld'], [/msci world|pea monde|\bworld\b/i, 'world'],
+    const byName = [[BOND_RE, 'bond'], [/nasdaq.?100/i, 'ndx'], [/s&p.?500/i, 'sp500'], [/all.?world|acwi|monde entier/i, 'allworld'], [/msci world|pea monde|\bworld\b/i, 'world'],
       [/emerg|émerg/i, 'em'], [/euro ?stoxx ?50/i, 'es50'], [/stoxx ?(europe )?600|msci europe|\beurope\b/i, 'europe'], [/cac ?40/i, 'cac'],
       [/japan|japon|topix|nikkei/i, 'japan'], [/\bgold\b|\bor physique\b/i, 'gold'], [/bitcoin|ethereum|crypto/i, 'crypto']];
     for (const [re, p] of byName) if (re.test(n)) return { profile: p, ter: p === 'crypto' ? 0 : NaN, auto: true };
@@ -500,8 +514,15 @@ const Expo = {
   split(key) {
     const { profile, inst } = this.of(key);
     const P = EXPO_PROFILES[profile] || EXPO_PROFILES.none;
-    if (P.country) return P;
-    if (P.special) return { country: { [P.special]: 100 }, sector: { [P.special]: 100 }, ccy: P.ccy };
+    const hedge = profile !== 'crypto' && profile !== 'stock' ? this.hedgeOf(inst) : null;
+    if (P.country) return hedge ? Object.assign({}, P, { ccy: { [hedge]: 100 }, hedged: hedge }) : P;
+    if (profile === 'bond') {
+      // obligations : devise de couverture, sinon dollar si le nom l'indique, sinon devise de cotation
+      const n = (inst && inst.name) || '';
+      const c = hedge || (/\busd\b|u\.s\.|\bus treasur|\$/i.test(n) ? 'USD' : Api.fxNorm((inst && inst.currency) || 'EUR')[0]);
+      return { country: { [P.special]: 100 }, sector: { [P.special]: 100 }, ccy: { [c]: 100 }, hedged: hedge };
+    }
+    if (P.special) return { country: { [P.special]: 100 }, sector: { [P.special]: 100 }, ccy: hedge ? { [hedge]: 100 } : P.ccy, hedged: hedge };
     if (profile === 'stock') {
       const c = MIC_COUNTRY[inst && inst.mic] || 'other';
       return { country: { [c]: 100 }, sector: { 'Actions individuelles': 100 }, ccy: { [(inst && inst.currency) || '?']: 100 } };
