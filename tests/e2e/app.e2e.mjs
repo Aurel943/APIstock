@@ -1014,3 +1014,58 @@ test('visite guidée : au premier lancement, au clavier, puis relançable depuis
     assert.deepEqual(app.errors, [], 'erreurs JavaScript');
   } finally { await app.context.close(); }
 });
+
+test('performance réelle, attribution face au MSCI World, styles, écart de suivi, ordre, crédit et filtre d\'actions', () => run({ state: sampleState({
+  assets: [{ id: 'a1', type: 'immo', name: 'Appartement', value: 300000, debt: 182000, date: '2025-01-01' }],
+}) }, async ({ page }) => {
+  // performance réelle : historique chargé à la demande, gain en pouvoir d'achat et tableau par année
+  await page.evaluate(() => App.show('analysis', 'performance'));
+  if (await page.locator('#inflRun').count()) await page.click('#inflRun');
+  await page.waitForSelector('#inflBody .infl-table', { timeout: 20000 });
+  assert.match(await page.locator('#inflBody').innerText(), /pouvoir d'achat/);
+  assert.match(await page.locator('#inflBody .infl-table').innerText(), /2025/);
+  // attribution : écart total = répartition géographique + choix des lignes
+  await page.click('#attrPeriods button[data-period="max"]');
+  await page.click('#attrRun');
+  await page.waitForSelector('#attrBody .attr-bars', { timeout: 30000 });
+  const attr = await page.locator('#attrBody').innerText();
+  assert.match(attr, /contre .* pour le MSCI World/);
+  assert.match(attr, /Répartition géographique[\s\S]*Choix des lignes[\s\S]*Écart total/);
+  assert.match(attr, /États-Unis/);
+  // styles : expositions du portefeuille et de chaque ligne
+  await page.evaluate(() => App.show('analysis', 'risque'));
+  await page.click('#styleRun');
+  await page.waitForSelector('#styleBody .style-table', { timeout: 30000 });
+  assert.match(await page.locator('#styleBody .style-verdict').innerText(), /Ton portefeuille/);
+  assert.equal(await page.locator('#styleBody .style-table tbody tr').count(), 3);
+  // fiche de CW8 : passer un ordre (Euronext : fourchette estimée) et écart de suivi face au MSCI World
+  await page.evaluate(() => { App.show('markets', 'suivi'); App.selectDetail('CW8@XPAR'); });
+  await page.waitForSelector('#detailOrder .order-panel', { timeout: 15000 });
+  const order = await page.locator('#detailOrder').innerText();
+  assert.match(order, /passer un ordre/i);
+  assert.match(order, /Bon moment|attendre|Bourse fermée/);
+  assert.match(order, /New York/);
+  await page.fill('#detailOrder .order-amount', '250000');
+  await page.waitForFunction(() => /découpe-le|Montant échangé/.test(document.querySelector('#detailOrder .order-cost').innerText));
+  await page.click('#tdRun');
+  await page.waitForSelector('#detailTrackBody .td-table', { timeout: 30000 });
+  assert.equal(await page.locator('#detailTrackBody [data-tip*="URTH"]').count(), 1);
+  assert.match(await page.locator('#detailTrackBody .td-verdict').innerText(), /frais/);
+  // crédit : capital restant repris du patrimoine, verdict et point d'équilibre
+  await page.evaluate(() => App.show('plan', 'simuler'));
+  await page.waitForSelector('#creditForm');
+  assert.equal(await page.inputValue('#crCapital'), '182000');
+  await page.fill('#crAmount', '30000');
+  await page.fill('#crRet', '2');
+  await page.waitForFunction(() => /rembourser est plus intéressant/.test(document.querySelector('#creditOut .credit-verdict').innerText));
+  assert.match(await page.locator('#creditOut').innerText(), /Point d'équilibre/);
+  // filtre d'actions : NVIDIA (seule société enregistrée) apparaît sans filtre, disparaît avec « Rendement »
+  await page.evaluate(() => App.show('markets', 'signaux'));
+  await page.click('#screenRun');
+  await page.waitForSelector('#screenOut p.small', { timeout: 20000 });
+  await page.click('#screenPresets button[data-preset="all"]');
+  await page.waitForSelector('#screenOut .screen-table');
+  assert.match(await page.locator('#screenOut .screen-table').innerText(), /NVIDIA/);
+  await page.click('#screenPresets button[data-preset="yield"]');
+  assert.doesNotMatch(await page.locator('#screenOut').innerText(), /NVIDIA/);
+}));

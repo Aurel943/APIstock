@@ -1705,3 +1705,49 @@ table.data.etfcmp-table th.num { white-space: normal; }
 .tour-dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--border); }
 .tour-dots i.on { background: var(--accent); }
 @media (prefers-reduced-motion: reduce) { .tour-spot, .tour-bubble { transition: none; } }
+
+/* ---------- Performance réelle, attribution, styles (Analyse) ---------- */
+.infl-verdict, .attr-verdict, .style-verdict, .td-verdict, .credit-verdict, .order-verdict { line-height: 1.5; }
+.infl-table, .td-table { max-width: 560px; }
+.infl-table td small, .td-table td small { font-size: 11.5px; }
+.attr-bars { list-style: none; margin: 10px 0 12px; padding: 0; display: grid; gap: 8px; }
+.attr-bars li { display: grid; grid-template-columns: minmax(0, 13em) minmax(0, 1fr) 5.5em; align-items: center; gap: 10px; font-size: 13px; }
+.attr-name { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.attr-track { position: relative; height: 10px; border-radius: 5px; background: color-mix(in srgb, var(--muted) 14%, transparent); }
+.attr-track::after { content: ""; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--muted); opacity: .6; }
+.attr-fill { position: absolute; top: 0; bottom: 0; border-radius: 5px; }
+.attr-fill.up { background: var(--up); } .attr-fill.down { background: var(--down); }
+.attr-bars b { text-align: right; font-weight: 600; white-space: nowrap; }
+.infl-table td.num, .attr-table td.num, .style-table td.num, .td-table td.num, .td-table th.num { white-space: nowrap; }
+.style-bars li { grid-template-columns: minmax(0, 13em) minmax(0, 1fr) 4em minmax(0, 15em); }
+.style-lvl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.style-table .style-strong { font-weight: 700; }
+
+/* ---------- Crédit ou placement (Planifier) ---------- */
+.credit-form { margin-bottom: 14px; }
+.credit-form label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.credit-form .check { flex-direction: row; align-items: center; gap: 6px; color: var(--muted); }
+.credit-notes { margin: 12px 0 4px; padding-left: 18px; color: var(--muted); display: grid; gap: 4px; }
+
+/* ---------- Filtre d'actions (Marchés › Signaux) ---------- */
+.screen-form { display: grid; gap: 10px; margin-bottom: 12px; }
+.screen-opts { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; font-size: 13px; }
+.screen-opts .check { display: inline-flex; align-items: center; gap: 6px; }
+.screen-adv summary { cursor: pointer; color: var(--accent); }
+.screen-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px; margin-top: 8px; }
+.screen-fields label { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--muted); }
+.screen-table td.txt { white-space: normal; min-width: 150px; }
+.linklike { background: none; border: 0; padding: 0; font: inherit; font-weight: 600; color: var(--text); cursor: pointer; text-align: left; }
+.linklike:hover, .linklike:focus-visible { color: var(--accent); text-decoration: underline; }
+
+/* ---------- Passer un ordre, écart de suivi (fiche) ---------- */
+.order-panel .fund-stats > div:last-child input { width: 100%; margin-top: 4px; font-family: "JetBrains Mono", monospace; }
+.order-cost p { margin: 8px 0 0; }
+.order-tips { margin: 10px 0 4px; padding-left: 18px; color: var(--muted); display: grid; gap: 4px; }
+.td-panel .btn { margin-top: 4px; }
+
+@media (max-width: 640px) {
+  .attr-bars li { grid-template-columns: minmax(0, 8.5em) minmax(0, 1fr) max-content; gap: 6px; font-size: 12.5px; }
+  .style-bars li { grid-template-columns: minmax(0, 8.5em) minmax(0, 1fr) max-content; }
+  .style-lvl { display: none; }
+}
