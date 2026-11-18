@@ -243,6 +243,14 @@ Object.assign(App, {
     });
   },
 
+  /** Supprime un versement ou un retrait, avec « Annuler » pendant quelques secondes */
+  deleteCash(m) {
+    const idx = Store.state.cashMoves.indexOf(m);
+    if (idx < 0) return;
+    Store.state.cashMoves.splice(idx, 1); Store.markDeleted(m.id); Store.save(); this.renderAll();
+    undoToast(m.type === 'withdraw' ? 'Retrait supprimé' : 'Versement supprimé', () => { Store.state.cashMoves.splice(idx, 0, m); Store.unmarkDeleted(m.id); Store.save(); this.renderAll(); });
+  },
+
   renderCash() {
     const card = $('#cashCard');
     if (!card) return;
@@ -273,11 +281,7 @@ Object.assign(App, {
           el('td', { class: 'muted small' }, m.note || ''),
           el('td', { class: 'num' },
             el('button', { class: 'iconbtn', title: 'Modifier', onclick: () => this.openCash(m) }, '✎'),
-            el('button', { class: 'iconbtn', title: 'Supprimer', onclick: () => {
-              const idx = Store.state.cashMoves.indexOf(m);
-              Store.state.cashMoves.splice(idx, 1); Store.markDeleted(m.id); Store.save(); this.renderAll();
-              undoToast('Mouvement supprimé', () => { Store.state.cashMoves.splice(idx, 0, m); Store.unmarkDeleted(m.id); Store.save(); this.renderAll(); });
-            } }, '🗑'))))))),
+            el('button', { class: 'iconbtn', title: 'Supprimer', onclick: () => this.deleteCash(m) }, '🗑'))))))),
       moves.length > 5 ? el('button', { class: 'btn small', style: 'margin-top:8px', onclick: () => { this.cashShowAll = !showAll; this.renderCash(); } },
         showAll ? 'Réduire' : `Voir les ${moves.length} mouvements`) : null,
       noteTip('Espèces = versements − retraits − achats (frais inclus) + ventes + dividendes nets. Les opérations en devises sont converties au taux de change de leur date.')].filter(Boolean));

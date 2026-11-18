@@ -9,6 +9,7 @@ import { loadApp } from './harness.mjs';
 const state = {
   settings: { baseCurrency: 'EUR' },
   accounts: [{ id: 'cto', name: 'Compte-titres', type: 'cto', taxRate: 31.4 }],
+  cashMoves: [{ id: 'c1', account: 'cto', type: 'deposit', date: '2024-01-10', amount: 5000 }, { id: 'c2', account: 'cto', type: 'withdraw', date: '2025-04-01', amount: 800, note: 'travaux' }],
   instruments: { 'CW8@XPAR': { symbol: 'CW8', mic: 'XPAR', name: 'Amundi MSCI World <Acc> & co', currency: 'EUR', isin: 'LU1681043599' } },
   transactions: [
     { id: '1', key: 'CW8@XPAR', type: 'buy', date: '2024-01-15', account: 'cto', qty: 10, price: 400, fees: 2 },
@@ -39,10 +40,11 @@ test('export tableur : le classeur s\'ouvre (openpyxl) avec ses feuilles, nombre
   const out = JSON.parse(execFileSync('python3', ['-c', `
 import json, sys, openpyxl
 wb = openpyxl.load_workbook(sys.argv[1])
-ops = wb['Opérations']; pv = wb['Plus-values réalisées']; yr = wb['Par année']; dv = wb['Dividendes']
+ops = wb['Opérations']; cs = wb['Versements et retraits']; pv = wb['Plus-values réalisées']; yr = wb['Par année']; dv = wb['Dividendes']
 print(json.dumps({ 'sheets': wb.sheetnames, 'op': [str(ops['A2'].value)[:10], ops['D2'].value, ops['K2'].value, ops['L3'].value, ops['A2'].number_format],
-  'pv': [pv['I2'].value], 'yr': [yr['A2'].value, yr['E2'].value, yr['F2'].value], 'dv': [dv['D2'].value], 'freeze': ops.freeze_panes }))`, file]).toString());
-  assert.deepEqual(out.sheets, ['Synthèse', 'Positions', 'Opérations', 'Plus-values réalisées', 'Par année', 'Dividendes']);
+  'cash': [cs['C2'].value, cs['D2'].value, cs['C3'].value, cs['D3'].value, cs['E3'].value], 'pv': [pv['I2'].value], 'yr': [yr['A2'].value, yr['E2'].value, yr['F2'].value], 'dv': [dv['D2'].value], 'freeze': ops.freeze_panes }))`, file]).toString());
+  assert.deepEqual(out.sheets, ['Synthèse', 'Positions', 'Opérations', 'Versements et retraits', 'Plus-values réalisées', 'Par année', 'Dividendes']);
+  assert.deepEqual(out.cash, ['Versement', 5000, 'Retrait', -800, 'travaux']);
   assert.deepEqual(out.op.slice(0, 4), ['2024-01-15', 'Amundi MSCI World <Acc> & co', 4002, 'prise de bénéfices']);
   assert.equal(out.op[4], 'dd/mm/yyyy');
   // vente de 4 parts à 500 € (2 € de frais), prix moyen 400,20 € : 1 998 − 1 600,80

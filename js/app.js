@@ -629,7 +629,7 @@ const App = {
     const box = $('#txFilters');
     if (!box) return;
     const f = this.txFilter = this.txFilter || { key: '', type: '', year: '' };
-    const keys = Array.from(new Set(all.map(t => t.key)));
+    const keys = Array.from(new Set(all.filter(t => !t.cash).map(t => t.key)));
     const years = Array.from(new Set(all.map(t => t.date.slice(0, 4)))).sort().reverse();
     if (all.length < 8) { box.replaceChildren(); Object.assign(f, { key: '', type: '', year: '' }); return; }
     const sel = (name, label, opts) => {
@@ -640,7 +640,8 @@ const App = {
     const active = f.key || f.type || f.year;
     box.replaceChildren(
       sel('key', 'Toutes les lignes', keys.map(k => [k, Store.label(k)]).sort((a, b) => a[1].localeCompare(b[1], 'fr'))),
-      sel('type', 'Tous les types', [['buy', 'Achats'], ['sell', 'Ventes'], ['div', 'Dividendes'], ['split', 'Divisions']]),
+      sel('type', 'Tous les types', [['buy', 'Achats'], ['sell', 'Ventes'], ['div', 'Dividendes'], ['split', 'Divisions'],
+        ...(all.some(t => t.cash) ? [['deposit', 'Versements'], ['withdraw', 'Retraits']] : [])]),
       sel('year', 'Toutes les années', years.map(y => [y, y])),
       active ? el('button', { type: 'button', class: 'link small', onclick: () => { Object.assign(f, { key: '', type: '', year: '' }); this.renderTransactions(); } }, 'Effacer les filtres') : null);
   },
@@ -700,15 +701,39 @@ const App = {
       peaEarly ? el('p', { class: 'small down' }, '⚠ PEA de moins de 5 ans : un retrait le clôture, d\'où l\'impôt au prélèvement forfaitaire unique.') : null);
   },
 
+  /** Versements et retraits d'espèces du compte affiché (filtre de compte), sous forme de lignes de l'historique */
+  cashRows() {
+    const filter = Store.state.accountFilter || 'all';
+    return (Store.state.cashMoves || []).filter(m => filter === 'all' || (m.account || Store.defaultAccount()) === filter)
+      .map(m => ({ cash: m, date: m.date, type: m.type === 'withdraw' ? 'withdraw' : 'deposit', account: m.account }));
+  },
+
+  /** Ligne de l'historique pour un versement ou un retrait (montant en devise de base) */
+  cashTxRow(r, multi) {
+    const m = r.cash, out = r.type === 'withdraw', cur = this.base();
+    return el('tr', { class: 'tx-cash' },
+      el('td', {}, fmtDate(m.date)),
+      el('td', {}, el('span', { class: 'chip ' + r.type }, out ? 'Retrait' : 'Versement')),
+      el('td', {}, el('span', { class: 'muted' }, out ? 'Espèces retirées du compte' : 'Espèces versées sur le compte'),
+        m.note ? el('div', { class: 'tx-note', title: m.note }, '📝 ' + m.note) : null),
+      multi ? el('td', { class: 'muted' }, Store.account(m.account || Store.defaultAccount()).name) : null,
+      el('td', { class: 'num' }, '—'), el('td', { class: 'num' }, '—'), el('td', { class: 'num' }, '—'),
+      el('td', { class: 'num ' + (out ? 'down' : 'up') }, (out ? '−' : '+') + fmtMoney(parseNum(m.amount), cur)),
+      el('td', { class: 'num' },
+        el('button', { class: 'iconbtn', title: 'Modifier', onclick: () => this.openCash(m) }, '✎'),
+        el('button', { class: 'iconbtn', title: 'Supprimer', onclick: () => this.deleteCash(m) }, '🗑')));
+  },
+
   renderTransactions() {
-    const all = Portfolio.txs().slice().sort((a, b) => (a.date < b.date ? 1 : -1));
+    const all = Portfolio.txs().concat(this.cashRows()).sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
     this.renderTxFilters(all);
     const f = this.txFilter || {};
-    const txs = all.filter(t => (!f.key || t.key === f.key) && (!f.type || t.type === f.type) && (!f.year || t.date.startsWith(f.year)));
+    const txs = all.filter(t => (!f.key || (!t.cash && t.key === f.key)) && (!f.type || t.type === f.type) && (!f.year || t.date.startsWith(f.year)));
     const multi = Store.state.accounts.length > 1;
     $('#txCount').textContent = txs.length === all.length ? all.length + ' opération(s)' : `${txs.length} sur ${all.length} opération(s)`;
     $('#txAccountCol').classList.toggle('hidden', !multi);
     $('#txTable tbody').replaceChildren(...txs.map(t => {
+      if (t.cash) return this.cashTxRow(t, multi);
       const inst = Store.instrument(t.key);
       const ccy = inst ? inst.currency : this.base();
       const isDiv = t.type === 'div', isSplit = t.type === 'split';
