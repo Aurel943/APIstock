@@ -76,6 +76,25 @@ Object.assign(App, {
       return;
     }
     out.replaceChildren(this.etfComparePanel(a, b, fa, fb, da, db));
+    this.etfCompareTracking(a, b, token);
+  },
+
+  /** Ligne « Écart de suivi » du comparateur, remplie quand les historiques des deux ETF sont chargés */
+  async etfCompareTracking(a, b, token) {
+    if (typeof TrackDiff === 'undefined' || !Api.hasProxy()) return;
+    const res = await Promise.all([a, b].map(k => this.trackingFor(k).catch(() => null)));
+    if (token !== this._etfCmpToken) return;
+    const vals = res.map(r => (r && r.S && isFinite(r.S.avg) ? r.S.avg : r && r.S ? r.S.ann : NaN));
+    const best = isFinite(vals[0]) && isFinite(vals[1]) && vals[0] !== vals[1] ? (vals[0] > vals[1] ? 0 : 1) : -1;
+    ['#etfCmpTdA', '#etfCmpTdB'].forEach((sel, i) => {
+      const cell = $(sel);
+      if (!cell) return;
+      const v = vals[i];
+      cell.textContent = isFinite(v) ? (v >= 0 ? '+' : '−') + fmtNum(Math.abs(v * 100), 2) + ' pt' + (best === i ? ' ✓' : '') : '—';
+      cell.title = res[i] && res[i].reason ? res[i].reason : '';
+      const td = cell.closest('td');
+      if (td) { td.className = 'num' + (best === i ? ' up' : ''); }
+    });
   },
 
   etfComparePanel(a, b, fa, fb, da, db) {
@@ -112,6 +131,8 @@ Object.assign(App, {
       el('tbody', {},
         row('Indice suivi', profileLabel(ea), profileLabel(eb)),
         row('Frais courants', num(ta, x => fmtNum(x, 2) + ' %'), num(tb, x => fmtNum(x, 2) + ' %'), [ta, tb], 'low'),
+        el('tr', {}, el('th', { scope: 'row' }, 'Écart de suivi par an', infoTip('Performance de l\'ETF moins celle de son indice (dividendes nets réinvestis), en moyenne sur les années complètes des 6 dernières années. Plus il est proche de zéro (ou positif), mieux l\'ETF suit son indice, frais compris. Détail dans la fiche de chaque ETF.')),
+          el('td', { class: 'num' }, el('span', { id: 'etfCmpTdA' }, '…')), el('td', { class: 'num' }, el('span', { id: 'etfCmpTdB' }, '…'))),
         row('Perf. annualisée 3 ans', num(va.r3, x => fmtPct(x, 1)), num(vb.r3, x => fmtPct(x, 1)), [va.r3, vb.r3], 'high'),
         row('Perf. annualisée 5 ans', num(va.r5, x => fmtPct(x, 1)), num(vb.r5, x => fmtPct(x, 1)), [va.r5, vb.r5], 'high'),
         row('Depuis le 1er janvier', num(va.ytd, x => fmtPct(x, 1)), num(vb.ytd, x => fmtPct(x, 1)), [va.ytd, vb.ytd]),

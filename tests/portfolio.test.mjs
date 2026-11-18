@@ -289,3 +289,16 @@ test('performance depuis le 1er janvier, hors versements', () => {
   App.historyPoints = null;
   assert.ok(Number.isNaN(App.ytdPerf()));
 });
+
+test('performance pondérée dans le temps : une vente avec plus-value n\'est pas comptée comme une perte', () => {
+  const { Portfolio } = loadApp(base());
+  const series = { 'CW8@XPAR': [['2024-01-01', 100], ['2024-01-02', 150], ['2024-01-03', 150], ['2024-01-04', 165]] };
+  const { points } = Portfolio.replay(series, { 'CW8@XPAR': 1 }, [
+    { date: '2024-01-01', key: 'CW8@XPAR', type: 'buy', qty: 10, price: 100, fees: 0 },
+    { date: '2024-01-03', key: 'CW8@XPAR', type: 'sell', qty: 4, price: 150, fees: 0 },
+  ]);
+  same(points.map(p => p.flow), [1000, 0, -600, 0]);
+  const t = Portfolio.twr(points);
+  near(t[1][1], 150); near(t[2][1], 150); // la vente au cours du jour ne change pas la performance
+  near(t[3][1], 165);
+});

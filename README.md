@@ -9,10 +9,20 @@ Site personnel (100 % statique, sans serveur ni compte) pour suivre ses ETF et l
 | Espace | Sous-onglets |
 |---|---|
 | **Portefeuille** — ce que j'ai | Vue d'ensemble (à faire, positions, évolution, répartition, comptes) · Patrimoine (patrimoine global, liquidités) · Revenus & impôts (dividendes, fiscalité, radar fiscal, retrait malin) · Opérations (opérations, journal de trades) |
-| **Analyse** — le comprendre | Composition (bilan de santé, radiographie, exposition & frais, carte) · Performance (variations du jour, ce qui a fait ton gain, P&L explain, audit de tes décisions) · Risque (risque, crash-tests, scénarios, anatomie du risque, stress test inversé) · Optimiser (optimiseur, Black-Litterman) |
-| **Marchés** — explorer | Suivi & fiches (recherche, liste de suivi, fiche complète) · Monde (indicateurs, météo des marchés, horaires des bourses) · Comparer · Catalogue d'ETF · Signaux (scanner, stratégies tactiques) |
+| **Analyse** — le comprendre | Composition (bilan de santé, radiographie, exposition & frais, carte) · Performance (variations du jour, ce qui a fait ton gain, performance réelle, face au MSCI World, P&L explain, audit de tes décisions) · Risque (risque, exposition aux styles, crash-tests, scénarios, anatomie du risque, stress test inversé) · Optimiser (optimiseur, Black-Litterman) |
+| **Marchés** — explorer | Suivi & fiches (recherche, liste de suivi, fiche complète, passer un ordre, écart de suivi) · Monde (indicateurs, météo des marchés, horaires des bourses) · Comparer · Catalogue d'ETF · Signaux (filtre d'actions, scanner, stratégies tactiques) |
 | **Agenda** — ce qui arrive | Agenda (résultats, macro, dividendes, échéances) · Actualités · Alertes de prix |
-| **Planifier** — décider | Investir (allocation cible, plan du mois, versements programmés) · Objectifs (objectifs, planificateur probabiliste, projection, retraite) · Simuler (simulation sur données réelles, laboratoire de stratégies) · Arène (univers parallèles, défi à l'aveugle, briefing vocal) |
+| **Planifier** — décider | Investir (allocation cible, plan du mois, versements programmés) · Objectifs (objectifs, planificateur probabiliste, projection, retraite) · Simuler (simulation sur données réelles, rembourser son crédit ou investir, laboratoire de stratégies) · Arène (univers parallèles, défi à l'aveugle, briefing vocal) |
+
+**Dernières nouveautés** :
+- **Performance réelle** (Analyse › Performance) : ta performance une fois l'inflation déduite, année par année, rendement réel (XIRR) et gain en pouvoir d'achat (chaque versement ramené en euros d'aujourd'hui). Indice des prix à la consommation de l'INSEE, mensuel, inscrit dans `js/inflation.js` (à compléter chaque mois dans `CPI_FR.values`)
+- **Face au MSCI World : d'où vient l'écart** (Analyse › Performance) : attribution de Brinson mois par mois (reliée par la méthode de Cariño) — répartition géographique (États-Unis, Europe, Japon, émergents, or, crypto, en regardant dans tes ETF) et choix des lignes, avec la part due aux devises ; sur 1, 3, 5 ans ou depuis le début
+- **Exposition aux styles** (Analyse › Risque) : value ou croissance, petites ou grandes capitalisations, momentum, qualité, faible volatilité, mesurés sur 3 ans face au MSCI World (régression sur les ETF iShares MSCI World « factor ») pour le portefeuille et chaque ligne
+- **Écart de suivi** (fiche d'un ETF, et ligne dans le comparateur d'ETF) : ce que l'ETF a vraiment rapporté face à son indice (dividendes nets réinvestis), année par année, comparé à ses frais : « fait mieux que ses frais », « en ligne » ou « coût caché ». Écart mesuré par la pente du rapport ETF / indice, insensible aux heures de clôture différentes
+- **Passer un ordre** (fiche d'une valeur) : bon moment ou non, créneau conseillé dans la journée (sans le premier quart d'heure ni la fin de séance ; pour un ETF coté en Europe, quand la bourse de ses titres est ouverte : après 15 h 30 pour les actions américaines), fourchette achat / vente (publiée par Yahoo, sinon ordre de grandeur d'après le volume échangé), coût de l'aller-retour et taille de l'ordre face au volume du jour
+- **Rembourser mon crédit ou investir ?** (Planifier › Simuler) : remboursement anticipé (indemnités comprises : 6 mois d'intérêts, au plus 3 %) contre placement, mois par mois jusqu'à la fin du crédit, impôt sur les gains selon l'enveloppe, et rendement à partir duquel investir l'emporte ; capital restant repris du patrimoine
+- **Filtre d'actions** (Marchés › Signaux) : 108 grandes sociétés françaises, européennes et américaines triées sur leurs chiffres (PER, PEG, dividende, croissance, rentabilité, dette, potentiel et avis des analystes), profils value, rendement, croissance raisonnable, qualité, potentiel, ou seuils libres ; zone, éligibilité au PEA, ajout à la liste de suivi en un clic
+- **Performance pondérée dans le temps corrigée** : une vente avec plus-value n'est plus comptée comme une perte (l'argent réellement sorti est utilisé, pas le prix de revient) ; le risque, le calendrier des performances et la comparaison avec ton portefeuille en profitent
 
 **Nouveautés de l'organisation** :
 - **Aujourd'hui** (Portefeuille › Vue d'ensemble) : variation du jour et les lignes qui l'expliquent, CAC 40 / S&P 500 / Euro Stoxx 50, événements d'aujourd'hui et de demain, alertes déclenchées et choses à faire
@@ -278,6 +288,13 @@ js/desk.js        salle des marchés : P&L explain, signaux et stratégies tacti
 js/fisc.js        fiscalité active : retrait malin (plan de vente au moindre impôt), radar fiscal
 js/copilot.js     copilote Ctrl+K : questions en français, réponses calculées, raccourcis
 js/avis.js        import des avis d'opéré PDF (lecture du texte avec pdf.js)
+js/inflation.js   performance réelle : indice des prix INSEE mensuel, rendements et gains après inflation
+js/attribution.js attribution de performance face au MSCI World (Brinson-Fachler, liaison de Cariño, devises)
+js/styles.js      exposition aux styles (value, taille, momentum, qualité, faible volatilité)
+js/ecartsuivi.js  écart de suivi des ETF face à leur indice (nom choisi pour ne pas être bloqué : « tracking.js » figure dans les listes anti-pisteurs)
+js/credit.js      rembourser son crédit ou investir (remboursement anticipé contre placement)
+js/screener.js    filtre d'actions sur leurs chiffres (univers de 108 grandes sociétés)
+js/ordre.js       passer un ordre : créneau conseillé, fourchette, taille de l'ordre
 sw.js, manifest.webmanifest, icons/   application installable (PWA)
 js/app.js         interface et bus d'événements (App.on / App.emit, liste des événements en tête du fichier)
 api/yahoo.js      relais Yahoo Finance (fonction Vercel)

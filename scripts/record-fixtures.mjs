@@ -35,6 +35,17 @@ for (const s of SYMBOLS) {
   writeFileSync(join(out, `events-${slug(s)}.json`), JSON.stringify(slim(await get(base + `?interval=1mo&events=div,split&period1=${p1}&period2=${p2}`), true)));
   console.log('✔', s);
 }
+// séries de référence (styles, zones de l'attribution, indices de l'écart de suivi) : cours de clôture seulement
+// (pas de Bitcoin : le test de l'arène vérifie qu'un univers sans historique est signalé)
+const DAILY_ONLY = ['IWDA.L', 'IWVL.L', 'WSML.L', 'IWMO.L', 'IWQU.L', 'MVOL.L', 'CSPX.L', 'IMAE.AS', 'IJPA.L', 'EIMI.L', 'IGLN.L', 'URTH', '^SP500TR'];
+const EVENTS_ONLY = ['URTH'];
+const closeOnly = json => { const r = slim(json).chart.result[0]; r.indicators.quote[0] = { close: r.indicators.quote[0].close.map(v => (v === null ? null : Math.round(v * 1e4) / 1e4)) }; return { chart: { result: [r], error: null } }; };
+for (const s of DAILY_ONLY) {
+  const base = 'https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(s);
+  writeFileSync(join(out, `daily-${slug(s)}.json`), JSON.stringify(closeOnly(await get(base + `?interval=1d&period1=${p1}&period2=${p2}`))));
+  if (EVENTS_ONLY.includes(s)) writeFileSync(join(out, `events-${slug(s)}.json`), JSON.stringify(slim(await get(base + `?interval=1mo&events=div,split&period1=${p1}&period2=${p2}`), true)));
+  console.log('✔ série', s);
+}
 for (const q of SEARCHES) {
   const j = await get('https://query1.finance.yahoo.com/v1/finance/search?quotesCount=20&newsCount=0&q=' + encodeURIComponent(q));
   writeFileSync(join(out, `search-${slug(q)}.json`), JSON.stringify({ quotes: j.quotes || [] }));

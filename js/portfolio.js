@@ -204,7 +204,8 @@ const Portfolio = {
    *  - avec `amount` : achat d'un montant (devise de base) au cours de clôture du jour
    *  - avec `qty` + `price` : opération réelle
    * fxByKey[key] : taux fixe, ou fonction date → taux (taux de change du jour concerné).
-   * Renvoie la courbe { date, invested, value } (devise de base) et les lignes finales.
+   * Renvoie la courbe { date, invested, value, flow } (devise de base) et les lignes finales ; `flow` : argent réellement
+   * entré (+) ou sorti (−) ce jour-là (achats frais compris, produit des ventes frais déduits), pour la performance pondérée.
    */
   replay(seriesByKey, fxByKey, events, opts = {}) {
     const fractional = opts.fractional !== false;
@@ -230,6 +231,7 @@ const Portfolio = {
     const points = [];
 
     for (const d of dates) {
+      let flow = 0;
       for (const k of Object.keys(maps)) {
         const arr = maps[k];
         while (idx[k] < arr.length && arr[idx[k]][0] <= d) { last[k] = arr[idx[k]][1]; idx[k]++; }
@@ -241,6 +243,7 @@ const Portfolio = {
         const fx = fxOn(ev.key, d);
         const px = last[ev.key];
         if (ev.amount !== undefined) {
+          flow += ev.amount;
           if (!isFinite(px)) { L.cash += ev.amount; L.invested += ev.amount; continue; }
           const budget = ev.amount + L.cash;               // devise de base
           const unit = px * fx;
@@ -255,9 +258,11 @@ const Portfolio = {
           const q = Math.min(ev.qty, L.qty);
           const out = L.cost * (q / L.qty);
           L.qty -= q; L.cost -= out; L.invested -= out;
+          flow -= isFinite(ev.price) && ev.price > 0 ? (q * ev.price - (ev.fees || 0)) * fx : out;
         } else {
           const c = (ev.qty * ev.price + (ev.fees || 0)) * fx;
           L.qty += ev.qty; L.cost += c; L.invested += c; L.buys++;
+          flow += c;
         }
       }
       let invested = 0, value = 0;
@@ -267,7 +272,7 @@ const Portfolio = {
         const px = last[L.key];
         value += (isFinite(px) ? L.qty * px * fx : L.cost) + L.cash;
       }
-      points.push({ date: d, invested, value });
+      points.push({ date: d, invested, value, flow });
     }
     const lastDate = dates[dates.length - 1];
     for (const L of Object.values(lines)) {
@@ -591,13 +596,16 @@ const Portfolio = {
     return { net, taxed };
   },
 
-  /** Indice de performance pondérée dans le temps (TWR, base 100) à partir des points de replay() */
+  /**
+   * Indice de performance pondérée dans le temps (TWR, base 100) à partir des points de replay() : chaque jour, la
+   * variation de valeur hors argent entré ou sorti (`flow` ; à défaut, variation du montant investi).
+   */
   twr(points) {
     const out = [];
     let idx = 100;
     for (let i = 0; i < points.length; i++) {
       if (i > 0 && points[i - 1].value > 0) {
-        const flow = points[i].invested - points[i - 1].invested;
+        const flow = isFinite(points[i].flow) ? points[i].flow : points[i].invested - points[i - 1].invested;
         idx *= (points[i].value - flow) / points[i - 1].value;
       }
       out.push([points[i].date, idx]);
