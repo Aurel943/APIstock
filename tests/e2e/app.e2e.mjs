@@ -1126,3 +1126,34 @@ test('courtiers, obligations, devises, diversification, budget, revue du mois et
   const bytes = readFileSync(await dl.path());
   assert.deepEqual(Array.from(bytes.slice(0, 2)), [0x50, 0x4b]);
 }));
+
+test('versements et retraits visibles dans les opérations : modification et suppression', () => run({ state: sampleState({
+  cashMoves: [{ id: 'm1', account: 'pea', type: 'deposit', date: '2024-01-10', amount: 3000 }, { id: 'm2', account: 'pea', type: 'withdraw', date: '2025-06-02', amount: 400, note: 'vacances' },
+    { id: 'm3', account: 'cto', type: 'deposit', date: '2024-01-30', amount: 2000 }, { id: 'm4', account: 'pea', type: 'deposit', date: '2024-03-01', amount: 2500 }],
+}) }, async ({ page }) => {
+  await page.evaluate(() => App.show('portfolio', 'operations'));
+  const rows = page.locator('#txTable tbody tr.tx-cash');
+  assert.equal(await rows.count(), 4);
+  assert.match(await page.locator('#txCount').innerText(), /^8 opération/);
+  assert.match(await rows.first().innerText(), /Retrait[\s\S]*vacances[\s\S]*−400/); // tri par date : le plus récent d'abord
+  // filtres : « Retraits », puis une ligne (les mouvements d'espèces n'appartiennent à aucune ligne)
+  await page.selectOption('#txFilters select >> nth=1', 'withdraw');
+  assert.equal(await page.locator('#txTable tbody tr').count(), 1);
+  await page.selectOption('#txFilters select >> nth=1', '');
+  await page.selectOption('#txFilters select >> nth=0', 'CW8@XPAR');
+  assert.equal(await page.locator('#txTable tbody tr.tx-cash').count(), 0);
+  await page.selectOption('#txFilters select >> nth=0', '');
+  // modification : la fenêtre du mouvement s'ouvre pré-remplie
+  await page.locator('#txTable tbody tr.tx-cash', { hasText: '3 000' }).locator('button[title="Modifier"]').click();
+  assert.equal(await page.inputValue('#cashAmount'), '3000');
+  await page.fill('#cashAmount', '3500');
+  await page.click('#cashForm button[type="submit"]');
+  await page.waitForFunction(() => Store.state.cashMoves.find(m => m.id === 'm1').amount === 3500);
+  assert.equal(await page.locator('#txTable tbody tr.tx-cash', { hasText: '3 500' }).count(), 1);
+  // suppression, puis « Annuler »
+  await page.locator('#txTable tbody tr.tx-cash', { hasText: 'Retrait' }).locator('button[title="Supprimer"]').click();
+  assert.equal(await page.locator('#txTable tbody tr.tx-cash').count(), 3);
+  assert.equal(await page.evaluate(() => Store.state.cashMoves.length), 3);
+  await page.locator('#toast button', { hasText: 'Annuler' }).click();
+  assert.equal(await page.locator('#txTable tbody tr.tx-cash').count(), 4);
+}));

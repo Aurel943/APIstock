@@ -141,6 +141,9 @@ Object.assign(App, {
         y.divs += d.amount;
       }
     }
+    const cash = [H(['Date', 'Compte', 'Type', 'Montant (' + base + ')', 'Note'])].concat((Store.state.cashMoves || []).slice()
+      .sort((x, y) => (x.date < y.date ? -1 : x.date > y.date ? 1 : 0))
+      .map(m => [D(m.date), accName(m.account || Store.defaultAccount()), m.type === 'withdraw' ? 'Retrait' : 'Versement', M((m.type === 'withdraw' ? -1 : 1) * parseNum(m.amount)), m.note || '']));
     const byYear = [H(['Année', 'Compte', 'Plus-values', 'Moins-values', 'Net', 'Dividendes'])].concat(Object.values(years)
       .sort((x, y) => x.year - y.year || x.acc.localeCompare(y.acc, 'fr')).map(y => [y.year, y.acc, M(y.gains), M(-y.losses), M(y.gains - y.losses), M(y.divs)]));
     const chrono = rows => [rows[0]].concat(rows.slice(1).sort((x, y) => (x[0].v < y[0].v ? -1 : x[0].v > y[0].v ? 1 : 0))); // dates ISO
@@ -148,6 +151,7 @@ Object.assign(App, {
       { name: 'Synthèse', rows: synth, widths: [34, 16, 16, 16, 18, 20], freeze: 0 },
       { name: 'Positions', rows: pos, widths: [16, 38, 10, 14, 8, 12, 14, 12, 16, 16, 18, 12, 12] },
       { name: 'Opérations', rows: ops, widths: [11, 16, 11, 38, 10, 14, 12, 12, 8, 10, 14, 30] },
+      { name: 'Versements et retraits', rows: cash, widths: [11, 16, 11, 16, 30] },
       { name: 'Plus-values réalisées', rows: chrono(sales), widths: [11, 16, 38, 10, 12, 14, 16, 16, 18] },
       { name: 'Par année', rows: byYear, widths: [8, 16, 14, 14, 14, 14] },
       { name: 'Dividendes', rows: chrono(divs), widths: [11, 16, 38, 16] },
