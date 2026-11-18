@@ -1069,3 +1069,60 @@ test('performance réelle, attribution face au MSCI World, styles, écart de sui
   await page.click('#screenPresets button[data-preset="yield"]');
   assert.doesNotMatch(await page.locator('#screenOut').innerText(), /NVIDIA/);
 }));
+
+test('courtiers, obligations, devises, diversification, budget, revue du mois et export Excel', () => run({ state: sampleState({
+  instruments: Object.assign({}, sampleState().instruments, {
+    'EUAGG@': { symbol: 'EUAGG', mic: '', name: 'Fonds Euro Aggregate Bond', currency: 'EUR', type: 'Valeur saisie', provider: 'manual', values: [['2025-01-02', 100], ['2026-10-01', 104]] },
+  }),
+  transactions: sampleState().transactions.concat([{ id: 't9', key: 'EUAGG@', type: 'buy', date: '2025-01-02', account: 'cto', qty: 20, price: 100, fees: 0 }]),
+  assets: [{ id: 'l1', type: 'livretA', name: 'Livret A', value: 9000, rate: 1.5, date: '2026-10-01' }],
+}) }, async ({ page }) => {
+  // comparateur de courtiers : tes frais réels et les barèmes relevés
+  await page.evaluate(() => App.show('portfolio', 'operations'));
+  await page.waitForSelector('#brokerBody .broker-table');
+  const brk = await page.locator('#brokerBody').innerText();
+  assert.match(brk, /Ce que tu as payé/);
+  assert.match(brk, /BoursoBank · Découverte/);
+  assert.match(brk, /Fortuneo · Starter/);
+  // obligations : saisie du rendement et de la sensibilité, effet d'une hausse des taux
+  await page.evaluate(() => App.show('analysis', 'risque'));
+  await page.waitForSelector('#bondBody .bond-table');
+  await page.fill('#bondBody .bond-table input[aria-label^="ytm"]', '3.1');
+  await page.locator('#bondBody .bond-table input[aria-label^="ytm"]').dispatchEvent('change');
+  await page.fill('#bondBody .bond-table input[aria-label^="dur"]', '6');
+  await page.locator('#bondBody .bond-table input[aria-label^="dur"]').dispatchEvent('change');
+  await page.waitForFunction(() => /Si les taux montent de 1 point/.test(document.querySelector('#bondBody .bond-verdict').innerText));
+  assert.equal(await page.evaluate(() => Store.instrument('EUAGG@').bond.dur), '6');
+  // diversification dans le temps : corrélations glissantes et graphique
+  await page.click('#divtRun');
+  await page.waitForSelector('#divtBody .div-verdict', { timeout: 30000 });
+  assert.match(await page.locator('#divtBody .div-verdict').innerText(), /pari/);
+  // devises : exposition en regardant dans les ETF
+  await page.evaluate(() => App.show('analysis', 'composition'));
+  await page.waitForSelector('#fxBody .fx-table');
+  assert.match(await page.locator('#fxBody .fx-table').innerText(), /USD/);
+  assert.match(await page.locator('#fxBody .fx-verdict').innerText(), /dollar/);
+  assert.doesNotMatch(await page.locator('#fxBody').innerText(), /\[object /);
+  // budget : précaution complète → plan du mois préparé
+  await page.evaluate(() => App.show('plan', 'investir'));
+  await page.waitForSelector('#budgetForm');
+  await page.fill('#bud-income', '3000');
+  await page.fill('#bud-expenses', '1500');
+  await page.selectOption('#bud-months', '3');
+  await page.waitForSelector('#budgetToPlan');
+  await page.click('#budgetToPlan');
+  assert.equal(await page.inputValue('#planAmount'), '1500');
+  assert.doesNotMatch(await page.locator('#budgetOut').innerText(), /\[object /);
+  // revue du mois
+  await page.evaluate(() => App.show('analysis', 'performance'));
+  await page.waitForSelector('#revOut .rev-verdict', { timeout: 20000 });
+  assert.match(await page.locator('#revOut .rev-verdict').innerText(), /ton portefeuille a (gagné|perdu)/);
+  assert.doesNotMatch(await page.locator('#revOut').innerText() + await page.locator('#bondBody').innerText(), /\[object /);
+  // export Excel : un vrai fichier .xlsx (zip)
+  await page.evaluate(() => App.show('portfolio', 'operations'));
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#xlsxExport')]);
+  assert.match(dl.suggestedFilename(), /^apistock-\d{4}-\d{2}-\d{2}\.xlsx$/);
+  const { readFileSync } = await import('node:fs');
+  const bytes = readFileSync(await dl.path());
+  assert.deepEqual(Array.from(bytes.slice(0, 2)), [0x50, 0x4b]);
+}));
