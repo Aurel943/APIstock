@@ -108,13 +108,13 @@ Object.assign(App, {
       const type = el('select', {}, ...Object.entries(ACCOUNT_TYPES).map(([k, v]) => el('option', { value: k }, v.label)));
       type.value = a.type;
       const rate = el('input', { type: 'number', min: 0, max: 100, step: 0.1, value: a.taxRate, title: 'Taux d\'imposition des plus-values (%)' });
-      type.addEventListener('change', () => { a.type = type.value; a.taxRate = ACCOUNT_TYPES[a.type].rate; rate.value = a.taxRate; Store.save(); this.renderAll(); });
+      type.addEventListener('change', () => { a.type = type.value; a.taxRate = ACCOUNT_TYPES[a.type].rate; rate.value = a.taxRate; Store.save(); this.renderAccountsSettings(); this.renderAll(); });
       rate.addEventListener('change', () => { a.taxRate = parseNum(rate.value) || 0; Store.save(); this.renderAll(); });
       const f = a.fees || {};
       const feeTxt = () => {
         const g = a.fees || {};
         const parts = [parseNum(g.pct) ? fmtNum(parseNum(g.pct), 2) + ' %' : '', parseNum(g.min) ? 'min ' + fmtMoney(parseNum(g.min), this.base()) : '', parseNum(g.fixed) ? '+ ' + fmtMoney(parseNum(g.fixed), this.base()) : ''].filter(Boolean);
-        return parts.length ? 'Courtage : ' + parts.join(' · ') : 'Courtage : non renseigné';
+        return parts.length ? parts.join(' · ') + ' · modifier' : 'Non renseigné · ajouter le barème';
       };
       const feeBtn = el('button', { type: 'button', class: 'link small' }, feeTxt());
       const num = (key, ph, step) => {
@@ -127,23 +127,35 @@ Object.assign(App, {
         el('label', {}, 'Minimum (' + this.base() + ')', num('min', 'ex. 1,99', 0.01)),
         el('label', {}, 'Fixe par ordre (' + this.base() + ')', num('fixed', 'ex. 0', 0.01)));
       feeBtn.addEventListener('click', () => feeForm.classList.toggle('hidden'));
-      return el('div', { class: 'acc-row' }, name, type,
-        el('div', { class: 'pct' }, rate),
-        el('span', { class: 'muted small' }, n + ' op.'),
-        accs.length > 1 ? el('button', { class: 'iconbtn', title: 'Supprimer le compte', onclick: () => {
-          const target = accs.find(x => x !== a);
-          if (!confirm(`Supprimer « ${a.name} » ?` + (n ? ` Ses ${n} opération(s) seront déplacées vers « ${target.name} ».` : ''))) return;
-          for (const t of Store.state.transactions) if ((t.account || Store.defaultAccount()) === a.id) t.account = target.id;
-          for (const m of Store.state.cashMoves) if ((m.account || Store.defaultAccount()) === a.id) m.account = target.id;
-          for (const pl of Store.state.plans) if (pl.account === a.id) pl.account = target.id;
-          Store.state.accounts = accs.filter(x => x !== a);
-          Store.markDeleted(a.id);
-          if (Store.state.accountFilter === a.id) Store.state.accountFilter = 'all';
-          Store.save(); this.renderAccountsSettings(); this.renderAll();
-        } }, '🗑') : el('span'),
-        el('div', { class: 'acc-fees' }, feeBtn,
-          infoTip('Barème de ton courtier pour ce compte : les frais d\'un achat ou d\'une vente sont alors calculés tout seuls (tu peux toujours les corriger). Ex. 0,5 % avec 1,99 € minimum.'),
-          feeForm));
+      const del = accs.length > 1 ? el('button', { class: 'iconbtn acc-del', title: 'Supprimer le compte', 'aria-label': 'Supprimer le compte ' + a.name, onclick: () => {
+        const target = accs.find(x => x !== a);
+        if (!confirm(`Supprimer « ${a.name} » ?` + (n ? ` Ses ${n} opération(s) seront déplacées vers « ${target.name} ».` : ''))) return;
+        for (const t of Store.state.transactions) if ((t.account || Store.defaultAccount()) === a.id) t.account = target.id;
+        for (const m of Store.state.cashMoves) if ((m.account || Store.defaultAccount()) === a.id) m.account = target.id;
+        for (const pl of Store.state.plans) if (pl.account === a.id) pl.account = target.id;
+        Store.state.accounts = accs.filter(x => x !== a);
+        Store.markDeleted(a.id);
+        if (Store.state.accountFilter === a.id) Store.state.accountFilter = 'all';
+        Store.save(); this.renderAccountsSettings(); this.renderAll();
+      } }, '🗑') : null;
+      name.classList.add('acc-name');
+      name.setAttribute('aria-label', 'Nom du compte');
+      const hint = ACCOUNT_TYPES[a.type] && ACCOUNT_TYPES[a.type].hint;
+      // carte d'un compte : nom et nombre d'opérations, puis type, imposition des gains et barème de courtage
+      return el('div', { class: 'acc-card acc-' + a.type },
+        el('div', { class: 'acc-top' },
+          el('span', { class: 'acc-badge' }, (ACCOUNT_TYPES[a.type] || ACCOUNT_TYPES.autre).label),
+          name,
+          el('span', { class: 'muted small acc-count' }, n ? n + ' opération' + (n > 1 ? 's' : '') : 'aucune opération'),
+          del),
+        el('div', { class: 'acc-fields' },
+          el('label', {}, 'Type de compte', type),
+          el('label', {}, el('span', { class: 'lbl' }, 'Imposition des gains', infoTip('Taux appliqué à la plus-value pour l\'estimer nette d\'impôt. Repris automatiquement du type de compte (Réglages › Fiscalité) ; modifiable pour un cas particulier.')),
+            el('div', { class: 'pct' }, rate), hint ? el('span', { class: 'muted small' }, hint) : null),
+          el('div', { class: 'acc-fees' },
+            el('span', { class: 'lbl' }, 'Frais de courtage', infoTip('Barème de ton courtier pour ce compte : les frais d\'un achat ou d\'une vente sont alors calculés tout seuls (tu peux toujours les corriger). Ex. 0,5 % avec 1,99 € minimum.')),
+            feeBtn)),
+        feeForm);
     }));
   },
 

@@ -1632,6 +1632,34 @@ const App = {
       $('#toggleKey').textContent = i.type === 'password' ? 'Afficher' : 'Masquer';
     });
 
+    // préférences enregistrées dès qu'elles changent ; sources de données avec leur bouton
+    for (const id of ['#setCurrency', '#setRefresh', '#setRiskFree']) $(id).addEventListener('change', () => $('#settingsForm').requestSubmit());
+    $('#sourcesSave').addEventListener('click', () => $('#settingsForm').requestSubmit());
+    // liens de section : défilement sans toucher à l'adresse (qui désigne la page)
+    $$('.set-nav a[data-scroll]').forEach(a => a.addEventListener('click', e => {
+      e.preventDefault();
+      const t = $(a.getAttribute('href'));
+      if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }));
+    // thème : automatique (réglage de l'appareil), clair ou sombre
+    const syncTheme = () => {
+      let t = null;
+      try { t = localStorage.getItem('apistock:theme'); } catch (e) { t = null; }
+      const cur = t === 'light' || t === 'dark' ? t : 'auto';
+      $$('#themeSeg button').forEach(b => b.classList.toggle('active', b.dataset.themeChoice === cur));
+    };
+    $$('#themeSeg button').forEach(b => b.addEventListener('click', () => {
+      const v = b.dataset.themeChoice;
+      try { if (v === 'auto') localStorage.removeItem('apistock:theme'); else localStorage.setItem('apistock:theme', v); } catch (e) { /* stockage indisponible */ }
+      this.applyTheme(v === 'auto' ? null : v);
+      syncTheme();
+      this.renderAll();
+    }));
+    $('#themeBtn').addEventListener('click', syncTheme);
+    syncTheme();
+    // taux personnalisés : le détail reste ouvert
+    if ($('#taxDetails') && taxConf().custom) $('#taxDetails').open = true;
+
     $('#settingsForm').addEventListener('submit', e => {
       e.preventDefault();
       const prevCcy = st.baseCurrency;

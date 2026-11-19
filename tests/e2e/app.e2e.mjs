@@ -175,7 +175,7 @@ test('affichage mobile : aucun défilement horizontal, quel que soit l\'onglet',
       const W = window.innerWidth;
       const cut = [...document.querySelectorAll('.view.active *')].filter(e => {
         const b = e.getBoundingClientRect();
-        return b.width > 0 && b.right > W + 1 && !e.closest('.table-wrap, .seg, .quick-assets, .tl-track, .kpi-rest, canvas'); // .kpi-rest : ligne de chiffres qui défile
+        return b.width > 0 && b.right > W + 1 && !e.closest('.table-wrap, .seg, .quick-assets, .tl-track, .kpi-rest, .set-nav, canvas'); // .kpi-rest, .set-nav : lignes qui défilent
       }).map(e => e.tagName.toLowerCase() + '.' + e.className).slice(0, 3);
       return { doc: document.documentElement.scrollWidth - W, cut };
     });
@@ -1222,7 +1222,8 @@ test('répartition par pays et par secteur, en regardant dans les ETF', () => ru
 
 test('mode Essentiel : outils avancés masqués, sous-onglet redirigé, retour au mode Expert', () => run({ state: sampleState() }, async ({ page }) => {
   await page.evaluate(() => App.show('settings'));
-  await page.click('#levelSeg [data-level="essential"]');
+  await page.click('#levelSeg [data-lvl="essential"]');
+  assert.ok(await page.locator('#levelSeg [data-lvl="expert"]').isVisible(), 'le bouton Expert reste visible en mode Essentiel');
   assert.ok(await page.evaluate(() => document.body.classList.contains('level-essential')));
   await page.evaluate(() => App.show('analysis', 'optimiser'));
   assert.equal(await page.evaluate(() => App.page), 'analysis/composition');
@@ -1277,4 +1278,23 @@ test('jalons et mini-courbe de la valeur, une fois l\'évolution chargée', () =
   assert.match(txt, /Premier achat/);
   assert.match(txt, /Prochaines étapes/);
   assert.match(await page.locator('#kpis > .kpi .kpi-spark').innerText(), /30 j/);
+}));
+
+test('réglages : préférences enregistrées sans bouton, thème, comptes lisibles, liens de section', () => run({ state: sampleState() }, async ({ page }) => {
+  await page.evaluate(() => App.show('settings'));
+  await page.selectOption('#setRefresh', '5');
+  await page.waitForFunction(() => Store.state.settings.refreshSec === 5);
+  await page.click('#themeSeg [data-theme-choice="dark"]');
+  assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), 'dark');
+  await page.click('#themeSeg [data-theme-choice="auto"]');
+  assert.equal(await page.evaluate(() => document.documentElement.dataset.theme || ''), '');
+  // une carte par compte, avec ses libellés
+  assert.equal(await page.locator('#accList .acc-card').count(), 2);
+  assert.match(await page.locator('#accList .acc-card').first().innerText(), /Type de compte[\s\S]*Imposition des gains[\s\S]*Frais de courtage/);
+  await page.selectOption('#accList .acc-card >> nth=1 >> select', 'av');
+  assert.match(await page.locator('#accList .acc-card').nth(1).locator('.acc-badge').innerText(), /Assurance-vie/);
+  // lien de section : défilement, la page reste « settings »
+  await page.click('.set-nav a[href="#maintCard"]');
+  assert.equal(await page.evaluate(() => App.page), 'settings');
+  assert.equal(await page.evaluate(() => location.hash), '#settings');
 }));
