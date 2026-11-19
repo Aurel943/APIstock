@@ -471,7 +471,9 @@ const Api = {
     if (from === 'GBX') return (await this.fxRate('GBP')) / 100;
     const pair = from + '/' + base;
     const c = this.fx[pair];
-    if (c && Date.now() - c.ts < 3600 * 1000) return c.rate;
+    // taux relu toutes les 30 s en rafraîchissement rapide par le relais Yahoo (gratuit), sinon toutes les heures
+    const fast = this.hasProxy() && typeof App !== 'undefined' && App.fastMode && App.fastMode();
+    if (c && Date.now() - c.ts < (fast ? 30000 : 3600 * 1000)) return c.rate;
     try {
       let rate;
       if (this.hasProxy()) {
