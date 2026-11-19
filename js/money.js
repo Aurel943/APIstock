@@ -13,10 +13,11 @@ Object.assign(Api, {
    */
   async events(key, startISO) {
     if (Manual.is(key)) return { divs: [], splits: [], currency: (Store.instrument(key) || {}).currency };
+    await Cache.ready;
     const ck = 'apistock:events:' + key;
     const from = [startISO || todayISO(), addDaysISO(todayISO(), -400)].sort()[0];
     let c = null;
-    try { c = JSON.parse(localStorage.getItem(ck) || 'null'); } catch (e) { c = null; }
+    try { c = JSON.parse(Cache.getItem(ck) || 'null'); } catch (e) { c = null; }
     if (c && Date.now() - c.ts < 12 * 3600 * 1000 && c.from <= from) return c.data;
     const inst = Store.instrument(key);
     const ysym = inst && yahooSymbolFor(inst);
@@ -35,7 +36,7 @@ Object.assign(Api, {
         .filter(s => s.ratio > 0 && s.ratio !== 1).sort((a, b) => (a.date < b.date ? -1 : 1)),
       currency: (r && r.meta && r.meta.currency) || (inst && inst.currency) || '',
     };
-    try { localStorage.setItem(ck, JSON.stringify({ ts: Date.now(), from, data })); } catch (e) { /* ignore */ }
+    try { Cache.setItem(ck, JSON.stringify({ ts: Date.now(), from, data })); } catch (e) { /* ignore */ }
     return data;
   },
 });
@@ -524,6 +525,13 @@ Object.assign(App, {
       out.push({ id: 'ios-install', icon: '📲', cls: 'backup', title: 'Ajoute APIstock à ton écran d\'accueil',
         sub: 'Safari efface les données d\'un site non visité pendant 7 jours. Installé (Partager → « Sur l\'écran d\'accueil »), il les garde.',
         actions: [{ label: 'Compris', fn: () => this.dismiss('ios-install') }] });
+    }
+    // Firefox : le stockage durable se demande par une fenêtre, donc sur un clic
+    if (typeof Durable !== 'undefined' && Durable.state === 'best-effort' && Durable.asksPermission() && !dismissed['persist']) {
+      out.push({ id: 'persist', icon: '🔒', cls: 'backup', title: 'Protège tes données dans ce navigateur',
+        sub: 'Sans stockage durable, le navigateur peut effacer les données du site quand le disque se remplit.',
+        actions: [{ label: 'Protéger', primary: true, fn: async () => { const ok = await Durable.request(); toast(ok ? 'Données protégées ✔' : 'Refusé par le navigateur : pense à exporter tes données.', ok ? 'success' : 'error'); this.renderStorage(); this.renderTodo(true); } },
+          { label: 'Plus tard', fn: () => this.dismiss('persist') }] });
     }
     let last = 0;
     try { last = +localStorage.getItem('apistock:lastBackup') || 0; } catch (e) { last = 0; }

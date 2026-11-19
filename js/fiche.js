@@ -65,7 +65,7 @@ const Fundamentals = {
   save() {
     const now = Date.now();
     for (const [s, v] of Object.entries(this.cache || {})) if (now - v.ts > 14 * 86400000) delete this.cache[s];
-    try { localStorage.setItem(FUND_STORE, JSON.stringify(this.cache || {})); } catch (e) { /* stockage indisponible */ }
+    lsSet(FUND_STORE, JSON.stringify(this.cache || {}));
   },
 
   /** { kind: 'stock' | 'etf', sym } pour une ligne de la fiche, ou null (indice, devise, crypto, saisie manuelle…) */

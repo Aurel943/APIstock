@@ -8,11 +8,25 @@ Site personnel (100 % statique, sans serveur ni compte) pour suivre ses ETF et l
 
 | Espace | Sous-onglets |
 |---|---|
-| **Portefeuille** — ce que j'ai | Vue d'ensemble (à faire, positions, évolution, répartition, comptes) · Patrimoine (patrimoine global, liquidités) · Revenus & impôts (dividendes, fiscalité, radar fiscal, retrait malin) · Opérations (opérations, export Excel, comparateur de courtiers, journal de trades) |
+| **Portefeuille** — ce que j'ai | Vue d'ensemble (aujourd'hui, à faire, positions, évolution, répartition, comptes, jalons — personnalisable) · Patrimoine (patrimoine global, liquidités) · Revenus & impôts (dividendes, fiscalité, radar fiscal, retrait malin) · Opérations (opérations, export Excel, comparateur de courtiers, journal de trades) |
 | **Analyse** — le comprendre | Composition (bilan de santé, radiographie, exposition & frais, devises et couverture, carte) · Performance (variations du jour, ce qui a fait ton gain, performance réelle, face au MSCI World, revue du mois, P&L explain, audit de tes décisions) · Risque (risque, exposition aux styles, diversification dans le temps, obligations et taux, crash-tests, scénarios, anatomie du risque, stress test inversé) · Optimiser (optimiseur, Black-Litterman) |
 | **Marchés** — explorer | Suivi & fiches (recherche, liste de suivi, fiche complète, passer un ordre, écart de suivi) · Monde (indicateurs, météo des marchés, horaires des bourses) · Comparer · Catalogue d'ETF · Signaux (filtre d'actions, scanner, stratégies tactiques) |
 | **Agenda** — ce qui arrive | Agenda (résultats, macro, dividendes, échéances) · Actualités · Alertes de prix |
-| **Planifier** — décider | Investir (budget et épargne de précaution, allocation cible, plan du mois, versements programmés) · Objectifs (objectifs, planificateur probabiliste, projection, retraite) · Simuler (simulation sur données réelles, rembourser son crédit ou investir, laboratoire de stratégies) · Arène (univers parallèles, défi à l'aveugle, briefing vocal) |
+| **Planifier** — décider | Investir (budget et épargne de précaution, où placer mon prochain euro, allocation cible, plan du mois, versements programmés) · Objectifs (objectifs, planificateur probabiliste, projection, retraite) · Simuler (simulation sur données réelles, rembourser son crédit ou investir, laboratoire de stratégies) · Arène (univers parallèles, défi à l'aveugle, briefing vocal) |
+
+**Nouveautés de novembre 2026** :
+- **Bouton « retour »** du navigateur (et geste retour sur Android) : revient à la page précédente ; une fenêtre ouverte se ferme d'abord. Une adresse modifiée à la main ouvre la page demandée
+- **Courbe d'évolution** (Vue d'ensemble) : période 1 mois, 6 mois, année en cours, 1 an, 3 ans ou tout ; affichage en euros (valeur, montant investi, mêmes versements dans le MSCI World) ou en % (performance hors versements face au MSCI World) ; achats ▲, ventes ▼ et dividendes ● placés sur la courbe, détail au survol ; résumé de la période (gain, performance, versements nets). Choix gardés
+- **Répartition** : barres horizontales (ou anneau, au choix) et deux nouvelles vues, **Pays** et **Secteurs** des entreprises détenues, en regardant dans tes ETF
+- **Accueil sur téléphone** : la valeur du portefeuille avec sa mini-courbe des 30 derniers jours, les trois autres chiffres sur une ligne qui défile, et une pastille de marché courte (« Paris · 6 h 44 »)
+- **Vue d'ensemble personnalisable** (lien en bas de la page, ou Réglages › Affichage) : ordre des cartes et cartes masquées, synchronisés entre tes appareils
+- **Mode Essentiel / Expert** (Réglages › Affichage ou menu ⋯) : l'Essentiel masque les outils avancés (optimiseur, signaux, attribution, styles, anatomie du risque, stress test inversé, journal de trades, mode terminal…) ; un lien vers un outil masqué propose de repasser en Expert
+- **Où placer mon prochain euro ?** (Planifier › Investir) : ordre de remplissage des enveloppes selon ta situation — épargne de précaution (d'après ton budget, plafonds des livrets), PEA jusqu'au plafond des versements, PER si ta tranche d'imposition est d'au moins 30 %, assurance-vie, compte-titres en dernier — et répartition d'un montant ; la part du PEA prépare le plan du mois en un clic
+- **Alerte de dérive d'allocation** (Planifier › Investir › Rééquilibrage) : « Me prévenir par notification » quand une ligne s'écarte de sa cible de plus du seuil, une fois par mois ; site fermé aussi, si les alertes push sont actives (seuils de cours transmis au worker, recalculés chaque jour)
+- **Résumé de la semaine** (Agenda › Alertes, alertes push actives) : chaque vendredi soir, ta performance de la semaine, celle du MSCI World et tes lignes en tête et en retrait. Le worker ne reçoit que la part en % de chaque ligne, aucun montant (worker à redéployer)
+- **Tes jalons** (Vue d'ensemble) : premier achat, paliers de valeur et de gains, record de gains, premier dividende, cap des 5 ans du PEA et des 8 ans de l'assurance-vie, et les prochaines étapes avec leur progression ; un nouveau palier est salué une fois
+- **Stockage plus sûr** : historiques de cours dans IndexedDB (le stockage principal reste à tes données), stockage durable demandé au navigateur, et si le stockage est plein, les caches sont effacés pour enregistrer ta modification (sinon un message propose d'exporter)
+- **Démarrage plus léger** : 15 modules propres à une page (terminal, outils institutionnels, desk, arène, filtre d'actions, crédit, courtiers, obligations, diversification, budget, revue du mois, export Excel…) ne sont chargés qu'à la première ouverture de leur page ; ils restent disponibles hors ligne
 
 **Dernières nouveautés** :
 - **Et chez un autre courtier ?** (Portefeuille › Opérations) : tes vrais ordres recalculés avec les barèmes de BoursoBank (Découverte, Classic), Fortuneo (Starter, Progress, Trader Pro) et DEGIRO, relevés sur leurs sites le 18 novembre 2026 (dans `js/courtiers.js`, à mettre à jour quand ils changent), frais des mois sans ordre et plafond légal du PEA (0,50 %) compris ; « Autre courtier » pour n'importe quel barème (Bourse Direct, Trade Republic…)
@@ -248,7 +262,7 @@ Le worker vérifie tes alertes toutes les 5 minutes et t'envoie une notification
 3. Worker → **Settings** → **Triggers** → **Cron Triggers** → **Add** : `*/5 * * * *` → **Deploy**.
 4. Sur chaque appareil : **Investir** → **Activer sur cet appareil** (sur iPhone : ajoute d'abord le site à l'écran d'accueil, iOS 16.4 ou plus, et ouvre-le depuis l'icône), puis **Envoyer une notification de test**.
 
-Une alerte déclenchée par le worker est marquée « Déclenchée » sur tes appareils à leur prochaine ouverture. Le worker stocke, pour chaque appareil, l'adresse d'abonnement push et les alertes (symbole Yahoo, condition, seuil) en clair, puisqu'il doit les lire ; rien d'autre de ton portefeuille. Coût : une lecture de la liste KV toutes les 5 minutes (≈ 290 par jour, quota gratuit 1 000) et une écriture seulement quand une alerte se déclenche.
+Une alerte déclenchée par le worker est marquée « Déclenchée » sur tes appareils à leur prochaine ouverture. Le worker stocke, pour chaque appareil, l'adresse d'abonnement push et les alertes (symbole Yahoo, condition, seuil) en clair, puisqu'il doit les lire ; rien d'autre de ton portefeuille. Si tu actives le **résumé de la semaine**, il garde aussi la part (en %) de chaque ligne, son symbole, sa devise et son nom court, sans aucun montant ; il l'envoie le vendredi après 18 h 30 (heure de Paris), ou au plus tard le week-end. Pour en profiter, **redéploie le worker** avec la dernière version de `proxy/cloudflare-worker.js` (le site le signale sinon). Coût : une lecture de la liste KV toutes les 5 minutes (≈ 290 par jour, quota gratuit 1 000) et une écriture seulement quand une alerte se déclenche.
 
 ### B. Héberger tout le site sur Vercel
 Importe le dépôt sur <https://vercel.com/new> : la fonction [`api/yahoo.js`](api/yahoo.js) est déployée automatiquement et le site la détecte tout seul (rien à saisir dans les réglages). La synchronisation, le compteur global et les alertes push restent réservés au relais Cloudflare.
@@ -263,7 +277,7 @@ Importe le dépôt sur <https://vercel.com/new> : la fonction [`api/yahoo.js`](a
 
 - **Crédits API** : 1 cotation = 1 crédit, 1 historique = 1 crédit. L'appli respecte automatiquement ta limite par minute (file d'attente) et met les historiques en cache 6 h. Avec le forfait gratuit et ~8 lignes, garde un rafraîchissement ≥ 1 min. Pense aussi à la limite de 800 crédits/jour.
 - **Places de cotation** : selon ton forfait Twelve Data, certaines bourses européennes peuvent ne pas être incluses ; l'appli affiche alors le message d'erreur de l'API. Dans ce cas, essaie une autre place de cotation pour le même ETF.
-- **Données privées** : tes opérations et ta clé sont enregistrées uniquement dans le `localStorage` de ton navigateur. Utilise *Exporter (JSON)* pour sauvegarder ou passer sur un autre appareil (la clé n'est pas exportée). Si tu publies le site sur GitHub Pages, le code est public mais tes données restent dans ton navigateur.
+- **Données privées** : tes opérations et ta clé sont enregistrées uniquement dans ton navigateur (`localStorage` ; les historiques de cours, volumineux, à part dans IndexedDB). Le site demande au navigateur un **stockage durable** (Réglages › Sauvegarde affiche s'il est accordé) ; sur iPhone, installe le site sur l'écran d'accueil, sinon Safari efface les données d'un site non visité pendant 7 jours. Utilise *Exporter (JSON)* pour sauvegarder ou passer sur un autre appareil (la clé n'est pas exportée). Si tu publies le site sur GitHub Pages, le code est public mais tes données restent dans ton navigateur.
 - **Devises** : la valeur actuelle est convertie au taux du jour ; les opérations passées au taux de clôture de leur date (historique Yahoo, chargé une fois et gardé en cache). Si l'historique n'est pas disponible, le taux du jour sert de repli.
 - Les simulations ignorent frais de courtage et fiscalité. Les performances passées ne préjugent pas des performances futures.
 
@@ -273,6 +287,7 @@ Importe le dépôt sur <https://vercel.com/new> : la fonction [`api/yahoo.js`](a
 index.html        page unique (7 onglets)
 css/style.css     styles (thème clair / sombre)
 js/utils.js       formatage, helpers DOM
+js/cache.js       historiques de cours dans IndexedDB, écriture protégée contre le stockage plein, stockage durable
 js/store.js       persistance locale, taux fiscaux (TAX_DEFAULTS / taxConf), suppressions mémorisées
 js/api.js         client Twelve Data / relais Yahoo (limite de crédits, caches, taux de change historiques)
 js/portfolio.js   calculs : PRU, plus-values, instantané en cache, rejeu historique, projection, Monte-Carlo, retraite
@@ -311,6 +326,12 @@ js/revue.js       revue du mois (imprimable)
 js/xlsx.js        export Excel (.xlsx) sans bibliothèque
 sw.js, manifest.webmanifest, icons/   application installable (PWA)
 js/app.js         interface et bus d'événements (App.on / App.emit, liste des événements en tête du fichier)
+js/lazy.js        chargement à la demande des modules propres à une page (liste LAZY : fichiers, pages, méthodes appelées d.ailleurs)
+js/evolution.js   courbe d.évolution : période, affichage en € ou en %, opérations placées sur la courbe
+js/home.js        accueil : mini-courbe de la valeur, vue d.ensemble personnalisable, mode Essentiel / Expert
+js/jalons.js      tes jalons : paliers, records, caps fiscaux, prochaines étapes
+js/drift.js       alerte de dérive d.allocation (notification, seuils de cours pour le push)
+js/enveloppes.js  où placer mon prochain euro (ordre de remplissage des enveloppes)
 api/yahoo.js      relais Yahoo Finance (fonction Vercel)
 proxy/cloudflare-worker.js   relais Yahoo Finance (Cloudflare Workers) + synchronisation + alertes push
 scripts/sw-version.mjs       version du cache de l'application, calculée d'après le contenu des fichiers

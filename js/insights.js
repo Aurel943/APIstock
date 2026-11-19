@@ -131,7 +131,8 @@ Object.assign(App, {
     input.addEventListener('change', () => { r.threshold = Math.max(0, parseNum(input.value) || 0); Store.save(); this.renderRebalance(); this.renderTodo(true); });
     const head = el('div', { class: 'rebal-head' },
       el('h3', {}, 'Rééquilibrage sans vente', infoTip('Comment revenir à ta cible en achetant seulement : pas de vente, donc pas d\'impôt sur un compte-titres. L\'alerte apparaît dans « À faire » quand une ligne s\'écarte de sa cible de plus du seuil (0 = jamais).')),
-      el('label', { class: 'inline small' }, 'Alerte à', input, 'pt d\'écart'));
+      el('label', { class: 'inline small' }, 'Alerte à', input, 'pt d\'écart'),
+      this.driftToggle ? this.driftToggle() : null);
     box.classList.toggle('hidden', !info);
     if (!info) { box.replaceChildren(); return; }
     const worst = info.drift.lines.slice().sort((a, b) => Math.abs(b.gap) - Math.abs(a.gap))[0];
@@ -523,7 +524,7 @@ ${snap.rows.map(r => row(esc(Store.label(r.key)) + `<small>${esc(Store.code(r.ke
         return isFinite(th) ? { id: a.id, s, k: 'below', v: Math.round(th * 1000) / 1000, t } : null;
       }
       return { id: a.id, s, k: a.kind, v: a.value, t };
-    }).filter(Boolean);
+    }).filter(Boolean).concat(this.driftPushAlerts ? this.driftPushAlerts() : []); // dérive d'allocation (drift.js)
   },
 
   async pushSync(manual = false) {
@@ -534,10 +535,13 @@ ${snap.rows.map(r => row(esc(Store.label(r.key)) + `<small>${esc(Store.code(r.ke
       const sub = await reg.pushManager.getSubscription();
       if (!sub) { this.setPushConf(null); this.renderPush(); if (manual) toast('Abonnement perdu : réactive les alertes push.', 'error'); return; }
       const alerts = this.pushAlerts();
-      const res = await this.pushCall('push-sync', { id: c.id, sub: sub.toJSON(), alerts });
-      this._pushSig = JSON.stringify(alerts);
+      const digest = c.digest ? this.pushDigest() : null;
+      const res = await this.pushCall('push-sync', { id: c.id, sub: sub.toJSON(), alerts, digest });
+      this._pushSig = JSON.stringify(alerts) + (c.digest ? '|' + JSON.stringify(digest) : '');
+      c.digestOk = c.digest ? res.digest === true : undefined;
       let fired = 0;
       for (const [id, f] of Object.entries(res.fired || {})) {
+        if (id.startsWith('drift:')) { if (this.markDriftNotified) this.markDriftNotified(); continue; }
         const a = Store.state.alerts.find(x => x.id === id);
         if (a && a.active) { a.active = false; a.triggeredAt = f.at || Date.now(); fired++; }
       }
@@ -551,9 +555,27 @@ ${snap.rows.map(r => row(esc(Store.label(r.key)) + `<small>${esc(Store.code(r.ke
     }
   },
 
+  /**
+   * Résumé de la semaine : part de chaque ligne (en fraction, arrondie au centième), symbole Yahoo, devise de cotation
+   * et nom court. Aucun montant n'est transmis.
+   */
+  pushDigest() {
+    const { rows } = Portfolio.snapshot('all');
+    const lines = rows.map(r => {
+      const inst = Store.instrument(r.key);
+      const s = inst && yahooSymbolFor(inst);
+      const v = isFinite(r.valueBase) ? r.valueBase : r.costBase;
+      return s && v > 0 ? { s, v, c: Api.fxNorm(inst.currency || this.base())[0], n: Store.label(r.key) } : null;
+    }).filter(Boolean);
+    const total = lines.reduce((a, l) => a + l.v, 0);
+    if (!(total > 0)) return null;
+    return { on: true, base: this.base(), lines: lines.map(l => ({ s: l.s, w: Math.round((l.v / total) * 100) / 100, c: l.c, n: l.n.slice(0, 30) })).filter(l => l.w > 0) };
+  },
+
   schedulePushSync() {
-    if (!this.pushConf()) return;
-    const sig = JSON.stringify(this.pushAlerts());
+    const c = this.pushConf();
+    if (!c) return;
+    const sig = JSON.stringify(this.pushAlerts()) + (c.digest ? '|' + JSON.stringify(this.pushDigest()) : '');
     if (sig === this._pushSig) return;
     clearTimeout(this._pushTimer);
     this._pushTimer = setTimeout(() => this.pushSync(), 1500);
@@ -567,6 +589,11 @@ ${snap.rows.map(r => row(esc(Store.label(r.key)) + `<small>${esc(Store.code(r.ke
     $('#pushTest').classList.toggle('hidden', !c);
     const base = '';
     $('#pushInfo').textContent = err ? '⚠ ' + err : c ? `✔ Activées sur cet appareil · ${c.count ?? 0} alerte(s) surveillée(s) par le worker` + (c.syncedAt ? ' · synchronisé ' + fmtAgo(c.syncedAt) : '') + '.' : base;
+    if ($('#pushDigestBox')) {
+      $('#pushDigestBox').classList.toggle('hidden', !c);
+      $('#pushDigest').checked = !!(c && c.digest);
+      if (!err && c && c.digest && c.digestOk === false) $('#pushInfo').textContent += ' ⚠ Ton worker ne connaît pas encore le résumé de la semaine : redéploie-le (README).';
+    }
     $('#pushInfo').className = 'small ' + (err ? 'down' : c ? 'up' : 'muted');
   },
 
@@ -609,6 +636,13 @@ ${snap.rows.map(r => row(esc(Store.label(r.key)) + `<small>${esc(Store.code(r.ke
       if (!c) return;
       try { await this.pushSync(); await this.pushCall('push-test', { id: c.id }); toast('Notification de test envoyée : elle doit arriver dans quelques secondes.', 'success', 5000); }
       catch (e) { toast('Test impossible : ' + e.message, 'error', 7000); }
+    });
+    if ($('#pushDigest')) $('#pushDigest').addEventListener('change', async e => {
+      const c = this.pushConf();
+      if (!c) return;
+      c.digest = e.target.checked;
+      this.setPushConf(c);
+      await this.pushSync(true);
     });
     $('#vapidGen').addEventListener('click', async () => {
       const kp = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);

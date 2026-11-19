@@ -175,7 +175,7 @@ test('affichage mobile : aucun défilement horizontal, quel que soit l\'onglet',
       const W = window.innerWidth;
       const cut = [...document.querySelectorAll('.view.active *')].filter(e => {
         const b = e.getBoundingClientRect();
-        return b.width > 0 && b.right > W + 1 && !e.closest('.table-wrap, .seg, .quick-assets, .tl-track, canvas');
+        return b.width > 0 && b.right > W + 1 && !e.closest('.table-wrap, .seg, .quick-assets, .tl-track, .kpi-rest, canvas'); // .kpi-rest : ligne de chiffres qui défile
       }).map(e => e.tagName.toLowerCase() + '.' + e.className).slice(0, 3);
       return { doc: document.documentElement.scrollWidth - W, cut };
     });
@@ -258,18 +258,19 @@ test('graphique d\'évolution dessiné avec la courbe « mêmes versements dans 
     const c = Chart.getChart('historyChart');
     const ds = c.data.datasets;
     const bench = ds.find(d => /MSCI World/.test(d.label));
-    return { n: ds.length, labels: ds.map(d => d.label), points: c.data.labels.length,
+    return { n: ds.filter(d => !d.kind).length, markers: ds.filter(d => d.kind).length, labels: ds.map(d => d.label), points: c.data.labels.length,
       benchOk: !!bench && bench.data.filter(v => v > 0).length > 0.9 * bench.data.length,
       drawn: c.canvas.width > 0 && c.getDatasetMeta(0).data.length === c.data.labels.length };
   });
   assert.equal(info.n, 3, JSON.stringify(info.labels));
+  assert.equal(info.markers, 2, 'achats et ventes placés sur la courbe');
   assert.ok(info.points > 100, 'historique de plus de 100 jours');
   assert.ok(info.benchOk, 'courbe MSCI World renseignée');
   assert.ok(info.drawn, 'graphique dessiné');
   assert.match(await page.locator('#historyInfo').innerText(), /vs MSCI World/);
   // option désactivée : plus que deux courbes
   await page.uncheck('#histBench');
-  await page.waitForFunction(() => Chart.getChart('historyChart') && Chart.getChart('historyChart').data.datasets.length === 2);
+  await page.waitForFunction(() => Chart.getChart('historyChart') && Chart.getChart('historyChart').data.datasets.filter(d => !d.kind).length === 2);
 }));
 
 test('frais de courtage calculés avec le barème du compte, sauf saisie manuelle', () => run({ state: sampleState({ accounts: [
@@ -322,8 +323,8 @@ test('menu « ⋯ » au clavier, sous-onglets mémorisés et indicateur hors lig
   await page.focus('#tabMoreBtn');
   await page.keyboard.press('ArrowDown');
   assert.equal(await page.evaluate(() => document.activeElement.id), 'termOpen');
-  // terminal → année en bourse → thème → visite guidée → réglages
-  for (let i = 0; i < 4; i++) await page.keyboard.press('ArrowDown');
+  // terminal → année en bourse → thème → visite guidée → mode Essentiel / Expert → réglages
+  for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowDown');
   assert.match(await page.evaluate(() => document.activeElement.textContent), /Réglages/);
   await page.keyboard.press('Enter');
   assert.equal(await page.evaluate(() => App.view), 'settings');
@@ -358,10 +359,14 @@ test('menu « ⋯ » au clavier, sous-onglets mémorisés et indicateur hors lig
 test('fiche : achats sur le graphique, « M\'alerter » ; répartition par compte ; performance de l\'année', { skip: !realCharts && 'Chart.js non installé' }, () => run({ state: sampleState() }, async ({ page }) => {
   // performance de l'année, une fois l'historique chargé tout seul
   await page.waitForFunction(() => /\d{4} : [+-−]/.test(document.querySelector('#kpis').innerText), null, { timeout: 15000 });
-  // répartition par compte
+  // répartition par compte : en barres (par défaut), puis en anneau
   await page.click('#allocByAccount');
+  assert.equal(await page.locator('#allocBars li').count(), 2);
+  assert.match(await page.locator('#allocBars').innerText(), /PEA/);
+  await page.click('#allocView [data-v="donut"]');
   await page.waitForFunction(() => Chart.getChart('allocChart') && Chart.getChart('allocChart').data.labels.includes('PEA'));
   assert.equal(await page.locator('#allocLegend li').count(), 2);
+  assert.ok(await page.locator('#allocBars').isHidden());
   // fiche : repères d'achat et prix de revient sur le graphique 5 ans
   await page.evaluate(() => { App.show('markets'); App.selectDetail('CW8@XPAR'); });
   await page.click('#rangeSel [data-range="5A"]');
@@ -664,7 +669,7 @@ test('une erreur au démarrage d\'un module ne désactive pas les autres boutons
   // page incomplète (ex. ancienne page en cache avec des scripts récents) : la carte « Retrait malin » manque
   await page.route('**/index.html', async route => {
     const res = await route.fetch();
-    const html = (await res.text()).replace(/<div data-sub="revenus" class="card wd-card" id="wdCard">[\s\S]*?(<div data-sub="operations")/, '$1');
+    const html = (await res.text()).replace(/<div data-sub="revenus" class="card wd-card" id="wdCard"[^>]*>[\s\S]*?(<div data-sub="operations")/, '$1');
     await route.fulfill({ response: res, body: html });
   });
   await page.reload();
@@ -1156,4 +1161,120 @@ test('versements et retraits visibles dans les opérations : modification et sup
   assert.equal(await page.evaluate(() => Store.state.cashMoves.length), 3);
   await page.locator('#toast button', { hasText: 'Annuler' }).click();
   assert.equal(await page.locator('#txTable tbody tr.tx-cash').count(), 4);
+}));
+
+test('bouton « retour » du navigateur : pages précédentes, puis fermeture d\'une fenêtre ouverte', () => run({ state: sampleState() }, async ({ page }) => {
+  await page.evaluate(() => App.show('analysis', 'risque'));
+  await page.click('.tab[data-view="markets"]');
+  await page.click('#view-markets > .subnav [data-tab="monde"]');
+  assert.equal(await page.evaluate(() => App.page), 'markets/monde');
+  await page.goBack();
+  await page.waitForFunction(() => App.page === 'markets/suivi');
+  await page.goBack();
+  await page.waitForFunction(() => App.page === 'analysis/risque');
+  await page.goForward();
+  await page.waitForFunction(() => App.page === 'markets/suivi');
+  // fenêtre ouverte : « retour » la ferme, la page ne change pas
+  await page.click('#refreshBtn');
+  await page.evaluate(() => App.show('portfolio', 'synthese'));
+  await page.click('#addTxBtn');
+  assert.ok(await page.locator('#txDialog').isVisible());
+  await page.goBack();
+  await page.waitForFunction(() => !document.querySelector('#txDialog').open);
+  assert.equal(await page.evaluate(() => App.page), 'portfolio/synthese');
+  // adresse modifiée à la main
+  await page.evaluate(() => { location.hash = '#plan/objectifs'; });
+  await page.waitForFunction(() => App.page === 'plan/objectifs');
+}));
+
+test('évolution du portefeuille : période, affichage en %, opérations sur la courbe', { skip: !realCharts && 'Chart.js non installé' }, () => run({ state: sampleState() }, async ({ page }) => {
+  await page.waitForFunction(() => App.historyPoints && Chart.getChart('historyChart'), null, { timeout: 20000 });
+  const chart = () => page.evaluate(() => { const c = Chart.getChart('historyChart'); return { n: c.data.labels.length, first: c.data.labels[0], sets: c.data.datasets.map(d => d.label) }; });
+  const all = await chart();
+  assert.ok(all.sets.includes('Achats') && all.sets.includes('Ventes'), 'achats et ventes placés sur la courbe');
+  await page.click('#histPeriod [data-p="1A"]');
+  const year = await chart();
+  assert.ok(year.n < all.n, 'moins de points sur un an');
+  assert.ok(year.first >= new Date(Date.now() - 380 * 864e5).toISOString().slice(0, 10));
+  await page.click('#histMode [data-m="pct"]');
+  const pct = await chart();
+  assert.ok(pct.sets[0].includes('hors versements'));
+  assert.ok(!pct.sets.includes('Montant investi'));
+  assert.match(await page.locator('#historyInfo').innerText(), /hors versements/);
+  // choix gardé au rechargement
+  await page.reload();
+  await page.waitForFunction(() => App.historyPoints && Chart.getChart('historyChart'), null, { timeout: 20000 });
+  assert.ok(await page.locator('#histMode [data-m="pct"].active').count());
+  assert.ok(await page.locator('#histPeriod [data-p="1A"].active').count());
+}));
+
+test('répartition par pays et par secteur, en regardant dans les ETF', () => run({ state: sampleState() }, async ({ page }) => {
+  await page.waitForFunction(() => Api.cachedQuote('CW8@XPAR'), null, { timeout: 20000 });
+  await page.click('#allocMode [data-mode="country"]');
+  const first = await page.locator('#allocBars li').first().innerText();
+  assert.match(first, /États-Unis/);
+  assert.ok(await page.locator('#allocView').isHidden(), 'toujours en barres');
+  await page.click('#allocMode [data-mode="sector"]');
+  assert.match(await page.locator('#allocBars').innerText(), /Technologie/);
+  await page.click('#allocMode [data-mode="value"]');
+  assert.ok(await page.locator('#allocView').isVisible());
+}));
+
+test('mode Essentiel : outils avancés masqués, sous-onglet redirigé, retour au mode Expert', () => run({ state: sampleState() }, async ({ page }) => {
+  await page.evaluate(() => App.show('settings'));
+  await page.click('#levelSeg [data-level="essential"]');
+  assert.ok(await page.evaluate(() => document.body.classList.contains('level-essential')));
+  await page.evaluate(() => App.show('analysis', 'optimiser'));
+  assert.equal(await page.evaluate(() => App.page), 'analysis/composition');
+  assert.ok(await page.locator('#anSubnav [data-tab="optimiser"]').isHidden());
+  await page.evaluate(() => App.show('analysis', 'risque'));
+  assert.ok(await page.locator('#iStressCard').isHidden());
+  assert.ok(await page.locator('#riskCard').isVisible());
+  // le copilote vers un outil avancé propose de repasser en Expert
+  await page.evaluate(() => App.reveal('#iBlCard'));
+  await page.locator('#toast button', { hasText: 'Passer en Expert' }).click();
+  await page.waitForFunction(() => App.page === 'analysis/optimiser');
+  assert.equal(await page.evaluate(() => Store.state.settings.level), 'expert');
+}));
+
+test('vue d\'ensemble personnalisée : ordre et cartes masquées, gardés au rechargement', () => run({ state: sampleState() }, async ({ page }) => {
+  await page.locator('.home-tools .homeCustomize').click();
+  const dlg = page.locator('.home-dialog');
+  // « Mes comptes » tout en haut (montée jusqu'au bout), « Répartition » masquée
+  const row = dlg.locator('.home-list > li', { hasText: 'Mes comptes' });
+  for (let i = 0; i < 6; i++) { const up = row.locator('button[aria-label="Monter"]'); if (await up.isDisabled()) break; await up.click(); }
+  await dlg.locator('.home-parts label', { hasText: 'Répartition' }).locator('input').uncheck();
+  await dlg.locator('button', { hasText: 'Enregistrer' }).click();
+  const order = () => page.evaluate(() => Array.from(document.querySelectorAll('#view-portfolio > [data-home]')).map(x => x.id));
+  assert.equal((await order())[0], 'accSummary');
+  assert.ok(await page.locator('#allocCard').isHidden());
+  await page.reload();
+  await page.waitForFunction(() => typeof App !== 'undefined' && App.view);
+  assert.equal((await order())[0], 'accSummary');
+  assert.ok(await page.locator('#allocCard').isHidden());
+  assert.ok(await page.locator('#evoRow.one-col').count());
+}));
+
+test('chargement à la demande : modules d\'une page chargés à son ouverture, méthodes appelées d\'ailleurs', () => run({ state: sampleState({ budget: { income: 3000, expenses: 2000, months: 3 } }) }, async ({ page }) => {
+  assert.equal(await page.evaluate(() => typeof Credit), 'undefined', 'pas chargé au démarrage');
+  await page.evaluate(() => App.show('plan', 'simuler'));
+  await page.waitForFunction(() => typeof Credit !== 'undefined' && document.querySelector('#creditCard').innerText.length > 60);
+  // « Où placer mon prochain euro ? » (avec le budget, chargé avant lui)
+  await page.evaluate(() => App.show('plan', 'investir'));
+  await page.waitForSelector('#envOut .env-step');
+  await page.fill('#envAmount', '5000');
+  assert.match(await page.locator('#envOut').innerText(), /PEA/);
+  // terminal appelé par le copilote avant d'être chargé
+  await page.evaluate(() => App.openTerminal());
+  await page.waitForSelector('#term:not(.hidden)');
+  await page.keyboard.press('Escape');
+}));
+
+test('jalons et mini-courbe de la valeur, une fois l\'évolution chargée', () => run({ state: sampleState() }, async ({ page }) => {
+  await page.waitForFunction(() => App.historyPoints, null, { timeout: 20000 });
+  await page.waitForSelector('#milestoneCard:not(.hidden) .ms-item');
+  const txt = await page.locator('#milestoneCard').innerText();
+  assert.match(txt, /Premier achat/);
+  assert.match(txt, /Prochaines étapes/);
+  assert.match(await page.locator('#kpis > .kpi .kpi-spark').innerText(), /30 j/);
 }));

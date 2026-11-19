@@ -115,7 +115,7 @@ const Holdings = {
     }
     return this.cache;
   },
-  save() { try { localStorage.setItem(HOLD_STORE, JSON.stringify(this.cache || {})); } catch (e) { /* stockage indisponible */ } },
+  save() { lsSet(HOLD_STORE, JSON.stringify(this.cache || {})); },
 
   /** Nom court d'une société : « Alphabet Inc Class A » → « Alphabet », « Amazon.com Inc » → « Amazon » */
   cleanName(n) {
@@ -214,8 +214,8 @@ const Earnings = {
     const keep = new Set(this.targets().map(t => t.sym)), now = Date.now();
     // on garde aussi quelques jours ce qui a été consulté sur une fiche
     for (const [s, v] of Object.entries(this.cache || {})) if (!keep.has(s) && now - v.ts > 7 * 86400000) delete this.cache[s];
-    try { localStorage.setItem(EARN_STORE, JSON.stringify(this.cache || {})); } catch (e) { /* stockage indisponible */ }
-    try { localStorage.setItem(REACT_STORE, JSON.stringify(this.reactions || {})); } catch (e) { /* stockage indisponible */ }
+    lsSet(EARN_STORE, JSON.stringify(this.cache || {}));
+    lsSet(REACT_STORE, JSON.stringify(this.reactions || {}));
   },
 
   /** Symbole Yahoo d'une action (null pour les ETF, fonds, indices, devises…) */

@@ -24,13 +24,6 @@ const ARENA_UNIVERSES = [
   { id: 'btc', name: 'Bitcoin', emoji: '₿', color: '#f97316', sym: 'BTC-EUR', ccy: 'EUR' },
 ];
 
-/*
- * Taux du Livret A (date d'effet, % par an). Dernier taux connu prolongé ensuite : à compléter à chaque révision
- * (1er février et 1er août). Source : Banque de France / arrêtés ministériels.
- */
-const LIVRET_A_RATES = [['2009-08-01', 1.25], ['2011-02-01', 2], ['2011-08-01', 2.25], ['2013-02-01', 1.75], ['2013-08-01', 1.25], ['2014-08-01', 1],
-  ['2015-08-01', 0.75], ['2020-02-01', 0.5], ['2022-02-01', 1], ['2022-08-01', 2], ['2023-02-01', 3], ['2025-02-01', 2.4], ['2025-08-01', 1.7]];
-
 /* Défi à l'aveugle : marchés possibles (les plus longs historiques d'abord), titres selon le score */
 const ARENA_GAME_MARKETS = [
   { sym: '^GSPC', name: 'S&P 500' }, { sym: '^NDX', name: 'Nasdaq-100' }, { sym: '^FCHI', name: 'CAC 40' }, { sym: '^GDAXI', name: 'DAX' },
