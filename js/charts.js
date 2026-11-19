@@ -141,6 +141,71 @@ const Charts = {
     });
   },
 
+  /**
+   * Évolution du portefeuille sur une période.
+   *   dates     dates ISO des points
+   *   mode      'eur' : valeur et montant investi (et mêmes versements dans l'indice) ;
+   *             'pct' : performance hors versements depuis le début de la période (et l'indice)
+   *   series    { value, invested, bench } (eur) ou { perf, bench } (pct)
+   *   markers   [{ i, kind: 'buy'|'sell'|'div', text }] : opérations placées sur la courbe
+   */
+  history(id, dates, mode, series, currency, opts = {}) {
+    this.destroy(id);
+    const ctx = document.getElementById(id);
+    if (!ctx || typeof Chart === 'undefined') return;
+    const o = this.baseOptions();
+    const accent = this.css('--accent'), muted = this.css('--muted');
+    const up = this.css('--up') || '#10b981', down = this.css('--down') || '#ef4444';
+    const span = dates.length > 1 ? (Date.parse(dates[dates.length - 1]) - Date.parse(dates[0])) / 864e5 : 0;
+    const tick = iso => {
+      const d = new Date(iso + 'T12:00:00');
+      if (span <= 70) return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+      if (span <= 800) return d.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' });
+      return d.toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' });
+    };
+    o.scales.x.ticks.callback = function (v) { return tick(this.getLabelForValue(v)); };
+    const money = v => fmtMoney(v, currency, 0);
+    o.scales.y.ticks.callback = mode === 'pct' ? v => fmtNum(v, Math.abs(v) < 10 ? 1 : 0) + ' %' : money;
+    if (mode === 'eur' && opts.fromZero) o.scales.y.beginAtZero = true;
+    o.elements = { point: { radius: 0, hoverRadius: 4 } };
+    const markerSets = { buy: { label: 'Achats', style: 'triangle', color: up, rot: 0 }, sell: { label: 'Ventes', style: 'triangle', color: down, rot: 180 }, div: { label: 'Dividendes', style: 'circle', color: '#3b82f6', rot: 0 } };
+    const line = mode === 'pct' ? series.perf : series.value;
+    const datasets = mode === 'pct'
+      ? [{ label: opts.valueLabel || 'Ton portefeuille', data: series.perf, borderColor: accent, backgroundColor: accent + '22', fill: 'origin', borderWidth: 2, tension: 0.1 }]
+      : [{ label: opts.valueLabel || 'Valeur', data: series.value, borderColor: accent, backgroundColor: accent + '22', fill: '+1', borderWidth: 2, tension: 0.1 },
+        { label: 'Montant investi', data: series.invested, borderColor: muted, borderDash: [5, 4], borderWidth: 1.5, fill: false, stepped: 'before' }];
+    if (series.bench && series.bench.some(v => v !== null && isFinite(v))) {
+      datasets.push({ label: opts.benchLabel || 'Indice de référence', data: series.bench, borderColor: '#d97706', borderWidth: 1.5, fill: false, tension: 0.1, spanGaps: true });
+    }
+    const texts = {};
+    for (const [kind, m] of Object.entries(markerSets)) {
+      const mk = (opts.markers || []).filter(x => x.kind === kind);
+      if (!mk.length) continue;
+      const data = dates.map(() => null);
+      for (const x of mk) { data[x.i] = line[x.i]; (texts[kind + ':' + x.i] = texts[kind + ':' + x.i] || []).push(x.text); }
+      datasets.push({ label: m.label, data, kind, order: -1, showLine: false, pointStyle: m.style, pointRotation: m.rot, pointRadius: 6, pointHoverRadius: 8,
+        pointBackgroundColor: m.color, pointBorderColor: this.css('--surface') || '#fff', pointBorderWidth: 1.5, borderColor: m.color, backgroundColor: m.color, fill: false });
+    }
+    o.plugins.tooltip.filter = item => item.raw !== null && item.raw !== undefined;
+    o.plugins.tooltip.callbacks = {
+      title: items => (items.length ? fmtDate(dates[items[0].dataIndex]) : ''),
+      label: c => {
+        if (c.dataset.kind) return texts[c.dataset.kind + ':' + c.dataIndex] || '';
+        return ` ${c.dataset.label} : ${mode === 'pct' ? fmtPct(c.raw) : money(c.raw)}`;
+      },
+      footer: items => {
+        if (mode !== 'eur') return '';
+        const v = items.find(i => i.datasetIndex === 0), inv = items.find(i => i.datasetIndex === 1);
+        if (!v || !inv) return '';
+        const d = v.raw - inv.raw;
+        return `+/- latente : ${fmtSignedMoney(d, currency)} (${fmtPct(inv.raw ? (d / inv.raw) * 100 : NaN)})`;
+      },
+    };
+    o.plugins.legend.labels.filter = item => !!item.text;
+    o.plugins.legend.labels.sort = (a, b) => a.datasetIndex - b.datasetIndex; // marqueurs dessinés au-dessus, mais en fin de légende
+    this.instances[id] = new Chart(ctx, { type: 'line', data: { labels: dates, datasets }, options: o });
+  },
+
   /** Projection en éventail : zone 10-90 %, médiane, projection régulière et total versé */
   fan(id, labels, d, currency) {
     this.destroy(id);

@@ -113,8 +113,17 @@ const Store = {
 
   save() {
     if (typeof Portfolio !== 'undefined') Portfolio.invalidate(); // données modifiées : instantanés à recalculer
-    try { localStorage.setItem(STORE_KEY, JSON.stringify(this.state)); }
-    catch (e) { toast('Impossible de sauvegarder localement : ' + e.message, 'error'); }
+    // stockage plein : les caches (cours, fiches, compositions) sont effacés pour faire de la place, puis on réessaie
+    let ok = false, err = null;
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(this.state)); ok = true; }
+    catch (e) { err = e; ok = typeof lsSet === 'function' && isQuotaError(e) && lsSet(STORE_KEY, JSON.stringify(this.state)); }
+    this.saveFailed = !ok;
+    if (!ok && typeof toast === 'function') {
+      const full = err && typeof isQuotaError === 'function' && isQuotaError(err);
+      toast(full ? 'Stockage du navigateur plein : ta dernière modification n\'est pas enregistrée. Exporte tes données (Réglages) pour ne rien perdre.'
+        : 'Impossible de sauvegarder localement : ' + (err && err.message), 'error', 12000,
+      typeof App !== 'undefined' && App.exportBackup ? { label: 'Exporter', fn: () => App.exportBackup() } : undefined);
+    }
     if (typeof App !== 'undefined' && App.emit) App.emit('data:saved');
   },
 

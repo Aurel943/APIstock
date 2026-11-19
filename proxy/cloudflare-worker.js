@@ -35,7 +35,8 @@
  *        (facultatif) VAPID_SUBJECT = mailto:ton-adresse ou l'URL de ton site, transmis aux services push
  *   c. Worker → Settings → Triggers → Cron Triggers → Add : « toutes les 5 minutes » (expression exacte dans le README) → Deploy
  *   Les alertes (symbole, seuil) et l'adresse d'abonnement push de chaque appareil sont stockées dans KV,
- *   non chiffrées (le worker doit pouvoir les lire pour les vérifier) ; rien d'autre de ton portefeuille.
+ *   non chiffrées (le worker doit pouvoir les lire pour les vérifier) ; rien d'autre de ton portefeuille, sauf si tu
+ *   actives le résumé de la semaine : la part (en %) de chaque ligne, sans aucun montant.
  */
 const ALLOWED_ORIGINS = [
   'https://aurel943.github.io',
@@ -384,8 +385,10 @@ async function handlePush(request, q, env, cors) {
     .filter(a => a && typeof a.id === 'string' && a.id.length <= 40 && SYMBOL_RE.test(a.s || '') && PUSH_KINDS.has(a.k) && isFinite(a.v))
     .filter(a => !fired[a.id]) // déjà déclenchée : l'appareil va la marquer comme telle
     .map(a => ({ id: a.id, s: a.s, k: a.k, v: Number(a.v), t: String(a.t || a.s).slice(0, 120) }));
-  await env.SYNC.put(kvKey, JSON.stringify({ sub: { endpoint: body.sub.endpoint, keys: { p256dh: body.sub.keys.p256dh, auth: body.sub.keys.auth } }, alerts, fired: {}, updatedAt: Date.now() }), { expirationTtl: PUSH_TTL });
-  return json({ configured: true, ok: true, fired, count: alerts.length }, 200, cors);
+  const digest = cleanDigest(body.digest);
+  await env.SYNC.put(kvKey, JSON.stringify({ sub: { endpoint: body.sub.endpoint, keys: { p256dh: body.sub.keys.p256dh, auth: body.sub.keys.auth } }, alerts, fired: {},
+    digest, digestSent: (cur && cur.digestSent) || '', updatedAt: Date.now() }), { expirationTtl: PUSH_TTL });
+  return json({ configured: true, ok: true, fired, count: alerts.length, digest: !!digest }, 200, cors);
 }
 
 /** Tâche planifiée (Cron Trigger) : vérifie toutes les alertes et envoie les notifications */
@@ -436,6 +439,131 @@ async function checkAlerts(env) {
     r.alerts = keep;
     await env.SYNC.put(name, JSON.stringify(r), { expirationTtl: PUSH_TTL });
   }
+}
+
+/*
+ * ---- Résumé de la semaine (push, le vendredi soir) ----
+ * L'appareil transmet seulement la part de chaque ligne (en %, sans aucun montant), son symbole Yahoo, sa devise
+ * et un nom court ; le worker calcule la performance de la semaine (cours et devises) et la compare au MSCI World.
+ */
+const DIGEST_BENCH = { s: 'IWDA.AS', c: 'EUR', n: 'MSCI World' };
+const CCY_RE = /^[A-Z]{3}$/;
+
+/** Résumé demandé par l'appareil, nettoyé ; null si désactivé ou invalide */
+function cleanDigest(d) {
+  if (!d || d.on !== true || !CCY_RE.test(d.base || '') || !Array.isArray(d.lines)) return null;
+  const lines = d.lines.slice(0, 40)
+    .filter(l => l && SYMBOL_RE.test(l.s || '') && isFinite(l.w) && l.w > 0 && l.w <= 1 && CCY_RE.test(l.c || ''))
+    .map(l => ({ s: l.s, w: Math.round(Number(l.w) * 10000) / 10000, c: l.c, n: String(l.n || l.s).slice(0, 30) }));
+  return lines.length ? { on: true, base: d.base, lines } : null;
+}
+
+/** Heure de Paris : { day: 1 (lundi) … 7, hm: 'HH:MM', date: 'AAAA-MM-JJ' } */
+function parisNow(now = new Date()) {
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Paris', weekday: 'short', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+    .formatToParts(now).map(x => [x.type, x.value]));
+  const day = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].indexOf(p.weekday) + 1;
+  return { day, hm: p.hour + ':' + p.minute, date: `${p.year}-${p.month}-${p.day}` };
+}
+
+/** Semaine à résumer : le vendredi de 18 h 30 au dimanche (clé : date du vendredi), sinon null */
+function digestWeek(now = new Date()) {
+  const t = parisNow(now);
+  if (!((t.day === 5 && t.hm >= '18:30') || t.day === 6 || t.day === 7)) return null;
+  const d = new Date(t.date + 'T12:00:00Z');
+  d.setUTCDate(d.getUTCDate() - (t.day - 5));
+  return d.toISOString().slice(0, 10);
+}
+
+/** Rendement sur 7 jours d'une série [[date, cours]] : dernier cours face au dernier cours d'au moins 7 jours avant */
+function weekReturn(series) {
+  if (!series || series.length < 2) return NaN;
+  const [lastD, last] = series[series.length - 1];
+  const limit = new Date(Date.parse(lastD + 'T12:00:00Z') - 7 * 864e5).toISOString().slice(0, 10);
+  let base = NaN;
+  for (const [d, v] of series) if (d <= limit) base = v;
+  return base > 0 && last > 0 ? last / base - 1 : NaN;
+}
+
+/** Résumé d'un appareil : rendements par symbole (`ret`, en devise de cotation) et par devise (`fx`, vers la devise de base) */
+function digestSummary(digest, ret, fx) {
+  let sum = 0, cover = 0;
+  const lines = [];
+  for (const l of digest.lines) {
+    const r = ret[l.s], f = l.c === digest.base ? 0 : fx[l.c + digest.base];
+    if (!isFinite(r) || !isFinite(f)) continue;
+    const total = (1 + r) * (1 + f) - 1;
+    sum += l.w * total; cover += l.w;
+    lines.push({ n: l.n, r: total, contrib: l.w * total });
+  }
+  if (!(cover > 0)) return null;
+  const perf = sum / cover;
+  const br = ret[DIGEST_BENCH.s], bf = DIGEST_BENCH.c === digest.base ? 0 : fx[DIGEST_BENCH.c + digest.base];
+  const bench = isFinite(br) && isFinite(bf) ? (1 + br) * (1 + bf) - 1 : NaN;
+  lines.sort((a, b) => b.r - a.r); // ligne qui a le plus monté, et celle qui a le moins bien fait
+  return { perf, bench, cover, best: lines[0], worst: lines.length > 1 ? lines[lines.length - 1] : null };
+}
+
+const pctFr = x => (x > 0 ? '+' : x < 0 ? '−' : '') + Math.abs(x * 100).toFixed(1).replace('.', ',') + ' %';
+
+function digestText(s) {
+  const parts = [`Portefeuille ${pctFr(s.perf)}`];
+  if (isFinite(s.bench)) parts.push(`${DIGEST_BENCH.n} ${pctFr(s.bench)}`);
+  const lines = [parts.join(' · ')];
+  if (s.best) lines.push(`En tête : ${s.best.n} ${pctFr(s.best.r)}` + (s.worst ? ` · en retrait : ${s.worst.n} ${pctFr(s.worst.r)}` : ''));
+  if (s.cover < 0.95) lines.push(`(sur ${Math.round(s.cover * 100)} % de tes lignes)`);
+  return lines.join('\n');
+}
+
+async function dailyCloses(sym) {
+  const u = new URL('https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(sym));
+  u.searchParams.set('range', '1mo'); u.searchParams.set('interval', '1d');
+  const j = await (await fetch(u, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; APIstock/1.0)', Accept: 'application/json' } })).json();
+  const r = j.chart.result[0];
+  const close = (r.indicators.quote[0] || {}).close || [];
+  const off = (r.meta.gmtoffset || 0) * 1000;
+  return (r.timestamp || []).map((t, i) => [new Date(t * 1000 + off).toISOString().slice(0, 10), close[i]]).filter(x => x[1] !== null && isFinite(x[1]));
+}
+
+/** Tâche planifiée : résumé de la semaine envoyé une fois, le vendredi soir (ou au plus tard le week-end) */
+async function weeklyDigests(env, now = new Date()) {
+  if (!pushReady(env)) return 0;
+  const week = digestWeek(now);
+  if (!week) return 0;
+  // semaine déjà traitée : une seule lecture au lieu de parcourir la liste toutes les 5 minutes du week-end
+  if (await env.SYNC.get('digest-done') === week) return 0;
+  const names = [];
+  let cursor;
+  do {
+    const page = await env.SYNC.list({ prefix: 'push:', cursor });
+    for (const k of page.keys) names.push(k.name);
+    cursor = page.list_complete ? null : page.cursor;
+  } while (cursor);
+  const recs = [];
+  for (const name of names) {
+    const r = await env.SYNC.get(name, 'json');
+    if (r && r.digest && r.digestSent !== week) recs.push({ name, r });
+  }
+  if (!recs.length) { await env.SYNC.put('digest-done', week, { expirationTtl: 8 * 86400 }); return 0; }
+  const syms = new Set([DIGEST_BENCH.s]), pairs = new Set();
+  for (const { r } of recs) for (const l of r.digest.lines) { syms.add(l.s); if (l.c !== r.digest.base) pairs.add(l.c + r.digest.base); }
+  for (const { r } of recs) if (DIGEST_BENCH.c !== r.digest.base) pairs.add(DIGEST_BENCH.c + r.digest.base);
+  const ret = {}, fx = {};
+  for (const s of syms) { try { ret[s] = weekReturn(await dailyCloses(s)); } catch (e) { /* indisponible */ } }
+  for (const p of pairs) { try { fx[p] = weekReturn(await dailyCloses(p + '=X')); } catch (e) { /* indisponible */ } }
+  let sent = 0;
+  for (const { name, r } of recs) {
+    const s = digestSummary(r.digest, ret, fx);
+    r.digestSent = week;
+    if (s) {
+      const status = await sendPush(env, r.sub, { title: '📈 Ta semaine en bourse', body: digestText(s), tag: 'digest-' + week });
+      if (status === 404 || status === 410) { await env.SYNC.delete(name); continue; }
+      sent++;
+    }
+    await env.SYNC.put(name, JSON.stringify(r), { expirationTtl: PUSH_TTL });
+  }
+  await env.SYNC.put('digest-done', week, { expirationTtl: 8 * 86400 });
+  return sent;
 }
 
 /* ---- Statistiques du jour via l'API GraphQL Analytics de Cloudflare ---- */
@@ -571,8 +699,8 @@ export default {
     }
   },
 
-  // Cron Trigger (toutes les 5 minutes) : alertes de prix push
+  // Cron Trigger (toutes les 5 minutes) : alertes de prix push, et le vendredi soir le résumé de la semaine
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(checkAlerts(env));
+    ctx.waitUntil(checkAlerts(env).catch(() => {}).then(() => weeklyDigests(env)));
   },
 };

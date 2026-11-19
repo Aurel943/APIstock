@@ -16,12 +16,14 @@ test('bus d\'événements : ordre d\'inscription, this = App, arguments, désabo
 test('les modules sont abonnés aux événements documentés en haut de js/app.js', () => {
   const { App } = loadApp({});
   const n = name => (App._listeners[name] || []).length;
-  assert.equal(n('rendered:all'), 5);         // fiscalité/exposition, espèces/versements/à faire, risque/dividendes/rééquilibrage, patrimoine, aujourd'hui
-  assert.equal(n('rendered:portfolio'), 5);   // variations du jour, à faire, patrimoine, carte du portefeuille, aujourd'hui
-  assert.equal(n('refreshed'), 3);            // cartes lentes, dividendes et divisions, actualités
-  assert.equal(n('view:shown'), 19);          // barre mobile, actualités, retraite, météo du labo quant, aujourd'hui, colonnes de la liste de suivi, comparateur d'ETF,
+  assert.equal(n('rendered:all'), 6);         // fiscalité/exposition, espèces/versements/à faire, risque/dividendes/rééquilibrage, patrimoine, aujourd'hui, jalons
+  assert.equal(n('rendered:portfolio'), 6);   // variations du jour, à faire, patrimoine, carte du portefeuille, aujourd'hui, dérive d'allocation
+  assert.equal(n('refreshed'), 4);            // cartes lentes, dividendes et divisions, actualités, seuils de dérive (push)
+  assert.equal(n('view:shown'), 21);          // barre mobile, actualités, retraite, météo du labo quant, aujourd'hui, colonnes de la liste de suivi, comparateur d'ETF,
                                               // performance réelle, attribution, styles, crédit ou placement, filtre d'actions, courtiers, obligations,
-                                              // devises, diversification, budget, revue du mois, export tableur
+                                              // devises, diversification, budget, revue du mois, export tableur, prochain euro, chargement à la demande
+  assert.equal(n('history:loaded'), 1);       // jalons (la mini-courbe s'y abonne au démarrage de la page)
+  assert.equal(n('data:saved'), 1);           // prochain euro
   assert.equal(n('detail:selected'), 5);      // actualités, résultats trimestriels, analyse fondamentale / composition de la fiche, écart de suivi, passer un ordre
   for (const e of ['rendered:invest', 'rendered:alerts', 'rendered:accountFilter']) assert.equal(n(e), 1, e);
 });

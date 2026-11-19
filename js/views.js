@@ -162,14 +162,23 @@ Object.assign(App, {
     if (!exs.length) exs = EXCHANGES.filter(e => e.id === 'paris' || e.id === 'newyork');
     const sts = exs.map(ex => ({ ex, st: Markets.status(ex, now) }));
     const open = sts.filter(x => x.st.state === 'open');
-    let text;
-    if (sts.length === 1) text = sts[0].ex.city + ' · ' + Markets.summary(sts[0].st, now);
-    else if (open.length) text = open.length === 1 ? `${open[0].ex.city} ouvert · ferme dans ${Markets.fmtDuration(open[0].st.next.at - now)}` : `${open.length}/${sts.length} marchés ouverts`;
-    else {
+    let text, short;
+    const soon = at => (at - now < 86400000 ? Markets.fmtDuration(at - now) : Markets.fmtLocal(at, true));
+    if (sts.length === 1) {
+      text = sts[0].ex.city + ' · ' + Markets.summary(sts[0].st, now);
+      const st = sts[0].st;
+      short = !st.next ? Markets.summary(st, now) : (st.state === 'open' ? 'Ouvert · ' : st.state === 'break' ? 'Pause · ' : 'Fermé · ') + soon(st.next.at);
+    } else if (open.length) {
+      text = open.length === 1 ? `${open[0].ex.city} ouvert · ferme dans ${Markets.fmtDuration(open[0].st.next.at - now)}` : `${open.length}/${sts.length} marchés ouverts`;
+      short = open.length === 1 ? `${open[0].ex.city} · ${Markets.fmtDuration(open[0].st.next.at - now)}` : `${open.length}/${sts.length} ouverts`;
+    } else {
       const nx = sts.filter(x => x.st.next).sort((a, b) => a.st.next.at - b.st.next.at)[0];
       text = nx ? `Fermé · ${nx.ex.city} ouvre ${nx.st.next.at - now < 86400000 ? 'dans ' + Markets.fmtDuration(nx.st.next.at - now) : Markets.fmtLocal(nx.st.next.at, true)}` : 'Marchés fermés';
+      short = nx ? `Fermé · ${soon(nx.st.next.at)}` : 'Fermé';
     }
-    pill.textContent = text;
+    // texte court sur téléphone (la barre du haut est étroite)
+    pill.replaceChildren(el('span', { class: 'lbl-long' }, text), el('span', { class: 'lbl-short' }, short));
+    pill.setAttribute('aria-label', text);
     pill.className = 'pill' + (open.length ? ' open' : '');
     pill.title = sts.map(x => `${x.ex.flag} ${x.ex.city} : ${Markets.summary(x.st, now)}`).join('\n');
   },

@@ -457,7 +457,7 @@ const Api = {
     this._persistedAt = Date.now();
     const slim = {};
     for (const [k, v] of Object.entries(this.quotes)) if (!k.startsWith('Y:')) slim[k] = { ts: v.ts, data: Object.assign({}, v.data, { spark: undefined }) };
-    try { localStorage.setItem('apistock:quotes', JSON.stringify(slim)); } catch (e) { /* ignore */ }
+    lsSet('apistock:quotes', JSON.stringify(slim));
   },
 
   cachedQuote(key) { return this.quotes[key] ? this.quotes[key].data : null; },
@@ -484,7 +484,7 @@ const Api = {
       if (isFinite(rate) && rate > 0) {
         if (!c || c.rate !== rate) this.touch();
         this.fx[pair] = { rate, ts: Date.now() };
-        try { localStorage.setItem('apistock:fx', JSON.stringify(this.fx)); } catch (e) { /* ignore */ }
+        lsSet('apistock:fx', JSON.stringify(this.fx));
         return rate;
       }
     } catch (e) {
@@ -513,8 +513,9 @@ const Api = {
   fxHistory(pair) {
     if (this.fxHist[pair] === undefined) {
       let c = null;
-      try { c = JSON.parse(localStorage.getItem('apistock:daily:Y:' + pair.replace('/', '') + '=X') || 'null'); } catch (e) { c = null; }
+      try { c = JSON.parse(Cache.getItem('apistock:daily:Y:' + pair.replace('/', '') + '=X') || 'null'); } catch (e) { c = null; }
       this.fxHist[pair] = c && Array.isArray(c.values) && c.values.length ? { start: c.start, ts: c.ts, values: c.values } : null;
+      if (!this.fxHist[pair] && !Cache.settled) delete this.fxHist[pair]; // cache pas encore chargé : relu plus tard
     }
     return this.fxHist[pair];
   },
@@ -555,7 +556,7 @@ const Api = {
     else if (this.hasKey()) {
       const json = await this.request('time_series', { symbol: pair, interval: '1day', start_date: from0, outputsize: 5000, order: 'asc' });
       values = (json.values || []).map(v => [v.datetime.slice(0, 10), parseNum(v.close)]).sort((a, b) => (a[0] < b[0] ? -1 : 1));
-      try { localStorage.setItem('apistock:daily:Y:' + cur + base + '=X', JSON.stringify({ ts: Date.now(), start: from0, values })); } catch (e) { /* ignore */ }
+      try { Cache.setItem('apistock:daily:Y:' + cur + base + '=X', JSON.stringify({ ts: Date.now(), start: from0, values })); } catch (e) { /* ignore */ }
     } else return false;
     values = values.filter(v => isFinite(v[1]) && v[1] > 0);
     if (!values.length) return false;
@@ -593,10 +594,11 @@ const Api = {
    * Mis en cache dans localStorage (6 h) pour économiser les crédits.
    */
   async daily(key, startDate) {
+    await Cache.ready; // copie en mémoire des historiques déjà téléchargés
     if (!key.startsWith('Y:') && this.provider(key) === 'manual') return Manual.daily(key, startDate);
     const cacheKey = 'apistock:daily:' + key;
     let cached = null;
-    try { cached = JSON.parse(localStorage.getItem(cacheKey) || 'null'); } catch (e) { cached = null; }
+    try { cached = JSON.parse(Cache.getItem(cacheKey) || 'null'); } catch (e) { cached = null; }
     const fresh = cached && Date.now() - cached.ts < 6 * 3600 * 1000;
     if (fresh && cached.start <= startDate) return cached.values.filter(v => v[0] >= startDate);
 
@@ -636,17 +638,13 @@ const Api = {
     }
     values.sort((a, b) => (a[0] < b[0] ? -1 : 1));
     const record = { ts: Date.now(), start, values };
-    try { localStorage.setItem(cacheKey, JSON.stringify(record)); }
-    catch (e) { this.pruneSeriesCache(); try { localStorage.setItem(cacheKey, JSON.stringify(record)); } catch (e2) { /* ignore */ } }
+    try { Cache.setItem(cacheKey, JSON.stringify(record)); }
+    catch (e) { this.pruneSeriesCache(); try { Cache.setItem(cacheKey, JSON.stringify(record)); } catch (e2) { /* ignore */ } }
     return values.filter(v => v[0] >= startDate);
   },
 
-  pruneSeriesCache() {
-    for (let i = localStorage.length - 1; i >= 0; i--) {
-      const k = localStorage.key(i);
-      if (k && k.startsWith('apistock:daily:')) localStorage.removeItem(k);
-    }
-  },
+  /** Vide le cache des historiques et des dividendes (IndexedDB, et restes éventuels du localStorage) */
+  pruneSeriesCache() { Cache.clear(); },
 
   /** Série pour les graphiques de détail (intraday ou journalière) */
   async chartSeries(key, range) {

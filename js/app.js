@@ -18,6 +18,7 @@ const HIST_BENCH = { ysym: 'IWDA.AS', ccy: 'EUR', name: 'MSCI World' };
  *   'detail:selected'   (clé, avant)   selectDetail(clé) : instrument affiché dans Marchés (et clé précédente)
  *   'refreshed'         (manuel)       refresh(manuel) terminé, y compris quand il n'y avait rien à rafraîchir
  *   'data:saved'                       Store.save() : données enregistrées dans ce navigateur
+ *   'history:loaded'    (points)       loadHistory() : évolution du portefeuille recalculée (App.historyPoints)
  */
 /*
  * Organisation de l'application : 5 espaces (barre du haut, barre du bas sur téléphone), chacun en sous-onglets.
@@ -94,7 +95,8 @@ const App = {
       () => this.bindDialog(), () => this.bindWorld(), () => this.bindInvest(), () => this.bindCompare(), () => this.bindAccounts(),
       () => this.renderAccountsSettings(), () => this.bindGoal(), () => this.bindPrivacy(), () => this.bindCsv(), () => this.bindMobile(),
       () => this.bindManual(), () => this.bindTour(), () => { $('#optRun').addEventListener('click', () => this.runOptimizer()); this.renderOptOpts(); }, () => this.bindLab(),
-      () => this.bindQuant(), () => this.bindDesk(), () => this.bindArena(), () => this.bindInstitut(), () => this.bindTerminal(), () => this.bindFisc(), () => this.bindCopilot(),
+      () => this.bindQuant(), () => { for (const n of ['desk', 'arena', 'institut', 'terminal']) if (Lazy.done.has(n)) this[LAZY[n].bind](); }, // sinon branchés à leur chargement (lazy.js)
+      () => this.bindFisc(), () => this.bindCopilot(),
       () => $('#tgtShare').addEventListener('click', () => this.shareAllocation()),
       () => $('#wrappedOpen').addEventListener('click', () => { this.toggleTabMenu(false); this.openWrapped(); }),
       () => $$('#mapMode button').forEach(b => b.addEventListener('click', () => {
@@ -185,6 +187,19 @@ const App = {
     document.addEventListener('click', e => { if (!e.target.closest('#tabMore')) this.toggleTabMenu(false); });
     document.addEventListener('keydown', e => { if (e.key === 'Escape') this.toggleTabMenu(false); });
     $$('[data-goto]').forEach(b => b.addEventListener('click', () => this.show(b.dataset.goto)));
+    // retour / avance du navigateur, ou adresse modifiée à la main
+    const fromAddress = () => {
+      const hash = location.hash.replace('#', '');
+      if (hash.startsWith('share=')) { this.openSharedFromHash(location.hash); return; }
+      // une fenêtre ouverte : « retour » la ferme et reste sur la page
+      const dlg = document.querySelector('dialog[open]');
+      if (dlg) { dlg.close(); history.pushState(null, '', '#' + this.page); return; }
+      const [v, sb] = hash.split('/');
+      if (!v || v + (sb ? '/' + sb : '') === this.page) return;
+      this.show(v, sb, { fromHistory: true });
+    };
+    window.addEventListener('popstate', fromAddress);
+    window.addEventListener('hashchange', fromAddress);
     $('#refreshBtn').addEventListener('click', () => this.refresh(true));
     $('#themeBtn').addEventListener('click', () => {
       const dark = document.documentElement.dataset.theme
@@ -215,12 +230,13 @@ const App = {
    * Affiche un espace et un sous-onglet. Accepte les anciens noms de pages (« invest », « world »…).
    * Sans sous-onglet : le dernier ouvert dans cet espace, sinon le premier.
    */
-  show(view, sub) {
+  show(view, sub, opts = {}) {
     if (LEGACY_PAGES[view]) { sub = sub && SPACES[LEGACY_PAGES[view][0]].includes(sub) ? sub : LEGACY_PAGES[view][1]; view = LEGACY_PAGES[view][0]; }
     if (LEGACY_SUBS[view + '/' + sub]) [view, sub] = LEGACY_SUBS[view + '/' + sub];
     if (!SPACES[view] || !$('#view-' + view)) view = 'portfolio';
-    const subs = SPACES[view];
-    if (subs.length && !subs.includes(sub)) sub = this.lastSub(view) || subs[0];
+    // sous-onglets masqués en mode Essentiel (home.js) : on prend le dernier ouvert encore visible, sinon le premier
+    const subs = SPACES[view].filter(s => !this.subHidden || !this.subHidden(view, s));
+    if (subs.length && !subs.includes(sub)) sub = subs.includes(this.lastSub(view)) ? this.lastSub(view) : subs[0];
     if (!subs.length) sub = '';
     const page = view + (sub ? '/' + sub : '');
     const changed = page !== this.page || !$('#view-' + view).classList.contains('active');
@@ -234,9 +250,11 @@ const App = {
       sec.querySelectorAll(':scope > [data-sub]').forEach(c => c.classList.toggle('sub-off', !c.dataset.sub.split(' ').includes(sub)));
       try { localStorage.setItem('apistock:sub:' + view, sub); } catch (e) { /* stockage indisponible */ }
     }
-    if (changed && this._booted) window.scrollTo({ top: 0 });
+    if (changed && this._booted && !opts.fromHistory) window.scrollTo({ top: 0 });
+    // historique du navigateur : chaque changement de page est une étape (bouton « retour », geste retour sur Android)
+    if (opts.fromHistory || !this._booted || location.hash === '#' + page) history.replaceState(null, '', '#' + page);
+    else history.pushState(null, '', '#' + page);
     this._booted = true;
-    history.replaceState(null, '', '#' + page);
     clearInterval(this._globalTimer);
     if (view === 'settings') {
       this.loadGlobalCount();
@@ -262,6 +280,7 @@ const App = {
   reveal(sel, opts = {}) {
     const node = typeof sel === 'string' ? $(sel) : sel;
     if (!node) return;
+    if (this.levelBlocks && this.levelBlocks(node)) return; // outil avancé masqué en mode Essentiel
     const sec = node.closest('.view');
     const card = node.closest('[data-sub]');
     if (sec) this.show(sec.id.replace('view-', ''), card && card.closest('.view') === sec ? card.dataset.sub.split(' ')[0] : undefined);
@@ -506,6 +525,10 @@ const App = {
       $$('#allocMode button').forEach(x => x.classList.toggle('active', x === b));
       this.renderPortfolio();
     }));
+    $$('#allocView button').forEach(b => b.addEventListener('click', () => {
+      try { localStorage.setItem('apistock:allocView', b.dataset.v); } catch (e) { /* stockage indisponible */ }
+      this.renderPortfolio();
+    }));
     $('#loadHistoryBtn').addEventListener('click', () => this.loadHistory());
     const hb = $('#histBench');
     if (hb) {
@@ -541,7 +564,7 @@ const App = {
       net.taxed && totals.pnl > 0 ? `Plus-value latente nette d'impôt estimée : ${fmtSignedMoney(net.net, cur)}` : '',
     ].filter(Boolean).join('\n');
     const gain = hasRealized || hasDivs ? totals.totalGain : totals.pnl;
-    kpis.replaceChildren(...[
+    const kpiList = [
       this.kpi('Valeur actuelle', fmtMoney(totals.value, cur),
         el('span', {}, el('span', { class: trendClass(totals.day) }, `Aujourd'hui : ${fmtSignedMoney(totals.day, cur)} (${fmtPct(totals.dayPct)})`),
           cash.tracked ? el('span', { class: 'kpi-line' }, 'Liquidités : ' + fmtMoney(cash.cash, cur)) : null,
@@ -558,7 +581,9 @@ const App = {
           isFinite(x) ? el('span', {}, 'depuis le ' + fmtDate(first), isFinite(ytd) ? el('span', { class: 'kpi-line ' + trendClass(ytd) }, `${todayISO().slice(0, 4)} : ${fmtPct(ytd)}`) : null) : 'Pas assez d\'historique', trendClass(x),
           'Taux de rendement interne (XIRR) : rendement moyen par an, qui tient compte de la date et du montant de chacun de tes versements.');
       })(),
-    ].filter(Boolean));
+    ].filter(Boolean);
+    // la valeur en tête ; les trois autres chiffres regroupés (une ligne qui défile sur téléphone)
+    kpis.replaceChildren(kpiList[0], el('div', { class: 'kpi-rest' }, ...kpiList.slice(1)));
     this.renderAccountsSummary();
     this.renderContrib();
     this.renderGoal();
@@ -605,6 +630,7 @@ const App = {
       $$('#allocMode button').forEach(x => x.classList.toggle('active', x.dataset.mode === 'value'));
     }
     const useValue = this.allocMode !== 'cost';
+    if (this.allocMode === 'country' || this.allocMode === 'sector') { this.renderAllocExposure(rows, cur); this.emit('rendered:portfolio'); return; }
     const items = this.allocMode === 'account'
       ? Store.state.accounts.map((a, i) => {
         const t = Portfolio.snapshot(a.id).totals;
@@ -616,12 +642,70 @@ const App = {
         color: PALETTE[i % PALETTE.length],
       })).filter(x => x.v > 0);
     const sum = items.reduce((a, b) => a + b.v, 0);
-    Charts.doughnut('allocChart', items.map(x => x.label), items.map(x => x.v), items.map(x => x.color), cur);
-    $('#allocLegend').replaceChildren(...items.map(x => el('li', {},
-      el('span', { class: 'dot', style: 'background:' + x.color }),
-      el('span', { class: 'lname', title: x.full }, x.label, el('span', { class: 'muted' }, ' ' + x.name)),
-      el('b', { class: 'mono' }, fmtNum((x.v / sum) * 100, 1) + ' %'))));
+    $('#allocNote').classList.add('hidden');
+    $('#allocView').classList.remove('hidden');
+    if (this.allocView() === 'bars') {
+      this.renderAllocBars(items.map(x => ({ label: x.label, sub: x.name, title: x.full, pct: sum ? (x.v / sum) * 100 : 0, amount: x.v, color: x.color })), cur);
+    } else {
+      this.showAllocDonut(true);
+      Charts.doughnut('allocChart', items.map(x => x.label), items.map(x => x.v), items.map(x => x.color), cur);
+      $('#allocLegend').replaceChildren(...items.map(x => el('li', {},
+        el('span', { class: 'dot', style: 'background:' + x.color }),
+        el('span', { class: 'lname', title: x.full }, x.label, el('span', { class: 'muted' }, ' ' + x.name)),
+        el('b', { class: 'mono' }, fmtNum((x.v / sum) * 100, 1) + ' %'))));
+    }
     this.emit('rendered:portfolio');
+  },
+
+  /** Présentation de la répartition : barres (par défaut) ou anneau */
+  allocView() {
+    let v = null;
+    try { v = localStorage.getItem('apistock:allocView'); } catch (e) { v = null; }
+    return v === 'donut' ? 'donut' : 'bars';
+  },
+
+  showAllocDonut(on) {
+    $('#allocDonut').classList.toggle('hidden', !on);
+    $('#allocLegend').classList.toggle('hidden', !on);
+    $('#allocBars').classList.toggle('hidden', on);
+    if (!on) Charts.destroy('allocChart');
+    $$('#allocView button').forEach(b => b.classList.toggle('active', b.dataset.v === (on ? 'donut' : 'bars')));
+  },
+
+  /** Barres horizontales : [{ label, sub, title, pct, amount, color }] triées par l'appelant */
+  renderAllocBars(list, cur) {
+    this.showAllocDonut(false);
+    const max = Math.max(1e-9, ...list.map(x => x.pct));
+    $('#allocBars').replaceChildren(...list.map(x => el('li', { title: x.title || '' },
+      el('div', { class: 'ab-head' },
+        el('span', { class: 'ab-name' }, x.color && x.dot !== false ? el('span', { class: 'dot', style: 'background:' + x.color }) : '', x.label, x.sub ? el('span', { class: 'muted' }, ' ' + x.sub) : ''),
+        el('span', { class: 'ab-val mono' }, isFinite(x.amount) ? el('span', { class: 'muted' }, fmtMoney(x.amount, cur, 0) + ' · ') : '', el('b', {}, fmtNum(x.pct, 1) + ' %'))),
+      el('div', { class: 'ab-track' }, el('span', { class: 'ab-fill', style: `width:${Math.max(1, (x.pct / max) * 100)}%;` + (x.color ? `background:${x.color}` : '') })))));
+  },
+
+  /** Répartition par pays ou par secteur des entreprises détenues (en regardant dans les ETF) */
+  renderAllocExposure(rows, cur) {
+    $('#allocView').classList.add('hidden'); // toujours en barres (beaucoup de catégories)
+    const dim = this.allocMode;
+    const list = rows.map(r => ({ key: r.key, w: isFinite(r.valueBase) ? r.valueBase : r.costBase })).filter(x => x.w > 0);
+    const total = list.reduce((s, x) => s + x.w, 0);
+    const agg = Expo.aggregate(list)[dim];
+    const names = dim === 'country' ? COUNTRY_FR : SECT;
+    let entries = Object.entries(agg).filter(([, v]) => v > 0.05).sort((a, b) => b[1] - a[1]);
+    const TOP = 10;
+    if (entries.length > TOP + 1) {
+      const rest = entries.slice(TOP).reduce((s, [, v]) => s + v, 0);
+      entries = entries.slice(0, TOP).concat([['other', rest]]);
+    }
+    // « Autres » regroupé en dernier
+    const sorted = entries.slice().sort((a, b) => (a[0] === 'other') - (b[0] === 'other') || b[1] - a[1]);
+    const label = k => (k === 'other' ? (dim === 'country' ? 'Autres pays' : 'Autres') : names[k] || k);
+    this.renderAllocBars(sorted.map(([k, v], i) => ({ label: label(k), pct: v, amount: total * v / 100, dot: false, color: k === 'other' ? 'var(--muted)' : PALETTE[i % PALETTE.length] })), cur);
+    const covered = sorted.reduce((s, [, v]) => s + v, 0);
+    const note = $('#allocNote');
+    note.textContent = (covered < 99.5 ? `${fmtNum(100 - covered, 1)} % de tes lignes ne sont pas ventilées (profil inconnu). ` : '')
+      + 'Répartition moyenne des indices suivis par tes ETF (dernier reporting connu) ; une action compte pour son pays et son secteur.';
+    note.classList.remove('hidden');
   },
 
   /** Filtres de l'historique (ligne, type, année) : affichés dès qu'il y a de quoi filtrer */
@@ -773,7 +857,7 @@ const App = {
     const txs = Portfolio.txs();
     if (this.historyLoaded || !txs.length || !Api.hasProxy()) return;
     const keys = Array.from(new Set(txs.map(t => t.key)));
-    const free = keys.every(k => Api.provider(k) !== 'twelve' || localStorage.getItem('apistock:daily:' + k));
+    const free = keys.every(k => Api.provider(k) !== 'twelve' || Cache.getItem('apistock:daily:' + k));
     if (free) this.loadHistory({ quiet: true });
   },
 
@@ -797,23 +881,22 @@ const App = {
       if (!points.length) throw new Error('Pas de données historiques disponibles.');
       this.historyPoints = points;
       let bench = null;
+      this.historyBenchRaw = null;
       if (this.histBenchOn() && Api.hasProxy()) {
         try {
           const b = await Api.daily('Y:' + HIST_BENCH.ysym, start);
           bench = Portfolio.benchmark(points, b, d => Api.fxAt(HIST_BENCH.ccy, d));
+          this.historyBenchRaw = b.map(([d, v]) => [d, v * Api.fxAt(HIST_BENCH.ccy, d)]);
         } catch (e) { bench = null; /* indice indisponible : graphique sans comparaison */ }
       }
-      Charts.investedVsValue('historyChart', points.map(p => fmtDate(p.date)), points.map(p => p.invested), points.map(p => p.value), this.base(),
-        { stepped: true, bench, benchLabel: 'Mêmes versements dans le ' + HIST_BENCH.name });
+      this.historyBench = bench;
+      this.drawHistory();
       $('#historyChart').parentElement.classList.add('ready');
       this.renderCalendar(Portfolio.twr(points));
       if (this.renderTodo) this.renderTodo(true);
       this.renderPortfolio();
       if (this.renderRisk) this.renderRisk(Portfolio.twr(points), start);
-      const lastP = points[points.length - 1];
-      const lastB = bench ? bench[bench.length - 1] : null;
-      $('#historyInfo').textContent = `Depuis le ${fmtDate(start)}` + (isFinite(lastB) && lastB > 0
-        ? ` · vs ${HIST_BENCH.name} : ${fmtSignedMoney(lastP.value - lastB, this.base())}` : '');
+      this.emit('history:loaded', points);
       return points;
     } catch (e) {
       if (!quiet) toast(e.message, 'error', 6000);
@@ -1573,10 +1656,41 @@ const App = {
     $('#resetAll').addEventListener('click', () => {
       if (!confirm('Effacer toutes tes opérations, ta liste de suivi et tes réglages ? (pense à exporter avant)')) return;
       Object.keys(localStorage).filter(k => k.startsWith('apistock:')).forEach(k => localStorage.removeItem(k));
+      Cache.clear();
       location.reload();
     });
 
+    $('#persistBtn').addEventListener('click', async () => {
+      const ok = await Durable.request();
+      toast(ok ? 'Données protégées ✔ Le navigateur ne les effacera plus pour faire de la place.' : 'Le navigateur a refusé. Installe le site (écran d\'accueil) ou exporte régulièrement tes données.', ok ? 'success' : 'error', 6000);
+      this.renderStorage();
+      if (this.renderTodo) this.renderTodo(true);
+    });
+    this.on('view:shown', page => { if (page === 'settings') this.renderStorage(); });
+    // stockage durable demandé sans fenêtre dès qu'il y a des données à protéger
+    Durable.auto((Store.state.transactions || []).length > 0).then(() => { if (this.renderTodo) this.renderTodo(true); });
+
     $('#hardReload').addEventListener('click', () => this.hardReload());
+  },
+
+  /** Réglages › Sauvegarde : stockage durable ou non, place utilisée */
+  async renderStorage() {
+    const info = $('#storageInfo');
+    if (!info) return;
+    const st = await Durable.check();
+    const est = await Durable.estimate();
+    const mb = n => fmtNum(n / 1048576, n < 10485760 ? 1 : 0) + ' Mo';
+    let main = 0;
+    try { main = (localStorage.getItem(STORE_KEY) || '').length * 2; } catch (e) { main = 0; }
+    const parts = [
+      st === 'persisted' ? '🔒 Stockage durable : le navigateur ne l\'effacera pas pour faire de la place.'
+        : st === 'best-effort' ? '⚠ Stockage ordinaire : le navigateur peut l\'effacer si le disque manque de place.'
+          : 'Stockage durable non pris en charge par ce navigateur : exporte régulièrement tes données.',
+      `Tes données : ${mb(main)}` + (Cache.mem ? ` · cache des cours : ${mb(Cache.size())} (${Cache.keys('apistock:daily:').length} historique(s))` : ''),
+      est && est.quota ? `Espace utilisé par le site : ${mb(est.usage || 0)} sur ${mb(est.quota)} disponibles.` : '',
+    ].filter(Boolean);
+    info.replaceChildren(...parts.flatMap((p, i) => (i ? [el('br'), p] : [p])));
+    $('#persistBtn').classList.toggle('hidden', st !== 'best-effort');
   },
 
   /** Rechargement complet : service worker, caches, fichiers du site et cache des cours (données perso conservées) */
@@ -1604,6 +1718,7 @@ const App = {
       const u = new URL(n.getAttribute('src') || n.getAttribute('href'), location.href);
       if (u.origin === location.origin) urls.add(u.pathname);
     });
+    for (const f of Lazy.allFiles()) urls.add(new URL(f, location.href).pathname); // modules chargés à la demande
     await Promise.all(Array.from(urls).map(u => fetch(u, { cache: 'reload' }).catch(() => null)));
     // 3. cache des cours (opérations, comptes, réglages et clé API ne sont pas touchés)
     Api.pruneSeriesCache();

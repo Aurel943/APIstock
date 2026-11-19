@@ -468,8 +468,8 @@ button, a, .pos-card { -webkit-tap-highlight-color: transparent; }
   .kpi .label { font-size: 10.5px; }
   .kpi .value { font-size: 17px; }
   .kpi .sub { font-size: 12px; }
-  #kpis .kpi:first-child { grid-column: 1 / -1; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 16%, var(--surface)), var(--surface)); }
-  #kpis .kpi:first-child .value { font-size: 30px; }
+  #kpis > .kpi:first-child { grid-column: 1 / -1; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 16%, var(--surface)), var(--surface)); }
+  #kpis > .kpi:first-child .value { font-size: 30px; }
 
   /* Positions en cartes */
   #positionsTable { display: none; }
@@ -798,7 +798,7 @@ details.advanced[open] > .stack { margin-top: 12px; }
 .kpi-line { display: block; color: var(--muted); }
 .kpi-line.down { color: var(--down); }
 .kpi .label { display: flex; align-items: center; }
-@media (max-width: 760px) { #kpis .kpi:nth-child(even):last-child { grid-column: 1 / -1; } }
+/* (ancienne grille 2 × 2 des chiffres clés remplacée par la ligne qui défile, voir « Accueil sur téléphone ») */
 .expo-detail { margin-top: 14px; }
 
 /* Barème de courtage par compte */
@@ -1800,3 +1800,72 @@ table.data.etfcmp-table th.num { white-space: normal; }
 .chip.withdraw { background: rgba(234, 88, 12, .12); color: #c2410c; }
 :root[data-theme="dark"] .chip.deposit { color: #7dd3fc; } :root[data-theme="dark"] .chip.withdraw { color: #fdba74; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .chip.deposit { color: #7dd3fc; } :root:not([data-theme="light"]) .chip.withdraw { color: #fdba74; } }
+
+/* ---------- Évolution du portefeuille : période et affichage ---------- */
+#histPeriod button, #histMode button { min-width: 2.4em; }
+
+/* ---------- Répartition : barres horizontales, pays et secteurs ---------- */
+#allocCard .card-head { flex-wrap: wrap; gap: 8px; }
+.alloc-view button { font-size: 14px; line-height: 1; padding: 4px 8px; }
+.alloc-bars { list-style: none; margin: 8px 0 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; font-size: 13px; }
+.alloc-bars li { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; min-width: 0; }
+.ab-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; min-width: 0; }
+.ab-name { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ab-name .dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.ab-val { white-space: nowrap; flex: none; }
+.ab-track { height: 8px; border-radius: 4px; background: var(--surface-2); overflow: hidden; }
+.ab-fill { display: block; height: 100%; border-radius: 4px; background: var(--accent); }
+#allocNote { margin: 12px 0 0; }
+
+/* ---------- Chiffres clés : mini-courbe, ligne qui défile sur téléphone ---------- */
+.kpi-rest { display: contents; }
+.kpi-spark { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.kpi-spark svg { flex: none; }
+@media (max-width: 760px) {
+  #kpis { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  #kpis > .kpi:first-child { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 10px; align-items: end; padding: 14px 16px; }
+  #kpis > .kpi:first-child > .label, #kpis > .kpi:first-child > .value, #kpis > .kpi:first-child > .sub { grid-column: 1; }
+  #kpis > .kpi:first-child .kpi-spark { grid-column: 2; grid-row: 1 / span 3; flex-direction: column; align-items: flex-end; gap: 2px; margin: 0; }
+  #kpis > .kpi:first-child .value { font-size: 26px; }
+  .kpi-rest { display: flex; gap: 8px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding-inline: 12px; scrollbar-width: none; margin: 0 -12px; padding: 0 12px 2px; }
+  .kpi-rest::-webkit-scrollbar { display: none; }
+  .kpi-rest > .kpi { flex: 0 0 auto; min-width: 150px; max-width: 72%; scroll-snap-align: start; padding: 10px 12px; }
+  .kpi-rest > .kpi .value { font-size: 16px; }
+  .kpi-rest > .kpi .sub { font-size: 11.5px; }
+}
+
+/* ---------- Vue d'ensemble personnalisable, mode Essentiel ---------- */
+.home-off { display: none !important; }
+.grid-2.grid-evo.one-col { grid-template-columns: minmax(0, 1fr); }
+.home-tools { text-align: center; margin: 4px 0 8px; }
+.home-dialog { max-width: 480px; width: calc(100% - 24px); }
+.home-list { list-style: none; margin: 12px 0; padding: 0; display: grid; gap: 6px; }
+.home-list > li { border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; background: var(--surface); }
+.home-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.home-move { display: inline-flex; gap: 4px; }
+.home-parts { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 6px 0 0 4px; font-size: 13px; }
+.home-dialog .actions { display: flex; gap: 8px; align-items: center; }
+.home-dialog .spacer { flex: 1; }
+body.level-essential [data-level="expert"] { display: none !important; }
+
+/* ---------- Où placer mon prochain euro ---------- */
+.env-form { margin-bottom: 12px; }
+.env-form label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.env-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.env-step { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); }
+.env-step p { margin: 4px 0 0; }
+.env-icon { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 700; background: var(--surface); color: var(--muted); }
+.env-step.env-go .env-icon { background: var(--accent); color: var(--accent-ink); }
+.env-step.env-ok .env-icon { color: var(--up); }
+.env-step.env-skip { opacity: .75; }
+.env-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.env-put { font-weight: 600; color: var(--up); white-space: nowrap; }
+.drift-notify { margin-left: auto; }
+
+/* ---------- Tes jalons ---------- */
+.ms-list { list-style: none; margin: 6px 0 12px; padding: 0; display: grid; gap: 8px; }
+.ms-item { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 10px; align-items: start; }
+.ms-icon { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-2); font-size: 15px; }
+.ms-item.next .ms-icon { background: color-mix(in srgb, var(--accent) 18%, var(--surface)); }
+.ms-item.recent .ms-icon { background: color-mix(in srgb, #f59e0b 25%, var(--surface)); }
+.ms-bar { margin-top: 6px; max-width: 320px; }

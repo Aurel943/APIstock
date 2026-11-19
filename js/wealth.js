@@ -1,6 +1,14 @@
 /* Patrimoine global : autres actifs saisis à la main (livrets, fonds euros, compte courant, immobilier…) */
 'use strict';
 
+/*
+ * Taux du Livret A (date d'effet, % par an). Dernier taux connu prolongé ensuite : à compléter à chaque révision
+ * (1er février et 1er août). Source : Banque de France / arrêtés ministériels.
+ * Utilisé par les univers parallèles (Arène) et le comparatif des fonds à échéance (Obligations et taux).
+ */
+const LIVRET_A_RATES = [['2009-08-01', 1.25], ['2011-02-01', 2], ['2011-08-01', 2.25], ['2013-02-01', 1.75], ['2013-08-01', 1.25], ['2014-08-01', 1],
+  ['2015-08-01', 0.75], ['2020-02-01', 0.5], ['2022-02-01', 1], ['2022-08-01', 2], ['2023-02-01', 3], ['2025-02-01', 2.4], ['2025-08-01', 1.7]];
+
 /* Types d'actifs : `rate` = rémunération annuelle saisie (valeur estimée à la date du jour), `debt` = crédit restant */
 const ASSET_TYPES = {
   livretA: { label: 'Livret A', cat: 'savings', rate: true },

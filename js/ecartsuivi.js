@@ -131,9 +131,10 @@ const TrackDiff = {
 Object.assign(App, {
   /** Dividendes d'un symbole Yahoo brut (référence), gardés 12 h */
   async tdRefDivs(sym, start) {
+    await Cache.ready;
     const ck = 'apistock:events:Y:' + sym;
     let c = null;
-    try { c = JSON.parse(localStorage.getItem(ck) || 'null'); } catch (e) { c = null; }
+    try { c = JSON.parse(Cache.getItem(ck) || 'null'); } catch (e) { c = null; }
     if (c && Date.now() - c.ts < 12 * 3600000 && c.from <= start) return c.divs;
     const json = await Api.yahoo({ type: 'chart', symbol: sym, interval: '1mo', events: 'div,split',
       period1: Math.floor(Date.parse(start + 'T00:00:00Z') / 1000), period2: Math.floor(Date.now() / 1000) + 86400 });
@@ -141,7 +142,7 @@ Object.assign(App, {
     const off = ((r && r.meta && r.meta.gmtoffset) || 0) * 1000;
     const divs = Object.values((r && r.events && r.events.dividends) || {}).map(d => ({ date: new Date(d.date * 1000 + off).toISOString().slice(0, 10), amount: d.amount }))
       .filter(d => d.amount > 0).sort((x, y) => (x.date < y.date ? -1 : 1));
-    try { localStorage.setItem(ck, JSON.stringify({ ts: Date.now(), from: start, divs })); } catch (e) { /* stockage plein */ }
+    try { Cache.setItem(ck, JSON.stringify({ ts: Date.now(), from: start, divs })); } catch (e) { /* stockage plein */ }
     return divs;
   },
 
@@ -170,7 +171,7 @@ Object.assign(App, {
     const data = { ref: { sym: ref.sym, label: ref.label }, ter: exp.ter, S };
     cache[ck] = { ts: Date.now(), data };
     for (const [x, v] of Object.entries(cache)) if (Date.now() - v.ts > 7 * 864e5) delete cache[x];
-    try { localStorage.setItem(TD_STORE, JSON.stringify(cache)); } catch (e) { /* stockage plein */ }
+    lsSet(TD_STORE, JSON.stringify(cache));
     return data;
   },
 
