@@ -51,7 +51,7 @@ Object.assign(App, {
   applyLevel() {
     const ess = this.level() === 'essential';
     document.body.classList.toggle('level-essential', ess);
-    $$('#levelSeg button').forEach(b => b.classList.toggle('active', b.dataset.level === this.level()));
+    $$('#levelSeg button').forEach(b => b.classList.toggle('active', b.dataset.lvl === this.level()));
     const m = $('#levelMenuBtn');
     if (m) m.textContent = ess ? '🧩 Passer en mode Expert' : '🧩 Passer en mode Essentiel';
   },
@@ -146,7 +146,7 @@ Object.assign(App, {
   },
 
   bindHome() {
-    $$('#levelSeg button').forEach(b => b.addEventListener('click', () => { if (b.dataset.level !== this.level()) this.setLevel(b.dataset.level); }));
+    $$('#levelSeg button').forEach(b => b.addEventListener('click', () => { if (b.dataset.lvl !== this.level()) this.setLevel(b.dataset.lvl); }));
     const m = $('#levelMenuBtn');
     if (m) m.addEventListener('click', () => { this.toggleTabMenu(false); this.setLevel(this.level() === 'essential' ? 'expert' : 'essential'); });
     $$('.homeCustomize').forEach(b => b.addEventListener('click', () => { if (this.view !== 'portfolio' || this.sub !== 'synthese') this.show('portfolio', 'synthese'); this.openHomeDialog(); }));
