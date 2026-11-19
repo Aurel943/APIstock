@@ -1820,12 +1820,14 @@ table.data.etfcmp-table th.num { white-space: normal; }
 /* ---------- Chiffres clés : mini-courbe, ligne qui défile sur téléphone ---------- */
 .kpi-rest { display: contents; }
 .kpi-spark { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
-.kpi-spark svg { flex: none; }
+.kpi-spark .spark { flex: 1 1 auto; min-width: 48px; max-width: 160px; height: 30px; }
+.kpi-spark > span { flex: none; white-space: nowrap; }
 @media (max-width: 760px) {
   #kpis { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
   #kpis > .kpi:first-child { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 10px; align-items: end; padding: 14px 16px; }
   #kpis > .kpi:first-child > .label, #kpis > .kpi:first-child > .value, #kpis > .kpi:first-child > .sub { grid-column: 1; }
   #kpis > .kpi:first-child .kpi-spark { grid-column: 2; grid-row: 1 / span 3; flex-direction: column; align-items: flex-end; gap: 2px; margin: 0; }
+  #kpis > .kpi:first-child .kpi-spark .spark { flex: none; width: 110px; }
   #kpis > .kpi:first-child .value { font-size: 26px; }
   .kpi-rest { display: flex; gap: 8px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding-inline: 12px; scrollbar-width: none; margin: 0 -12px; padding: 0 12px 2px; }
   .kpi-rest::-webkit-scrollbar { display: none; }
