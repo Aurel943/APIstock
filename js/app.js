@@ -312,6 +312,25 @@ const App = {
 
   fastMode() { const s = parseInt(Store.state.settings.refreshSec, 10); return s > 0 && s < 30; },
 
+  /** Rythme de chaque ligne en rafraîchissement rapide (bulle de « Mis à jour à… ») */
+  refreshPlanText(keys) {
+    if (!this.fastMode()) return '';
+    const sec = parseInt(Store.state.settings.refreshSec, 10);
+    const groups = { fast: [], closed: [], twelve: [] };
+    for (const k of keys) {
+      const inst = Store.instrument(k);
+      const ex = inst && inst.mic ? Markets.forMic(inst.mic) : null;
+      if (Api.provider(k) !== 'yahoo') groups.twelve.push(k);
+      else if (ex && Markets.status(ex).state !== 'open') groups.closed.push(k);
+      else groups.fast.push(k);
+    }
+    const names = l => l.map(k => Store.label(k)).join(', ');
+    return [groups.fast.length ? `Toutes les ${sec} s : ${names(groups.fast)}` : '',
+      groups.closed.length ? `Toutes les 2 min, leur marché est fermé (le cours ne bouge pas) : ${names(groups.closed)}` : '',
+      groups.twelve.length ? `Au plus une fois par minute (crédits Twelve Data) : ${names(groups.twelve)}` : '',
+      'Taux de change : toutes les 30 s. Un cours ne change que lorsqu\'un échange a lieu : un ETF peu échangé peut rester plusieurs minutes au même prix.'].filter(Boolean).join('\n');
+  },
+
   /** Faut-il interroger cet instrument à ce tour-ci ? */
   dueForRefresh(key, manual) {
     if (manual || !this.fastMode()) return true;
@@ -330,8 +349,7 @@ const App = {
     if (this._rq) return;
     this._rq = requestAnimationFrame(() => {
       this._rq = 0;
-      const sel = window.getSelection && window.getSelection();
-      if (this.pointerDown || (sel && !sel.isCollapsed && sel.toString())) { this._rqPending = true; return; }
+      if (this.renderBlocked()) { this._rqPending = true; clearTimeout(this._rqRetry); this._rqRetry = setTimeout(() => this.renderQuotes(), 1000); return; }
       this._rqPending = false;
       if (this.view === 'portfolio' || this.view === 'analysis') this.renderPortfolio();
       else this._portfolioStale = true;
@@ -384,9 +402,24 @@ const App = {
       + ` · statistiques Cloudflare, avec ~1 min de décalage.`);
   },
 
+  /**
+   * Faut-il attendre avant de redessiner les cours ? Pendant un appui (sinon le clic serait perdu), au plus 1,5 s ;
+   * pendant une sélection de texte dans les pages (pour pouvoir la copier), au plus 20 s. Une sélection ailleurs
+   * (fenêtre, champ de saisie) ne bloque rien : avant, une sélection oubliée figeait les cours indéfiniment.
+   */
+  renderBlocked(now = Date.now()) {
+    if (this.pointerDown && now - (this.pointerDownAt || 0) < 1500) return true;
+    const sel = window.getSelection && window.getSelection();
+    const node = sel && !sel.isCollapsed && sel.toString() ? sel.anchorNode : null;
+    const el0 = node && (node.nodeType === 1 ? node : node.parentElement);
+    if (!el0 || !el0.closest || !el0.closest('main') || el0.closest('dialog, input, textarea')) { this._selSince = 0; return false; }
+    if (!this._selSince) this._selSince = now;
+    return now - this._selSince < 20000;
+  },
+
   bindInteractionGuard() {
     // un tableau reconstruit entre l'appui et le relâchement ferait perdre le clic
-    document.addEventListener('pointerdown', () => { this.pointerDown = true; }, true);
+    document.addEventListener('pointerdown', () => { this.pointerDown = true; this.pointerDownAt = Date.now(); }, true);
     const up = () => { this.pointerDown = false; if (this._rqPending) setTimeout(() => this.renderQuotes(), 50); };
     document.addEventListener('pointerup', up, true);
     document.addEventListener('pointercancel', up, true);
@@ -482,10 +515,16 @@ const App = {
       try { for (let i = 0; i < yahoo.length; i += 4) await Promise.all(yahoo.slice(i, i + 4).map(one)); } catch (e) { /* déjà compté */ }
       try { for (const k of twelve) await one(k); } catch (e) { /* clé invalide */ }
       for (const k of keys) { const i = Store.instrument(k); if (i && i.currency) currencies.add(i.currency); }
-      for (const c of currencies) { try { await Api.fxRate(c); } catch (e) { errors++; lastErr = e; } }
+      for (const c of currencies) {
+        try { const before = Api.fxCached(c); if ((await Api.fxRate(c)) !== before) changed = true; } catch (e) { errors++; lastErr = e; } // taux qui bouge : valeurs en euros à redessiner
+      }
       this.lastRefresh = Date.now();
       this.preloadFx(); // taux historiques des opérations : ne charge que ce qui manque (au plus toutes les 12 h)
-      if (due.length) $('#lastUpdate').textContent = 'Mis à jour à ' + fmtTime(this.lastRefresh);
+      if (due.length) {
+        const lu = $('#lastUpdate');
+        lu.textContent = 'Mis à jour à ' + fmtTime(this.lastRefresh);
+        lu.title = this.refreshPlanText(keys);
+      }
     } finally {
       this.refreshing = false;
       $('#refreshBtn').classList.remove('spin');

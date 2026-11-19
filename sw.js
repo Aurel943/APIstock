@@ -1,6 +1,6 @@
 /* Service worker : rend le site installable et utilisable hors-ligne (dernières données en cache).
  * Stratégie « réseau d'abord » pour les fichiers du site, afin de toujours récupérer la dernière version. */
-const CACHE = 'apistock-d4c6d2ad74'; // calculé par scripts/sw-version.mjs (ne pas modifier à la main)
+const CACHE = 'apistock-42a2fbd49f'; // calculé par scripts/sw-version.mjs (ne pas modifier à la main)
 const ASSETS = ['./', 'index.html', 'css/style.css', 'js/utils.js', 'js/cache.js', 'js/store.js', 'js/api.js', 'js/markets.js',
   'js/portfolio.js', 'js/charts.js', 'js/app.js', 'js/lazy.js', 'js/evolution.js', 'js/home.js', 'js/jalons.js', 'js/views.js', 'js/compare.js', 'js/extras.js', 'js/mobile.js', 'js/features.js',
   'js/money.js', 'js/newsart.js', 'js/insights.js', 'js/drift.js', 'js/wealth.js', 'js/avis.js', 'js/manual.js', 'js/health.js', 'js/agenda.js', 'js/fiche.js', 'js/today.js', 'js/watchcols.js', 'js/etfcompare.js', 'js/tour.js', 'js/catalog.js', 'js/goals.js', 'js/optimizer.js', 'js/treemap.js', 'js/wrapped.js', 'js/lab.js', 'js/share.js', 'js/labo-quant.js', 'js/fisc.js', 'js/copilot.js', 'js/desk.js', 'js/arena.js', 'js/institut.js', 'js/termchart.js', 'js/terminal.js', 'js/inflation.js', 'js/attribution.js', 'js/styles.js', 'js/ecartsuivi.js', 'js/credit.js', 'js/screener.js', 'js/ordre.js', 'js/courtiers.js', 'js/obligations.js', 'js/devises.js', 'js/diversif.js', 'js/budget.js', 'js/revue.js', 'js/xlsx.js', 'js/enveloppes.js', 'manifest.webmanifest', 'icons/icon-192.png'];

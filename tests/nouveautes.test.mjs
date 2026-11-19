@@ -237,3 +237,43 @@ test('accueil : ordre des cartes (nouvelles cartes à la suite), mini-courbe des
   near(s.pct, 10); // versement de 1 100 € exclu (0 %), puis +10 %
   assert.equal(Home.spark(points.slice(0, 2), '2026-11-19'), null);
 });
+
+/* ---------------- rafraîchissement des cours ---------------- */
+
+test('cours : une sélection de texte ou un appui ne figent plus l\'affichage indéfiniment', () => {
+  const app = loadApp({});
+  const { App, ctx } = app;
+  const node = inside => ({ nodeType: 1, closest: sel => (sel === 'main' ? inside : null) });
+  let sel = null;
+  ctx.window.getSelection = () => sel;
+  assert.equal(App.renderBlocked(1000), false, 'rien en cours');
+  // appui : attente d'au plus 1,5 s (un relâchement manqué ne bloque plus tout)
+  App.pointerDown = true; App.pointerDownAt = 1000;
+  assert.equal(App.renderBlocked(2000), true);
+  assert.equal(App.renderBlocked(2600), false);
+  App.pointerDown = false;
+  // sélection hors des pages (fenêtre, bandeau) : aucun blocage
+  sel = { isCollapsed: false, toString: () => '701,51', anchorNode: node(false) };
+  assert.equal(App.renderBlocked(3000), false);
+  // sélection dans une page : le temps de la copier, au plus 20 s
+  sel = { isCollapsed: false, toString: () => '701,51', anchorNode: node(true) };
+  assert.equal(App.renderBlocked(10000), true);
+  assert.equal(App.renderBlocked(29000), true);
+  assert.equal(App.renderBlocked(30001), false);
+});
+
+test('cours : rythme de chaque ligne expliqué en rafraîchissement rapide', () => {
+  const app = loadApp({ settings: { baseCurrency: 'EUR', refreshSec: 1 }, instruments: {
+    'CW8@XPAR': { symbol: 'CW8', mic: 'XPAR', name: 'Amundi MSCI World', currency: 'EUR', provider: 'yahoo', ysymbol: 'CW8.PA' },
+    'VTI@ARCX': { symbol: 'VTI', mic: 'ARCX', name: 'Vanguard Total', currency: 'USD', provider: 'twelve' } } });
+  const Markets = app.get('Markets');
+  Markets.status = () => ({ state: 'open' });
+  app.Api.provider = k => (k === 'VTI@ARCX' ? 'twelve' : 'yahoo'); // comme avec une clé Twelve Data
+  const t = app.App.refreshPlanText(['CW8@XPAR', 'VTI@ARCX']);
+  assert.match(t, /Toutes les 1 s : Amundi MSCI World/);
+  assert.match(t, /Twelve Data\) : Vanguard Total/);
+  Markets.status = () => ({ state: 'closed' });
+  assert.match(app.App.refreshPlanText(['CW8@XPAR']), /marché est fermé/);
+  app.Store.state.settings.refreshSec = 60;
+  assert.equal(app.App.refreshPlanText(['CW8@XPAR']), '');
+});
